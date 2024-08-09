@@ -10,7 +10,7 @@ DEPENDS:remove:cheri = "libssp-nonshared"
 
 RDEPENDS:${PN}-dev:remove:cheri = "libssp-nonshared-staticdev"
 
-CONFIGUREOPTS:cheri += " --enable-static --disable-shared"
+CONFIGUREOPTS:append:cheri = " --enable-static --disable-shared"
 
 # musl builds with -nostdlib and -ffreestanding, so cannot access
 # cheri_init_globals_bw.h directly. Copy it into the build for now
