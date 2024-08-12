@@ -182,7 +182,7 @@ PACKAGECONFIG[libxml2] = "--enable-libxml2,--disable-libxml2,libxml2"
 PACKAGECONFIG[attr] = "--enable-attr,--disable-attr,attr,"
 PACKAGECONFIG[rbd] = "--enable-rbd,--disable-rbd,ceph,ceph"
 PACKAGECONFIG[vhost] = "--enable-vhost-net,--disable-vhost-net,,"
-PACKAGECONFIG[ust] = "--enable-trace-backend=ust,--enable-trace-backend=nop,lttng-ust,"
+PACKAGECONFIG[ust] = "--enable-trace-backend=ust,,"
 PACKAGECONFIG[pie] = "--enable-pie,--disable-pie,,"
 PACKAGECONFIG[seccomp] = "--enable-seccomp,--disable-seccomp,libseccomp"
 # libnfs is currently provided by meta-kodi
