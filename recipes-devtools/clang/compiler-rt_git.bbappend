@@ -3,6 +3,12 @@
 DEPENDS:remove:cheri = "libgcc"
 DEPENDS:remove:cheri:class-target = "gcc-runtime"
 
+# Remove circular dependency.
+# compiler-rt needs header files from libc, but not libc.a itself, while
+# musl needs compiler-rt.a to link libc.so.
+DEPENDS:remove:class-target = "virtual/${MLPREFIX}libc"
+DEPENDS:append:class-target = " musl-initial"
+
 # meta-clang compiler-rt is adding dependencies on gcc libraries, but we do not
 # build them
 LDFLAGS:remove:cheri = "-unwindlib=libgcc -rtlib=libgcc -stdlib=libstdc++"

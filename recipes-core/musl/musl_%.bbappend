@@ -4,16 +4,24 @@ SRC_URI:cheri = " \
     git://${CODASIP_GIT_CHERILINUX_REPO}/musl.git;protocol=${CODASIP_GIT_PROTOCOL};branch=cheri-bakewell \
     file://non-cheri-ldso.patch \
 "
-SRCREV:cheri = "f126724e95c7a55d633d513481aa4d7550ba4e12"
 BASEVER:cheri = "1.2.0"
+SRCREV:cheri = "${AUTOREV}"
+PV:cheri = "${BASEVER}+git${SRCPV}"
+
 LIC_FILES_CHKSUM:cheri = "file://COPYRIGHT;md5=f95ee848a08ad253c04723da00cedb01"
 
 DEPENDS:remove:cheri = "libgcc-initial"
+DEPENDS:append:cheri = " virtual/${TARGET_PREFIX}compilerlibs"
 DEPENDS:remove:cheri = "libssp-nonshared"
 
 RDEPENDS:${PN}-dev:remove:cheri = "libssp-nonshared-staticdev"
 
-CONFIGUREOPTS:append:cheri = " --enable-static --disable-shared"
+# musl Makefile uses
+#   STRIP  = $(CROSS_COMPILE)strip
+# which is the bfd strip, which fails with:
+#   riscv64-codasip-linux-musl-strip: lib/libc.so.striped: not enough room for program headers, try linking with -N
+# so force the use of llvm strip
+EXTRA_OEMAKE += "STRIP=${STRIP}"
 
 # musl builds with -nostdlib and -ffreestanding, so cannot access
 # cheri_init_globals_bw.h directly. Copy it into the build for now
