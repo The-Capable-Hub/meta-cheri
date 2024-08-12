@@ -19,7 +19,3 @@ SRC_URI:prepend:cheri = " \
 "
 SRCREV:cheri = "12507073b16c4d0d84f3c895cf2c3e9fd540eef6"
 S:cheri = "${WORKDIR}/git"
-
-do_prepare_config:append:cheri () {
-	sed -i 's/# CONFIG_STATIC is not set/CONFIG_STATIC=y/' ${S}/.config
-}
