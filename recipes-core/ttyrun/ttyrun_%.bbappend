@@ -1,1 +1,0 @@
-LDFLAGS:append:cheri = " -static -v"
