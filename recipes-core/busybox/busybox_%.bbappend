@@ -1,3 +1,5 @@
+FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
+
 SRC_URI:remove:cheri = " \
 	   https://busybox.net/downloads/busybox-${PV}.tar.bz2;name=tarball \
 	   file://0001-depmod-Ignore-.debug-directories.patch \
@@ -16,6 +18,7 @@ SRC_URI:remove:cheri = " \
            "
 SRC_URI:prepend:cheri = " \
   git://github.com/cheri-linux/busybox.git;protocol=https;branch=riscv-cheri \
+  file://tar-fix-fallout.patch \
 "
 SRCREV:cheri = "12507073b16c4d0d84f3c895cf2c3e9fd540eef6"
 S:cheri = "${WORKDIR}/git"
