@@ -1,6 +1,5 @@
-SRC_URI:cheri = " \
-    git://${CODASIP_GIT_CHERILINUX_REPO}/linux.git;protocol=${CODASIP_GIT_PROTOCOL};branch=merge \
-"
+CODASIP_GIT_BRANCH = "hobgoblin"
+CODASIP_GIT_BRANCH:cheri = "merge"
 
 LINUX_VERSION:cheri ?= "6.10"
 KBUILD_DEFCONFIG:cheri = "qemu_riscv64cheripc_defconfig"
@@ -13,3 +12,5 @@ KBUILD_DEFCONFIG:cheri = "qemu_riscv64cheripc_defconfig"
 # However also works with llvm-objcopy from LLVM 15.0, so switch to that.
 # Same problem occurs building linux 6.5 for non-cheri.
 KERNEL_OBJCOPY = "${HOST_PREFIX}llvm-objcopy"
+
+LINUX_VERSION_EXTENSION:append:cheri = "-cheri"
