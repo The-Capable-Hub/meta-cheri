@@ -1,6 +1,3 @@
-# For cheri we need to remove explict gcc dependency in kernel.bbclass
-DEPENDS:remove:cheri = "virtual/${TARGET_PREFIX}binutils virtual/${TARGET_PREFIX}gcc"
-
 SRC_URI:cheri = " \
     git://${CODASIP_GIT_CHERILINUX_REPO}/linux.git;protocol=${CODASIP_GIT_PROTOCOL};branch=merge \
 "
