@@ -16,7 +16,7 @@ BASE_DEFAULT_DEPS:append = " libssp-nonshared"
 PACKAGECONFIG:append:pn-compiler-rt = " crt"
 
 # We need to force the use of LLVM lld for Cheri builds
-DISTRO_FEATURES:append:cheri = " ld-is-lld"
+DISTRO_FEATURES:append = " ld-is-lld"
 
 SYSVINIT_SCRIPTS:remove = "modutils-initscripts"
 VIRTUAL-RUNTIME_initscripts = ""

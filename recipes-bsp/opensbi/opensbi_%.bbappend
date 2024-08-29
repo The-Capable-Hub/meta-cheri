@@ -1,10 +1,12 @@
 python () {
   import re
   cc=d.getVar("CC")
-  def extract_arg(arg):
-    return re.search(r'%s=(\w*)' % arg, cc).group(1)
-  d.setVar("RISCV_VARS", "PLATFORM_RISCV_ABI=%s PLATFORM_RISCV_ISA=%s" %
-    (extract_arg("-mabi"), extract_arg("-march")))
+  def translate_arg(cc_arg, new_var):
+    r = re.search(r'%s=(\w*)' % cc_arg, cc)
+    if r :
+      return new_var + "=" + r.group(1)
+    return ""
+  d.setVar("RISCV_VARS", translate_arg("-mabi", "PLATFORM_RISCV_ABI") + " " + translate_arg("-march", "PLATFORM_RISCV_ISA"))
 }
 
-EXTRA_OEMAKE:append:cheri = " ${RISCV_VARS}"
+EXTRA_OEMAKE:append = " ${RISCV_VARS}"

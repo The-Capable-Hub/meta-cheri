@@ -5,16 +5,14 @@ SUMMARY = "Header files to keep compiler-rt build happy"
 HOMEPAGE = "http://www.musl-libc.org/"
 LICENSE = "MIT"
 SECTION = "libs"
-LIC_FILES_CHKSUM = "file://COPYRIGHT;md5=b03f1cc25363d094011f8f4fd8bcfb68"
 
-SRC_URI:cheri = " \
+SRC_URI = " \
     git://${CODASIP_GIT_CHERILINUX_REPO}/musl.git;protocol=${CODASIP_GIT_PROTOCOL};branch=cheri-bakewell \
 "
-BASEVER:cheri = "1.2.0"
-SRCREV:cheri = "${AUTOREV}"
-PV:cheri = "${BASEVER}+git${SRCPV}"
-
-LIC_FILES_CHKSUM:cheri = "file://COPYRIGHT;md5=f95ee848a08ad253c04723da00cedb01"
+BASEVER = "1.2.0"
+SRCREV = "${AUTOREV}"
+PV = "${BASEVER}+git${SRCPV}"
+LIC_FILES_CHKSUM = "file://COPYRIGHT;md5=f95ee848a08ad253c04723da00cedb01"
 
 S = "${WORKDIR}/git"
 
