@@ -40,4 +40,17 @@ do_compile:prepend() {
 # Rather than fix it, just remove it.
 do_install:append() {
   find ${D}${includedir} -name stropts.h -exec rm {} \;
+
+  # Because we specify --sysroot when cross compiling, $sysroot/usr/include
+  # ends up on the include search path before the compiler's own
+  # $sysroot-native/usr/lib/clang/15.0.0/include which causes problems with
+  # files such as stddef.h where we want the compiler version (for ptraddr_t
+  # for example).
+  # So delete the musl provided headers and rely on the compiler provided
+  # ones.
+  # Note we leave a couple in place (inttypes.h, limits.h) because the
+  # compiler provided ones are incomplete and would rely on picking up the
+  # system provided ones using #include_next, but this work because
+  # the include path ordering is wrong.
+  rm ${D}${includedir}/{float,iso646,stdalign,stdarg,stdbool,stddef,stdint,stdnoreturn,tgmath}.h
 }
