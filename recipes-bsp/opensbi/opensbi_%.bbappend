@@ -1,3 +1,6 @@
+CODASIP_GIT_BRANCH = "hobgoblin"
+CODASIP_GIT_BRANCH:cheri = "hobgoblin-cheri"
+
 python () {
   import re
   cc=d.getVar("CC")
