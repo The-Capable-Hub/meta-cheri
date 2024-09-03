@@ -7,7 +7,7 @@ PREFERRED_PROVIDER_virtual/${TARGET_PREFIX}compilerlibs = "compiler-rt"
 BASE_DEFAULT_DEPS:remove = "libcxx"
 
 # Don't want to build anything on the target with gcc
-BASE_DEFAULT_DEPS:remove = "virtual/${HOST_PREFIX}gcc"
+BASE_DEFAULT_DEPS:class-target:remove = "virtual/${HOST_PREFIX}gcc"
 
 # Get crtbegin/end from compiler-rt
 PACKAGECONFIG:append:pn-compiler-rt = " crt"
@@ -31,3 +31,11 @@ TC_CXX_RUNTIME="llvm"
 # Not only is this unnecessary for cheri, it generates a warning
 # telling you this, which causes problems with some configure scripts.
 SECURITY_STACK_PROTECTOR = ""
+
+# Remove gcc runtime-libraries from the SDK
+RDEPENDS:packagegroup-core-standalone-sdk-target:remove = "libgcc"
+RDEPENDS:packagegroup-core-standalone-sdk-target:remove = "libgcc-dev"
+RDEPENDS:packagegroup-core-standalone-sdk-target:remove = "libatomic"
+RDEPENDS:packagegroup-core-standalone-sdk-target:remove = "libatomic-dev"
+RDEPENDS:packagegroup-core-standalone-sdk-target:remove = "libstdc++"
+RDEPENDS:packagegroup-core-standalone-sdk-target:remove = "libstdc++-dev"
