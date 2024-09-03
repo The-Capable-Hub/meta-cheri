@@ -9,9 +9,6 @@ BASE_DEFAULT_DEPS:remove = "libcxx"
 # Don't want to build anything on the target with gcc
 BASE_DEFAULT_DEPS:remove = "virtual/${HOST_PREFIX}gcc"
 
-# Add the musl libssp-nonshared to keep compiler frontend happy
-BASE_DEFAULT_DEPS:append = " libssp-nonshared"
-
 # Get crtbegin/end from compiler-rt
 PACKAGECONFIG:append:pn-compiler-rt = " crt"
 
@@ -30,3 +27,7 @@ VIRTUAL-RUNTIME_base-utils-syslog = ""
 TOOLCHAIN:pn-libssp-nonshared = "clang"
 
 TC_CXX_RUNTIME="llvm"
+
+# Not only is this unnecessary for cheri, it generates a warning
+# telling you this, which causes problems with some configure scripts.
+SECURITY_STACK_PROTECTOR = ""
