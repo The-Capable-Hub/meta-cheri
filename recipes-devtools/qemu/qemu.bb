@@ -15,9 +15,9 @@ do_install() {
 	cat > dummy-qemu <<-EOF
 		#!/bin/sh
 		echo "Dummy version of qemu to keep Yocto happy"
-		exit 1
+		exit 0
 		EOF
 	for target in ${QEMU_TARGETS} ; do
-	    install -Dm 0644 dummy-qemu ${D}${bindir}/qemu-$target
+	    install -Dm 0755 dummy-qemu ${D}${bindir}/qemu-$target
 	done
 }
