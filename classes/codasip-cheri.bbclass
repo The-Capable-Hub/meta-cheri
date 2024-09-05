@@ -3,9 +3,6 @@ LLDB = ""
 
 PREFERRED_PROVIDER_virtual/${TARGET_PREFIX}compilerlibs = "compiler-rt"
 
-# Can't build libcxx at the moment, try without it
-BASE_DEFAULT_DEPS:remove = "libcxx"
-
 # Don't want to build anything on the target with gcc
 BASE_DEFAULT_DEPS:class-target:remove = "virtual/${HOST_PREFIX}gcc"
 

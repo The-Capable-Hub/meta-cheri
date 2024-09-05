@@ -22,6 +22,8 @@ PROVIDES:append:class-target = "\
         virtual/${TARGET_PREFIX}compilerlibs \
         "
 
+EXTRA_OECMAKE:append = " -DCOMPILER_RT_BUILD_STANDALONE_LIBATOMIC=ON"
+
 COMPATIBLE_HOST = "${HOST_SYS}"
 
 # The clang compiler driver is adding -lunwind and -lssp_nonshared
@@ -40,8 +42,4 @@ do_install:append () {
 	fi
     ;;
     esac
-
-    touch unwind.c
-    ${CC} -c unwind.c
-    ${AR} q ${D}${libdir}/libunwind.a unwind.o
 }
