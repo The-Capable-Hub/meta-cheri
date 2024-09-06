@@ -15,10 +15,12 @@ SRC_URI:remove:cheri = " \
            file://0001-libbb-sockaddr2str-ensure-only-printable-characters-.patch \
            file://0002-nslookup-sanitize-all-printed-strings-with-printable.patch \
            file://start-stop-false.patch \
+	   file://busybox-vi-bias.patch \
            "
 SRC_URI:prepend:cheri = " \
   git://github.com/cheri-linux/busybox.git;protocol=https;branch=riscv-cheri \
   file://tar-fix-fallout.patch \
+  file://busybox-vi-bias-fix.patch \
 "
 SRCREV:cheri = "12507073b16c4d0d84f3c895cf2c3e9fd540eef6"
 S:cheri = "${WORKDIR}/git"
