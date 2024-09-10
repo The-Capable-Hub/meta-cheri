@@ -7,12 +7,12 @@ LICENSE = "MIT"
 SECTION = "libs"
 
 SRC_URI = " \
-    git://${CODASIP_GIT_CHERILINUX_REPO}/musl.git;protocol=${CODASIP_GIT_PROTOCOL};branch=cheri-bakewell \
+    git://${CODASIP_GIT_REPO}/bakewell/musl-libc.git;protocol=${CODASIP_GIT_PROTOCOL};branch=bakewell \
 "
 BASEVER = "1.2.0"
 SRCREV = "${AUTOREV}"
 PV = "${BASEVER}+git${SRCPV}"
-LIC_FILES_CHKSUM = "file://COPYRIGHT;md5=f95ee848a08ad253c04723da00cedb01"
+LIC_FILES_CHKSUM = "file://COPYRIGHT;md5=b03f1cc25363d094011f8f4fd8bcfb68"
 
 S = "${WORKDIR}/git"
 

@@ -1,11 +1,11 @@
 SRC_URI = " \
-    git://${CODASIP_GIT_CHERILINUX_REPO}/musl.git;protocol=${CODASIP_GIT_PROTOCOL};branch=cheri-bakewell \
+    git://${CODASIP_GIT_REPO}/bakewell/musl-libc.git;protocol=${CODASIP_GIT_PROTOCOL};branch=bakewell \
 "
 BASEVER = "1.2.0"
 SRCREV = "${AUTOREV}"
 PV = "${BASEVER}+git${SRCPV}"
 
-LIC_FILES_CHKSUM = "file://COPYRIGHT;md5=f95ee848a08ad253c04723da00cedb01"
+LIC_FILES_CHKSUM = "file://COPYRIGHT;md5=b03f1cc25363d094011f8f4fd8bcfb68"
 
 DEPENDS:remove = "libgcc-initial"
 DEPENDS:append = " virtual/${TARGET_PREFIX}compilerlibs"
@@ -50,4 +50,7 @@ do_install:append() {
   # system provided ones using #include_next, but this work because
   # the include path ordering is wrong.
   rm ${D}${includedir}/{float,iso646,stdalign,stdarg,stdbool,stddef,stdint,stdnoreturn,tgmath}.h
+
+  rm ${D}/usr/share/revisions.txt
+  rmdir ${D}/usr/share/
 }
