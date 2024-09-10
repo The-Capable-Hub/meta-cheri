@@ -1,8 +1,5 @@
-FILESEXTRAPATHS:prepend := "${THISDIR}/musl:"
-
 SRC_URI = " \
     git://${CODASIP_GIT_CHERILINUX_REPO}/musl.git;protocol=${CODASIP_GIT_PROTOCOL};branch=cheri-bakewell \
-    file://non-cheri-ldso.patch \
 "
 BASEVER = "1.2.0"
 SRCREV = "${AUTOREV}"
