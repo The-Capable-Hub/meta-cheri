@@ -1,0 +1,20 @@
+Need to correctly define ulong32 as a 32 bit size data type otherwise
+some of the crypto routines fail (the initial problem was seen in the
+poly1305 routines).
+
+Note that the existing code works correctly for standard RISC-V 64 as
+clang defines _LP64, but when compiling for CHERI it (quite correctly)
+doesn't.
+
+Upstream-Status: Inappropriate (at the moment) as Cheri specific
+
+--- dropbear-2022.83.orig/libtomcrypt/src/headers/tomcrypt_cfg.h
++++ dropbear-2022.83/libtomcrypt/src/headers/tomcrypt_cfg.h
+@@ -207,6 +207,7 @@ LTC_EXPORT int   LTC_CALL XSTRCMP(const
+     defined(__s390x__) || defined(__arch64__) || defined(__aarch64__) || \
+     defined(__sparcv9) || defined(__sparc_v9__) || defined(__sparc64__) || \
+     defined(__ia64) || defined(__ia64__) || defined(__itanium__) || defined(_M_IA64) || \
++    (defined(__riscv_xlen) && (__riscv_xlen == 64)) || \
+     defined(__LP64__) || defined(_LP64) || defined(__64BIT__)
+    typedef unsigned ulong32;
+    #if !defined(ENDIAN_64BITWORD) && !defined(ENDIAN_32BITWORD)
