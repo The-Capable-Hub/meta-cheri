@@ -63,8 +63,6 @@ do_install_ptest() {
 	sed -i -e "s#^QEMU=.*/qemu-#QEMU=qemu-#g" ${D}${PTEST_PATH}/tests/tcg/*.mak
 }
 
-QEMU_TARGETS = "riscv64cheri"
-
 EXTRA_OECONF = " \
     --prefix=${prefix} \
     --bindir=${bindir} \

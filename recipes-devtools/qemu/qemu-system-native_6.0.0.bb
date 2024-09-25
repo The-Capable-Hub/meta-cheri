@@ -15,6 +15,8 @@ PACKAGECONFIG ??= "fdt alsa kvm pie \
 # Handle distros such as CentOS 5 32-bit that do not have kvm support
 PACKAGECONFIG:remove = "${@'kvm' if not os.path.exists('/usr/include/linux/kvm.h') else ''}"
 
+QEMU_TARGETS:remove:cheri = "x86_64"
+
 do_install[depends] += "hobgoblin-bootfiles:do_deploy"
 
 do_install:append() {
