@@ -17,6 +17,8 @@ PACKAGECONFIG:remove = "${@'kvm' if not os.path.exists('/usr/include/linux/kvm.h
 
 QEMU_TARGETS:remove:cheri = "x86_64"
 
+PACKAGECONFIG:remove:cheri = "alsa"
+
 do_install[depends] += "hobgoblin-bootfiles:do_deploy"
 
 do_install:append() {
