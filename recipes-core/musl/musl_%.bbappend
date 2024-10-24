@@ -1,9 +1,14 @@
+FILESEXTRAPATHS:prepend := "${THISDIR}/musl:"
+
+CODASIP_GIT_BRANCH = "summitdemo24"
+
 SRC_URI = " \
-    git://${CODASIP_GIT_REPO}/bakewell/musl-libc.git;protocol=${CODASIP_GIT_PROTOCOL};branch=bakewell \
+    git://${CODASIP_GIT_REPO}/bakewell/musl-libc.git;protocol=${CODASIP_GIT_PROTOCOL};branch=${CODASIP_GIT_BRANCH} \
 "
 BASEVER = "1.2.0"
 SRCREV = "${AUTOREV}"
 PV = "${BASEVER}+git${SRCPV}"
+ERROR_QA:remove = "version-going-backwards"
 
 LIC_FILES_CHKSUM = "file://COPYRIGHT;md5=b03f1cc25363d094011f8f4fd8bcfb68"
 
@@ -47,7 +52,7 @@ do_install:append() {
   # ones.
   # Note we leave a couple in place (inttypes.h, limits.h) because the
   # compiler provided ones are incomplete and would rely on picking up the
-  # system provided ones using #include_next, but this work because
+  # system provided ones using #include_next, but this doesn't work because
   # the include path ordering is wrong.
   rm ${D}${includedir}/{float,iso646,stdalign,stdarg,stdbool,stddef,stdint,stdnoreturn,tgmath}.h
 
