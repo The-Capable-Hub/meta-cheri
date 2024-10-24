@@ -1,0 +1,36 @@
+Musl for CHERI defines timer_t as a structure to avoid problems
+with pointer arithmetic. strace assumes that it is an integer type,
+and -1 can be used as an invalid timer value. Add an explicit
+'delay_timer_is_created' flag rather than an invalid value.
+
+Upstream-Status: Inappropriate (at the moment) as Cheri specific
+
+--- strace-6.5/src/delay.c.orig	2021-06-03 09:01:00.000000000 +0100
++++ strace-6.5/src/delay.c	2024-09-24 18:44:42.731947187 +0100
+@@ -17,7 +17,8 @@
+ static size_t delay_data_vec_capacity; /* size of the arena */
+ static size_t delay_data_vec_size;     /* size of the used arena */
+ 
+-static timer_t delay_timer = (timer_t) -1;
++static timer_t delay_timer;
++static bool delay_timer_is_created;
+ static bool delay_timer_is_armed;
+ 
+ static void
+@@ -64,7 +65,7 @@
+ static bool
+ is_delay_timer_created(void)
+ {
+-	return delay_timer != (timer_t) -1;
++	return delay_timer_is_created;
+ }
+ 
+ bool
+@@ -129,6 +130,7 @@
+ 	} else {
+ 		if (timer_create(CLOCK_MONOTONIC, NULL, &delay_timer))
+ 			perror_msg_and_die("timer_create");
++		delay_timer_is_created = true;
+ 	}
+ 
+ 	arm_delay_timer(tcp);
