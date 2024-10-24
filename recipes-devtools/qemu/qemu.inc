@@ -14,13 +14,13 @@ inherit pkgconfig ptest
 LIC_FILES_CHKSUM = "file://COPYING;md5=441c28d2cf86e15a37fa47e15a72fbac \
                     file://COPYING.LIB;endline=24;md5=8c5efda6cf1e1b03dcfd0e6c0d271c7f"
 
-SRCREV = "v6.2.0-cheri-codasip-1"
+SRCREV = "${AUTOREV}"
 PV = "6.2.0+git${SRCPV}"
 
 S = "${WORKDIR}/git"
 
 SRC_URI = " \
-	gitsm://${CODASIP_GIT_CHERILINUX_REPO}/qemu.git;protocol=${CODASIP_GIT_PROTOCOL};tag=${SRCREV};nobranch=1 \
+	gitsm://${CODASIP_GIT_CHERILINUX_REPO}/qemu.git;protocol=${CODASIP_GIT_PROTOCOL};branch=qemu-cheri \
 "
 UPSTREAM_CHECK_REGEX = "qemu-(?P<pver>\d+(\.\d+)+)\.tar"
 
