@@ -1,12 +1,8 @@
-CODASIP_GIT_BRANCH = "hobgoblin"
-CODASIP_GIT_BRANCH:cheri = "summitdemo24"
-
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 # Add this for use on qemu:
 # file://axi-net-qemu-non-cheri.patch
 EXTRA_PATCHES = " \
- file://axi-net-vcu118.patch \
  file://axi-net-vcu118-mac-addr.patch \
 "
 
@@ -18,7 +14,6 @@ EXTRA_PATCHES:cheri = " \
 
 SRC_URI:append = "${EXTRA_PATCHES}"
 
-LINUX_VERSION:cheri ?= "6.10"
 KBUILD_DEFCONFIG:cheri = "qemu_riscv64cheripc_defconfig"
 
 # When building Linux 6.10 for cheri, binutils 2.41.0 objcopy fails when
