@@ -23,16 +23,3 @@ index e7943823052c..2cc5d5d5a501 100644
  				interrupts-extended = <&plic 18>;
  				ti,dp83867-rxctrl-strap-quirk;
  				ti,sgmii-ref-clock-output-enable;
-diff --git a/arch/riscv/include/asm/errata_list.h b/arch/riscv/include/asm/errata_list.h
-index 337433537159..c0c179b03530 100644
---- a/arch/riscv/include/asm/errata_list.h
-+++ b/arch/riscv/include/asm/errata_list.h
-@@ -106,7 +107,7 @@ asm volatile(ALTERNATIVE(						\
- 	CREG(mv)" "CREG(a0)", %1\n\t"		\
- 	"j 2f\n\t"							\
- 	"3:\n\t"							\
--	CBO_##_op(a0)							\
-+	/* CBO_##_op(a0) */ "nop\n\t"							\
- 	CREG(add)" "CREG(a0)", "CREG(a0)", %0\n\t"	\
- 	"2:\n\t"							\
- 	"bltu a0, %r2, 3b\n\t",						\

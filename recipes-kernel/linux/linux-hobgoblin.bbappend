@@ -1,7 +1,13 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
+QEMU_PATCHES = " \
+"
+
+QEMU_PATCHES:qemu-tweaks = " \
+ file://axi-net-qemu.patch \
+"
+
 # Add this for use on qemu:
-# file://axi-net-qemu-non-cheri.patch
 EXTRA_PATCHES = " \
  file://axi-net-vcu118-mac-addr.patch \
 "
@@ -12,7 +18,7 @@ EXTRA_PATCHES:cheri = " \
  file://axi-net-vcu118-mac-addr-cheri.patch \
 "
 
-SRC_URI:append = "${EXTRA_PATCHES}"
+SRC_URI:append = "${EXTRA_PATCHES} ${QEMU_PATCHES}"
 
 KBUILD_DEFCONFIG:cheri = "qemu_riscv64cheripc_defconfig"
 
