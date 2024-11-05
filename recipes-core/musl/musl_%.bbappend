@@ -1,6 +1,6 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/musl:"
 
-CODASIP_GIT_BRANCH = "summitdemo24"
+CODASIP_GIT_BRANCH = "bakewell"
 
 SRC_URI = " \
     git://${CODASIP_GIT_REPO}/bakewell/musl-libc.git;protocol=${CODASIP_GIT_PROTOCOL};branch=${CODASIP_GIT_BRANCH} \
