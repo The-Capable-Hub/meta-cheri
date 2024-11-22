@@ -4,7 +4,7 @@ LLDB = ""
 PREFERRED_PROVIDER_virtual/${TARGET_PREFIX}compilerlibs = "compiler-rt"
 
 # Don't want to build anything on the target with gcc
-BASE_DEFAULT_DEPS:class-target:remove = "virtual/${HOST_PREFIX}gcc"
+BASE_DEFAULT_DEPS:remove:class-target = "virtual/${HOST_PREFIX}gcc"
 
 # Get crtbegin/end from compiler-rt
 PACKAGECONFIG:append:pn-compiler-rt = " crt"
