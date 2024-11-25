@@ -1,0 +1,44 @@
+commit 94c9aa242944f3b6ea73a76dd06bb9d9927eeddb
+Author: Christian Ehrhardt <christian.ehrhardt@codasip.com>
+Date:   Mon Nov 11 12:53:19 2024 +0100
+
+    cheri: Fix iovec decoding
+    
+    strace assumes that an iovec is two unsigned longs. This is not
+    true for CHERI. Fix the decoding accordingly.
+
+Upstream-Status: Inappropriate (at the moment) as Cheri specific
+
+diff --git a/src/io.c b/src/io.c
+index ad70314..c96759a 100644
+--- a/src/io.c
++++ b/src/io.c
+@@ -109,7 +109,7 @@ static bool
+ print_iovec_elem_klong(struct tcb *tcp, void *elem_buf, size_t elem_size,
+ 		       void *data)
+ {
+-	const kernel_ulong_t *const iov = elem_buf;
++	const uintptr_t *const iov = elem_buf;
+ 	return print_iovec_klong(tcp, iov[0], iov[1], data);
+ }
+ #endif
+@@ -125,7 +125,9 @@ tprint_iov_upto(struct tcb *const tcp, const kernel_ulong_t len,
+ 		print_obj_by_addr_size_fn print_func,
+ 		void *opaque_data)
+ {
+-	kernel_ulong_t iov[2];
++	uintptr_t iov[2];
++	size_t elemsz = current_wordsize < sizeof(kernel_ulong_t) ?
++		2 * current_wordsize : 2 * sizeof(uintptr_t);
+ 	struct print_iovec_config config = {
+ 		.data_size = data_size,
+ 		.print_func = print_func,
+@@ -142,7 +144,7 @@ tprint_iov_upto(struct tcb *const tcp, const kernel_ulong_t len,
+ 			print_iovec_elem_klong;
+ #endif
+ 
+-	print_array(tcp, addr, len, iov, current_wordsize * 2,
++	print_array(tcp, addr, len, iov, elemsz,
+ 		    tfetch_mem_ignore_syserror, print_elem_func, &config);
+ }
+ 

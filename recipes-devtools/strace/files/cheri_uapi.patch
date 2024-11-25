@@ -1,0 +1,372 @@
+commit f83cc5b2f3f721bcfa98e142cd0cf1aca7814f86
+Author: Christian Ehrhardt <christian.ehrhardt@codasip.com>
+Date:   Mon Nov 25 12:58:34 2024 +0100
+
+    cheri: Adjust internal copies of UAPI definitions
+    
+    Strace as internal knowledge about the layout of various UAPI
+    data structures. The layout of these structures changes with
+    CHERI and the strace versions must be adjusted.
+
+Upstream-Status: Inappropriate (at the moment) as Cheri specific
+
+diff --git a/src/bpf_attr.h b/src/bpf_attr.h
+index ff9d5e3..ad186d5 100644
+--- a/src/bpf_attr.h
++++ b/src/bpf_attr.h
+@@ -59,44 +59,44 @@ struct BPF_MAP_CREATE_struct {
+ 
+ struct BPF_MAP_LOOKUP_ELEM_struct {
+ 	uint32_t map_fd;
+-	uint64_t ATTRIBUTE_ALIGNED(8) key;
+-	uint64_t ATTRIBUTE_ALIGNED(8) value;
++	__kernel_aligned_uintptr_t key;
++	__kernel_aligned_uintptr_t value;
+ 	uint64_t ATTRIBUTE_ALIGNED(8) flags;
+ };
+ 
+ # define BPF_MAP_LOOKUP_ELEM_struct_size \
+ 	sizeof(struct BPF_MAP_LOOKUP_ELEM_struct)
+-# define expected_BPF_MAP_LOOKUP_ELEM_struct_size 32
++# define expected_BPF_MAP_LOOKUP_ELEM_struct_size 64
+ 
+ struct BPF_MAP_UPDATE_ELEM_struct {
+ 	uint32_t map_fd;
+-	uint64_t ATTRIBUTE_ALIGNED(8) key;
+-	uint64_t ATTRIBUTE_ALIGNED(8) value;
++	__kernel_aligned_uintptr_t key;
++	__kernel_aligned_uintptr_t value;
+ 	uint64_t ATTRIBUTE_ALIGNED(8) flags;
+ };
+ 
+ # define BPF_MAP_UPDATE_ELEM_struct_size \
+ 	sizeof(struct BPF_MAP_UPDATE_ELEM_struct)
+-# define expected_BPF_MAP_UPDATE_ELEM_struct_size 32
++# define expected_BPF_MAP_UPDATE_ELEM_struct_size 64
+ 
+ struct BPF_MAP_DELETE_ELEM_struct {
+ 	uint32_t map_fd;
+-	uint64_t ATTRIBUTE_ALIGNED(8) key;
++	__kernel_aligned_uintptr_t key;
+ };
+ 
+ # define BPF_MAP_DELETE_ELEM_struct_size \
+ 	sizeof(struct BPF_MAP_DELETE_ELEM_struct)
+-# define expected_BPF_MAP_DELETE_ELEM_struct_size 16
++# define expected_BPF_MAP_DELETE_ELEM_struct_size 32
+ 
+ struct BPF_MAP_GET_NEXT_KEY_struct {
+ 	uint32_t map_fd;
+-	uint64_t ATTRIBUTE_ALIGNED(8) key;
+-	uint64_t ATTRIBUTE_ALIGNED(8) next_key;
++	__kernel_aligned_uintptr_t key;
++	__kernel_aligned_uintptr_t next_key;
+ };
+ 
+ # define BPF_MAP_GET_NEXT_KEY_struct_size \
+ 	sizeof(struct BPF_MAP_GET_NEXT_KEY_struct)
+-# define expected_BPF_MAP_GET_NEXT_KEY_struct_size 24
++# define expected_BPF_MAP_GET_NEXT_KEY_struct_size 48
+ 
+ struct BPF_MAP_FREEZE_struct {
+ 	uint32_t map_fd;
+@@ -109,11 +109,11 @@ struct BPF_MAP_FREEZE_struct {
+ struct BPF_PROG_LOAD_struct {
+ 	uint32_t prog_type;
+ 	uint32_t insn_cnt;
+-	uint64_t ATTRIBUTE_ALIGNED(8) insns;
+-	uint64_t ATTRIBUTE_ALIGNED(8) license;
++	__kernel_aligned_uintptr_t insns;
++	__kernel_aligned_uintptr_t license;
+ 	uint32_t log_level;
+ 	uint32_t log_size;
+-	uint64_t ATTRIBUTE_ALIGNED(8) log_buf;
++	__kernel_aligned_uintptr_t log_buf;
+ 	uint32_t kern_version;
+ 	uint32_t prog_flags;
+ 	char     prog_name[BPF_OBJ_NAME_LEN];
+@@ -121,23 +121,23 @@ struct BPF_PROG_LOAD_struct {
+ 	uint32_t expected_attach_type;
+ 	uint32_t prog_btf_fd;
+ 	uint32_t func_info_rec_size;
+-	uint64_t ATTRIBUTE_ALIGNED(8) func_info;
++	__kernel_aligned_uintptr_t func_info;
+ 	uint32_t func_info_cnt;
+ 	uint32_t line_info_rec_size;
+-	uint64_t ATTRIBUTE_ALIGNED(8) line_info;
++	__kernel_aligned_uintptr_t line_info;
+ 	uint32_t line_info_cnt;
+ 	uint32_t attach_btf_id;
+ 	uint32_t attach_prog_fd;
+ 	uint32_t pad;
+-	uint64_t ATTRIBUTE_ALIGNED(8) fd_array;
++	__kernel_aligned_uintptr_t fd_array;
+ };
+ 
+ # define BPF_PROG_LOAD_struct_size \
+ 	sizeof(struct BPF_PROG_LOAD_struct)
+-# define expected_BPF_PROG_LOAD_struct_size 128
++# define expected_BPF_PROG_LOAD_struct_size 208
+ 
+ struct BPF_OBJ_PIN_struct {
+-	uint64_t ATTRIBUTE_ALIGNED(8) pathname;
++	__kernel_aligned_uintptr_t pathname;
+ 	uint32_t bpf_fd;
+ 	uint32_t file_flags;
+ 	uint32_t path_fd;
+@@ -145,7 +145,7 @@ struct BPF_OBJ_PIN_struct {
+ 
+ # define BPF_OBJ_PIN_struct_size \
+ 	offsetofend(struct BPF_OBJ_PIN_struct, path_fd)
+-# define expected_BPF_OBJ_PIN_struct_size 20
++# define expected_BPF_OBJ_PIN_struct_size 28
+ 
+ # define BPF_OBJ_GET_struct BPF_OBJ_PIN_struct
+ # define BPF_OBJ_GET_struct_size BPF_OBJ_PIN_struct_size
+@@ -177,14 +177,14 @@ struct BPF_PROG_TEST_RUN_struct /* test */ {
+ 	uint32_t retval;
+ 	uint32_t data_size_in;
+ 	uint32_t data_size_out;
+-	uint64_t ATTRIBUTE_ALIGNED(8) data_in;
+-	uint64_t ATTRIBUTE_ALIGNED(8) data_out;
++	__kernel_aligned_uintptr_t data_in;
++	__kernel_aligned_uintptr_t data_out;
+ 	uint32_t repeat;
+ 	uint32_t duration;
+ 	uint32_t ctx_size_in;
+ 	uint32_t ctx_size_out;
+-	uint64_t ATTRIBUTE_ALIGNED(8) ctx_in;
+-	uint64_t ATTRIBUTE_ALIGNED(8) ctx_out;
++	__kernel_aligned_uintptr_t ctx_in;
++	__kernel_aligned_uintptr_t ctx_out;
+ 	uint32_t flags;
+ 	uint32_t cpu;
+ 	uint32_t batch_size;
+@@ -193,7 +193,7 @@ struct BPF_PROG_TEST_RUN_struct /* test */ {
+ # define BPF_PROG_TEST_RUN_struct_size \
+ 	offsetofend(struct BPF_PROG_TEST_RUN_struct, batch_size)
+ 	/* sizeof(struct BPF_PROG_TEST_RUN_struct) */
+-# define expected_BPF_PROG_TEST_RUN_struct_size 76
++# define expected_BPF_PROG_TEST_RUN_struct_size 108
+ 
+ struct BPF_PROG_GET_NEXT_ID_struct {
+ 	uint32_t start_id;
+@@ -234,38 +234,38 @@ struct BPF_MAP_GET_FD_BY_ID_struct {
+ struct BPF_OBJ_GET_INFO_BY_FD_struct /* info */ {
+ 	uint32_t bpf_fd;
+ 	uint32_t info_len;
+-	uint64_t ATTRIBUTE_ALIGNED(8) info;
++	__kernel_aligned_uintptr_t info;
+ };
+ 
+ # define BPF_OBJ_GET_INFO_BY_FD_struct_size \
+ 	sizeof(struct BPF_OBJ_GET_INFO_BY_FD_struct)
+-# define expected_BPF_OBJ_GET_INFO_BY_FD_struct_size 16
++# define expected_BPF_OBJ_GET_INFO_BY_FD_struct_size 32
+ 
+ struct BPF_PROG_QUERY_struct /* query */ {
+ 	uint32_t target_fd;
+ 	uint32_t attach_type;
+ 	uint32_t query_flags;
+ 	uint32_t attach_flags;
+-	uint64_t ATTRIBUTE_ALIGNED(8) prog_ids;
++	__kernel_aligned_uintptr_t prog_ids;
+ 	uint32_t prog_cnt;
+ };
+ 
+ # define BPF_PROG_QUERY_struct_size \
+ 	offsetofend(struct BPF_PROG_QUERY_struct, prog_cnt)
+-# define expected_BPF_PROG_QUERY_struct_size 28
++# define expected_BPF_PROG_QUERY_struct_size 36
+ 
+ struct BPF_RAW_TRACEPOINT_OPEN_struct /* raw_tracepoint */ {
+-	uint64_t ATTRIBUTE_ALIGNED(8) name;
++	__kernel_aligned_uintptr_t name;
+ 	uint32_t prog_fd;
+ };
+ 
+ # define BPF_RAW_TRACEPOINT_OPEN_struct_size \
+ 	offsetofend(struct BPF_RAW_TRACEPOINT_OPEN_struct, prog_fd)
+-# define expected_BPF_RAW_TRACEPOINT_OPEN_struct_size 12
++# define expected_BPF_RAW_TRACEPOINT_OPEN_struct_size 20
+ 
+ struct BPF_BTF_LOAD_struct {
+-	uint64_t ATTRIBUTE_ALIGNED(8) btf;
+-	uint64_t ATTRIBUTE_ALIGNED(8) btf_log_buf;
++	__kernel_aligned_uintptr_t btf;
++	__kernel_aligned_uintptr_t btf_log_buf;
+ 	uint32_t btf_size;
+ 	uint32_t btf_log_size;
+ 	uint32_t btf_log_level;
+@@ -273,7 +273,7 @@ struct BPF_BTF_LOAD_struct {
+ 
+ # define BPF_BTF_LOAD_struct_size \
+ 	offsetofend(struct BPF_BTF_LOAD_struct, btf_log_level)
+-# define expected_BPF_BTF_LOAD_struct_size 28
++# define expected_BPF_BTF_LOAD_struct_size 44
+ 
+ struct BPF_BTF_GET_FD_BY_ID_struct {
+ 	uint32_t btf_id;
+@@ -288,16 +288,17 @@ struct BPF_TASK_FD_QUERY_struct /* task_fd_query */ {
+ 	uint32_t fd;
+ 	uint32_t flags;
+ 	uint32_t buf_len;
+-	uint64_t ATTRIBUTE_ALIGNED(8) buf;
++	__kernel_aligned_uintptr_t buf;
+ 	uint32_t prog_id;
+ 	uint32_t fd_type;
+ 	uint64_t ATTRIBUTE_ALIGNED(8) probe_offset;
+ 	uint64_t ATTRIBUTE_ALIGNED(8) probe_addr;
++	uint64_t pad;
+ };
+ 
+ # define BPF_TASK_FD_QUERY_struct_size \
+ 	sizeof(struct BPF_TASK_FD_QUERY_struct)
+-# define expected_BPF_TASK_FD_QUERY_struct_size 48
++# define expected_BPF_TASK_FD_QUERY_struct_size 64
+ 
+ struct bpf_map_info_struct {
+ 	uint32_t type;
+@@ -332,12 +333,12 @@ struct bpf_prog_info_struct {
+ 	uint8_t  tag[BPF_TAG_SIZE];
+ 	uint32_t jited_prog_len;
+ 	uint32_t xlated_prog_len;
+-	uint64_t ATTRIBUTE_ALIGNED(8) jited_prog_insns;
+-	uint64_t ATTRIBUTE_ALIGNED(8) xlated_prog_insns;
++	__kernel_aligned_uintptr_t jited_prog_insns;
++	__kernel_aligned_uintptr_t xlated_prog_insns;
+ 	uint64_t ATTRIBUTE_ALIGNED(8) load_time;
+ 	uint32_t created_by_uid;
+ 	uint32_t nr_map_ids;
+-	uint64_t ATTRIBUTE_ALIGNED(8) map_ids;
++	__kernel_aligned_uintptr_t map_ids;
+ 	char     name[BPF_OBJ_NAME_LEN];
+ 	uint32_t ifindex;
+ 	uint32_t gpl_compatible:1;
+@@ -349,20 +350,20 @@ struct bpf_prog_info_struct {
+ 	uint64_t ATTRIBUTE_ALIGNED(8) netns_ino; /* skip check */
+ 	uint32_t nr_jited_ksyms;
+ 	uint32_t nr_jited_func_lens;
+-	uint64_t ATTRIBUTE_ALIGNED(8) jited_ksyms;
+-	uint64_t ATTRIBUTE_ALIGNED(8) jited_func_lens;
++	__kernel_aligned_uintptr_t jited_ksyms;
++	__kernel_aligned_uintptr_t jited_func_lens;
+ 	uint32_t btf_id;
+ 	uint32_t func_info_rec_size;
+-	uint64_t ATTRIBUTE_ALIGNED(8) func_info;
++	__kernel_aligned_uintptr_t func_info;
+ 	uint32_t nr_func_info;
+ 	uint32_t nr_line_info;
+-	uint64_t ATTRIBUTE_ALIGNED(8) line_info;
+-	uint64_t ATTRIBUTE_ALIGNED(8) jited_line_info;
++	__kernel_aligned_uintptr_t line_info;
++	__kernel_aligned_uintptr_t jited_line_info;
+ 	uint32_t nr_jited_line_info;
+ 	uint32_t line_info_rec_size;
+ 	uint32_t jited_line_info_rec_size;
+ 	uint32_t nr_prog_tags;
+-	uint64_t ATTRIBUTE_ALIGNED(8) prog_tags;
++	__kernel_aligned_uintptr_t prog_tags;
+ 	uint64_t ATTRIBUTE_ALIGNED(8) run_time_ns;
+ 	uint64_t ATTRIBUTE_ALIGNED(8) run_cnt;
+ 	uint64_t ATTRIBUTE_ALIGNED(8) recursion_misses;
+@@ -371,22 +372,23 @@ struct bpf_prog_info_struct {
+ 
+ # define bpf_prog_info_struct_size \
+ 	offsetofend(struct bpf_prog_info_struct, verified_insns)
+-# define expected_bpf_prog_info_struct_size 220
++# define expected_bpf_prog_info_struct_size 316
+ 
+ struct BPF_MAP_LOOKUP_BATCH_struct /* batch */ {
+-	uint64_t ATTRIBUTE_ALIGNED(8) in_batch;
+-	uint64_t ATTRIBUTE_ALIGNED(8) out_batch;
+-	uint64_t ATTRIBUTE_ALIGNED(8) keys;
+-	uint64_t ATTRIBUTE_ALIGNED(8) values;
++	__kernel_aligned_uintptr_t in_batch;
++	__kernel_aligned_uintptr_t out_batch;
++	__kernel_aligned_uintptr_t keys;
++	__kernel_aligned_uintptr_t values;
+ 	uint32_t count;
+ 	uint32_t map_fd;
+ 	uint64_t ATTRIBUTE_ALIGNED(8) elem_flags;
+ 	uint64_t ATTRIBUTE_ALIGNED(8) flags;
++	uint64_t _pad;
+ };
+ 
+ # define BPF_MAP_LOOKUP_BATCH_struct_size \
+ 	sizeof(struct BPF_MAP_LOOKUP_BATCH_struct)
+-# define expected_BPF_MAP_LOOKUP_BATCH_struct_size 56
++# define expected_BPF_MAP_LOOKUP_BATCH_struct_size 96
+ 
+ # define BPF_MAP_LOOKUP_AND_DELETE_BATCH_struct BPF_MAP_LOOKUP_BATCH_struct
+ # define BPF_MAP_LOOKUP_AND_DELETE_BATCH_struct_size BPF_MAP_LOOKUP_BATCH_struct_size
+@@ -406,7 +408,7 @@ struct BPF_LINK_CREATE_struct /* link_create */ {
+ 		uint32_t target_btf_id;
+ 
+ 		struct {
+-			uint64_t ATTRIBUTE_ALIGNED(8) iter_info;
++			__kernel_aligned_uintptr_t iter_info;
+ 			uint32_t iter_info_len;
+ 		};
+ 
+@@ -417,16 +419,16 @@ struct BPF_LINK_CREATE_struct /* link_create */ {
+ 		struct {
+ 			uint32_t flags;
+ 			uint32_t cnt;
+-			uint64_t ATTRIBUTE_ALIGNED(8) syms;
+-			uint64_t ATTRIBUTE_ALIGNED(8) addrs;
+-			uint64_t ATTRIBUTE_ALIGNED(8) cookies;
++			__kernel_aligned_uintptr_t syms;
++			__kernel_aligned_uintptr_t addrs;
++			__kernel_aligned_uintptr_t cookies;
+ 		} kprobe_multi;
+ 	};
+ };
+ 
+ # define BPF_LINK_CREATE_struct_size \
+ 	sizeof(struct BPF_LINK_CREATE_struct)
+-# define expected_BPF_LINK_CREATE_struct_size 48
++# define expected_BPF_LINK_CREATE_struct_size 80
+ 
+ struct BPF_LINK_UPDATE_struct /* link_update */ {
+ 	uint32_t link_fd;
+diff --git a/src/io_uring.c b/src/io_uring.c
+index 6c17a09..a51369c 100644
+--- a/src/io_uring.c
++++ b/src/io_uring.c
+@@ -389,7 +389,7 @@ print_io_uring_register_rsrc(struct tcb *tcp, const kernel_ulong_t addr,
+ 			     const unsigned int size, const unsigned int opcode)
+ {
+ 	struct io_uring_rsrc_register arg;
+-	CHECK_TYPE_SIZE(arg, 32);
++	CHECK_TYPE_SIZE(arg, 48);
+ 	CHECK_TYPE_SIZE(arg.resv2, sizeof(uint64_t));
+ 
+ 	if (size < 32) {
+@@ -429,7 +429,7 @@ print_io_uring_update_rsrc(struct tcb *tcp, const kernel_ulong_t addr,
+ 			   const unsigned int size, const unsigned int opcode)
+ {
+ 	struct io_uring_rsrc_update2 arg;
+-	CHECK_TYPE_SIZE(arg, 32);
++	CHECK_TYPE_SIZE(arg, 64);
+ 	CHECK_TYPE_SIZE(arg.resv, sizeof(uint32_t));
+ 	CHECK_TYPE_SIZE(arg.resv2, sizeof(uint32_t));
+ 
+@@ -514,7 +514,7 @@ print_io_uring_ringfds_register(struct tcb *tcp, const kernel_ulong_t arg,
+ 				const unsigned int nargs)
+ {
+ 	struct io_uring_rsrc_update buf;
+-	CHECK_TYPE_SIZE(buf, 16);
++	CHECK_TYPE_SIZE(buf, 32);
+ 	CHECK_TYPE_SIZE(buf.resv, sizeof(uint32_t));
+ 
+ 	print_array(tcp, arg, nargs, &buf, sizeof(buf),
+@@ -562,7 +562,7 @@ static void
+ print_io_uring_buf_reg(struct tcb *tcp, const kernel_ulong_t addr)
+ {
+ 	struct io_uring_buf_reg arg;
+-	CHECK_TYPE_SIZE(arg, 40);
++	CHECK_TYPE_SIZE(arg, 48);
+ 	CHECK_TYPE_SIZE(arg.flags, sizeof(uint16_t));
+ 	CHECK_TYPE_SIZE(arg.resv, sizeof(uint64_t) * 3);
+ 

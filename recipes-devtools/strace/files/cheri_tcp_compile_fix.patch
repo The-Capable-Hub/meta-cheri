@@ -1,0 +1,30 @@
+commit 48b2b880bc46a3fd2ac6ddd1b8a8095387887208
+Author: Christian Ehrhardt <christian.ehrhardt@codasip.com>
+Date:   Mon Nov 25 13:00:26 2024 +0100
+
+    cheri: Properly cast TCB pointers
+    
+    When setting/getting the TCB as an unsigned long add casts to
+    tell the compiler that this is ok.
+
+Upstream-Status: Inappropriate (at the moment) as Cheri specific
+
+diff --git a/src/defs.h b/src/defs.h
+index 811d2d8..263fb89 100644
+--- a/src/defs.h
++++ b/src/defs.h
+@@ -653,12 +653,12 @@ extern void free_tcb_priv_data(struct tcb *);
+ 
+ static inline unsigned long get_tcb_priv_ulong(const struct tcb *tcp)
+ {
+-	return (unsigned long) get_tcb_priv_data(tcp);
++	return (unsigned long)(uintptr_t)get_tcb_priv_data(tcp);
+ }
+ 
+ static inline int set_tcb_priv_ulong(struct tcb *tcp, unsigned long val)
+ {
+-	return set_tcb_priv_data(tcp, (void *) val, 0);
++	return set_tcb_priv_data(tcp, (void *)(uintptr_t)val, 0);
+ }
+ 
+ struct finfo {

@@ -1,0 +1,205 @@
+commit 0343ac20592aaaafce21a0e61c33548320ac00cc
+Author: Christian Ehrhardt <christian.ehrhardt@codasip.com>
+Date:   Mon Nov 25 13:03:19 2024 +0100
+
+    cheri: Add cast to ptrace arguments
+    
+    Passing unsigned longs as var-args will only work if the callee
+    decodes the values as unsigned longs but not as pointers. However,
+    the generic ptrace code on linux uses var-args by default and will
+    treat two unsigned long arguments as one capability. To work around
+    this the ptrace definition in musl was changed and callers must be
+    adjusted.
+
+Upstream-Status: Inappropriate (at the moment) as Cheri specific
+
+diff --git a/src/disable_ptrace_request.c b/src/disable_ptrace_request.c
+index 0608e54..97aedb4 100644
+--- a/src/disable_ptrace_request.c
++++ b/src/disable_ptrace_request.c
+@@ -73,7 +73,7 @@ get_arch(void)
+ 		offsetof(struct_ptrace_syscall_info, entry);
+ 	struct_ptrace_syscall_info psi = { .arch = 0 };
+ 
+-	long rc = ptrace(PTRACE_GET_SYSCALL_INFO, pid, size, &psi);
++	long rc = ptrace(PTRACE_GET_SYSCALL_INFO, pid, (void *)(uintptr_t)size, &psi);
+ 
+ 	int saved_errno = errno;
+ 	(void) kill(pid, SIGKILL);
+diff --git a/src/filter_seccomp.c b/src/filter_seccomp.c
+index 219adc3..699e89b 100644
+--- a/src/filter_seccomp.c
++++ b/src/filter_seccomp.c
+@@ -158,8 +158,8 @@ check_seccomp_order_tracer(int pid)
+ 				return pid;
+ 			}
+ 			if (ptrace(PTRACE_SETOPTIONS, pid, 0L,
+-				   PTRACE_O_TRACESYSGOOD|
+-				   PTRACE_O_TRACESECCOMP) < 0) {
++				   (void *)(uintptr_t)(PTRACE_O_TRACESYSGOOD|
++				   PTRACE_O_TRACESECCOMP)) < 0) {
+ 				perror_func_msg("PTRACE_SETOPTIONS");
+ 				return pid;
+ 			}
+diff --git a/src/linux/generic/ptrace_pokeuser.c b/src/linux/generic/ptrace_pokeuser.c
+index 4e1e923..9ef7d4e 100644
+--- a/src/linux/generic/ptrace_pokeuser.c
++++ b/src/linux/generic/ptrace_pokeuser.c
+@@ -8,5 +8,5 @@
+ static long
+ ptrace_pokeuser(int pid, unsigned long off, kernel_ulong_t val)
+ {
+-	return ptrace(PTRACE_POKEUSER, pid, off, val);
++	return ptrace(PTRACE_POKEUSER, pid, (void *)(uintptr_t)off, (void *)(uintptr_t)val);
+ }
+diff --git a/src/ptrace_syscall_info.c b/src/ptrace_syscall_info.c
+index a50c223..4b9d52d 100644
+--- a/src/ptrace_syscall_info.c
++++ b/src/ptrace_syscall_info.c
+@@ -163,7 +163,7 @@ test_ptrace_get_syscall_info(void)
+ 				FAIL;
+ 			}
+ 			if (ptrace(PTRACE_SETOPTIONS, pid, 0L,
+-				   PTRACE_O_TRACESYSGOOD) < 0) {
++				   (void *)(uintptr_t)PTRACE_O_TRACESYSGOOD) < 0) {
+ 				/* cannot happen */
+ 				kill_tracee(pid);
+ 				perror_func_msg_and_die("PTRACE_SETOPTIONS");
+diff --git a/src/strace.c b/src/strace.c
+index 620a249..c200ec6 100644
+--- a/src/strace.c
++++ b/src/strace.c
+@@ -538,7 +538,7 @@ ptrace_attach_or_seize(int pid, const char **ptrace_attach_cmd)
+ 	if (!use_seize)
+ 		return *ptrace_attach_cmd = "PTRACE_ATTACH",
+ 		       ptrace(PTRACE_ATTACH, pid, 0L, 0L);
+-	r = ptrace(PTRACE_SEIZE, pid, 0L, (unsigned long) ptrace_setoptions);
++	r = ptrace(PTRACE_SEIZE, pid, 0L, (void *)(uintptr_t) ptrace_setoptions);
+ 	if (r)
+ 		return *ptrace_attach_cmd = "PTRACE_SEIZE", r;
+ 	r = ptrace(PTRACE_INTERRUPT, pid, 0L, 0L);
+@@ -570,7 +570,7 @@ ptrace_restart(const unsigned int op, struct tcb *const tcp, unsigned int sig)
+ 	int err;
+ 
+ 	errno = 0;
+-	ptrace(op, tcp->pid, 0L, (unsigned long) sig);
++	ptrace(op, tcp->pid, 0L, (void *)(uintptr_t) sig);
+ 	err = errno;
+ 	if (!err || err == ESRCH)
+ 		return 0;
+@@ -3299,7 +3299,7 @@ startup_tcb(struct tcb *tcp)
+ 	if (!use_seize) {
+ 		debug_msg("setting opts 0x%x on pid %d",
+ 			  ptrace_setoptions, tcp->pid);
+-		if (ptrace(PTRACE_SETOPTIONS, tcp->pid, NULL, ptrace_setoptions) < 0) {
++		if (ptrace(PTRACE_SETOPTIONS, tcp->pid, NULL, (void *)(uintptr_t)ptrace_setoptions) < 0) {
+ 			if (errno != ESRCH) {
+ 				/* Should never happen, really */
+ 				perror_msg_and_die("PTRACE_SETOPTIONS");
+diff --git a/src/syscall.c b/src/syscall.c
+index def9547..b77c50f 100644
+--- a/src/syscall.c
++++ b/src/syscall.c
+@@ -1124,7 +1124,7 @@ ptrace_getregset(pid_t pid)
+ 		.iov_base = &ARCH_REGS_FOR_GETREGSET,
+ 		.iov_len = sizeof(ARCH_REGS_FOR_GETREGSET)
+ 	};
+-	return ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, &io);
++	return ptrace(PTRACE_GETREGSET, pid, (void *)(uintptr_t)NT_PRSTATUS, &io);
+ 
+ # endif
+ }
+@@ -1144,7 +1144,7 @@ ptrace_setregset(pid_t pid)
+ 		.iov_base = &ARCH_REGS_FOR_GETREGSET,
+ 		.iov_len = sizeof(ARCH_REGS_FOR_GETREGSET)
+ 	};
+-	return ptrace(PTRACE_SETREGSET, pid, NT_PRSTATUS, &io);
++	return ptrace(PTRACE_SETREGSET, pid, (void *)(uintptr_t)NT_PRSTATUS, &io);
+ #  endif
+ }
+ # endif /* ARCH_MIGHT_USE_SET_REGS */
+@@ -1290,7 +1290,7 @@ strace_get_syscall_info(struct tcb *tcp)
+ 	if (ptrace_sci.op == 0xff) {
+ 		const size_t size = sizeof(ptrace_sci);
+ 		if (ptrace(PTRACE_GET_SYSCALL_INFO, tcp->pid,
+-			   (void *) size, &ptrace_sci) < 0) {
++			   (void *)(uintptr_t) size, &ptrace_sci) < 0) {
+ 			get_regs_error = -2;
+ 			return false;
+ 		}
+diff --git a/src/ucopy.c b/src/ucopy.c
+index b4e746b..9a9e4d9 100644
+--- a/src/ucopy.c
++++ b/src/ucopy.c
+@@ -145,7 +145,7 @@ vm_read_mem(const pid_t pid, void *laddr,
+ 	if (!page_start ||
+ 	    page_after_last < page_start ||
+ 	    page_after_last - page_start > ARRAY_SIZE(cached_raddr) * page_size)
+-		return process_read_mem(pid, laddr, (void *) taddr, len);
++		return process_read_mem(pid, laddr, (void *)(uintptr_t)taddr, len);
+ 
+ 	size_t total_read = 0;
+ 
+@@ -161,7 +161,7 @@ vm_read_mem(const pid_t pid, void *laddr,
+ 
+ 			const ssize_t rc =
+ 				process_read_mem(pid, buf[idx],
+-						 (void *) page_start, page_size);
++						 (void *)(uintptr_t) page_start, page_size);
+ 			if (rc < 0)
+ 				return total_read ? (ssize_t) total_read : rc;
+ 
+@@ -212,7 +212,7 @@ vm_write_mem(const pid_t pid, void *const laddr,
+ 		.iov_len = len
+ 	};
+ 	const struct iovec remote = {
+-		.iov_base = (void *) truncated_raddr,
++		.iov_base = (void *)(uintptr_t)truncated_raddr,
+ 		.iov_len = len
+ 	};
+ 
+@@ -253,7 +253,7 @@ umoven_peekdata(const int pid, kernel_ulong_t addr, unsigned int len,
+ 
+ 		errno = 0;
+ 		dissected_long_t u = {
+-			.val = ptrace(PTRACE_PEEKDATA, pid, addr, 0)
++			.val = ptrace(PTRACE_PEEKDATA, pid, (void *)(uintptr_t)addr, 0)
+ 		};
+ 
+ 		switch (errno) {
+@@ -349,7 +349,7 @@ umovestr_peekdata(const int pid, kernel_ulong_t addr, unsigned int len,
+ 
+ 		errno = 0;
+ 		dissected_long_t u = {
+-			.val = ptrace(PTRACE_PEEKDATA, pid, addr, 0)
++			.val = ptrace(PTRACE_PEEKDATA, pid, (void *)(uintptr_t)addr, 0)
+ 		};
+ 
+ 		switch (errno) {
+@@ -475,7 +475,7 @@ upoken_peekpoke(const int pid, const kernel_ulong_t addr,
+ {
+ 	errno = 0;
+ 	dissected_long_t u = {
+-		.val = ptrace(PTRACE_PEEKDATA, pid, addr, 0)
++		.val = ptrace(PTRACE_PEEKDATA, pid, (void *)(uintptr_t)addr, 0)
+ 	};
+ 	if (errno)
+ 		return false;
+@@ -483,7 +483,7 @@ upoken_peekpoke(const int pid, const kernel_ulong_t addr,
+ 	memcpy(u.data + offset, our_addr, len);
+ 
+ 	/* write it back */
+-	return ptrace(PTRACE_POKEDATA, pid, addr, u.val) == 0;
++	return ptrace(PTRACE_POKEDATA, pid, (void *)(uintptr_t)addr, (void *)(uintptr_t)u.val) == 0;
+ }
+ 
+ static unsigned int
+@@ -510,7 +510,7 @@ upoken_pokedata(const int pid, kernel_ulong_t addr, unsigned int len,
+ 		/* our_addr may be unaligned */
+ 		long word;
+ 		memcpy(&word, our_addr, sizeof(word));
+-		if (ptrace(PTRACE_POKEDATA, pid, addr, word) < 0)
++		if (ptrace(PTRACE_POKEDATA, pid, (void *)(uintptr_t)addr, (void *)(uintptr_t)word) < 0)
+ 			goto poke_error;
+ 
+ 		addr += sizeof(long);
