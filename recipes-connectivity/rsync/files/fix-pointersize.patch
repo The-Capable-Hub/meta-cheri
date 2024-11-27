@@ -1,0 +1,18 @@
+Upstream-Status: Inappropriate (at the moment) as Cheri specific
+diff --git a/rsync.h b/rsync.h
+index 0f9e277f..a39208ac 100644
+--- a/rsync.h
++++ b/rsync.h
+@@ -763,10 +763,10 @@ struct ht_int64_node {
+ #endif
+ #endif
+
+-#if SIZEOF_CHARP == 4
++#if SIZEOF_CHARP == 4 || (defined(__CHERI_PURE_CAPABILITY__) && SIZEOF_CHARP == 8)
+ # define PTRS_ARE_32 1
+ # define PTR_EXTRA_CNT 1
+-#elif SIZEOF_CHARP == 8
++#elif SIZEOF_CHARP == 8 || (defined(__CHERI_PURE_CAPABILITY__) && SIZEOF_CHARP == 16)
+ # define PTRS_ARE_64 1
+ # define PTR_EXTRA_CNT EXTRA64_CNT
+ #else
