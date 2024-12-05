@@ -1,0 +1,31 @@
+Upstream-Status: Inappropriate [ CHERI Specific ]
+
+diff --git a/include/lapi/abisize.h b/include/lapi/abisize.h
+index d19d73f0b..d07ff61de 100644
+--- a/include/lapi/abisize.h
++++ b/include/lapi/abisize.h
+@@ -9,7 +9,7 @@
+ #define LAPI_ABISIZE_H__
+ 
+ /* __WORDSIZE replacement */
+-#if defined(__LP64__) || defined(_LP64)
++#if defined(__LP64__) || defined(_LP64) || (defined(__CHERI_ADDRESS_BITS__) && (__CHERI_ADDRESS_BITS__ == 64))
+ # define TST_ABI64
+ # define TST_ABI 64
+ #else
+diff --git a/testcases/kernel/security/dirtyc0w_shmem/dirtyc0w_shmem_child.c b/testcases/kernel/security/dirtyc0w_shmem/dirtyc0w_shmem_child.c
+index 2a982347c..dc0479c4e 100644
+--- a/testcases/kernel/security/dirtyc0w_shmem/dirtyc0w_shmem_child.c
++++ b/testcases/kernel/security/dirtyc0w_shmem/dirtyc0w_shmem_child.c
+@@ -39,7 +39,11 @@ static void *stress_thread_fn(void *arg)
+ {
+ 	while (1)
+ 		/* Don't optimize the busy loop out. */
++#ifdef __CHERI_PURE_CAPABILITY__
++		asm volatile("" : "+C" (arg));
++#else
+ 		asm volatile("" : "+r" (arg));
++#endif
+ 
+ 	return NULL;
+ }
