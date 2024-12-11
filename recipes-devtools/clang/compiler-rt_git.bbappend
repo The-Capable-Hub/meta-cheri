@@ -25,21 +25,3 @@ PROVIDES:append:class-target = "\
 EXTRA_OECMAKE:append = " -DCOMPILER_RT_BUILD_STANDALONE_LIBATOMIC=ON"
 
 COMPATIBLE_HOST = "${HOST_SYS}"
-
-# The clang compiler driver is adding -lunwind and -lssp_nonshared
-# to the link line. Eventually libunwind should come from libcxx.
-#
-# Not sure if this is a version issue, but clang 15 is installing into
-#   /usr/lib/linux/libclang_rt.builtins-riscv64.a
-# Note we need to cope with HOST_OS="linux-musl"
-do_install:append () {
-    case "${HOST_OS}" in
-    linux-*)
-	if [ -e ${D}${libdir}/linux ]; then
-	   d=${D}${nonarch_libdir}/clang/${MAJOR_VER}.${MINOR_VER}.${PATCH_VER}/lib
-	   mkdir -p $d
-	   mv ${D}${libdir}/linux $d
-	fi
-    ;;
-    esac
-}
