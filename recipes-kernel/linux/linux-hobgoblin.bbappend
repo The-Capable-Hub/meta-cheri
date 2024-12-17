@@ -1,5 +1,7 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
+CODASIP_GIT_BRANCH = "bakewell-morello"
+
 KBUILD_DEFCONFIG:cheri = "qemu_riscv64cheripc_defconfig"
 
 # When building Linux 6.10 for cheri, binutils 2.41.0 objcopy fails when
