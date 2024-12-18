@@ -19,10 +19,10 @@ QEMU_TARGETS:remove:cheri = "x86_64"
 
 PACKAGECONFIG:remove:cheri = "alsa"
 
-do_install[depends] += "hobgoblin-bootfiles:do_deploy"
+# do_install[depends] += "hobgoblin-bootfiles:do_deploy"
 
 do_install:append() {
-    install -Dm 0644 ${DEPLOY_DIR_IMAGE}/fsbl_rom.xexe ${D}${datadir}/qemu
+    # install -Dm 0644 ${DEPLOY_DIR_IMAGE}/fsbl_rom.xexe ${D}${datadir}/qemu
 
     # Install qmp python package to be used with testimage
     install -D ${S}/python/qemu/qmp/__init__.py ${D}${PYTHON_SITEPACKAGES_DIR}/qmp/__init__.py
