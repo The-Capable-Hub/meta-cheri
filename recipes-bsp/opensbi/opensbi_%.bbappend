@@ -1,6 +1,8 @@
 CODASIP_GIT_BRANCH = "hobgoblin"
 CODASIP_GIT_BRANCH:cheri = "hobgoblin-cheri"
 
+PV:cheri = "1.5+git${SRCPV}"
+
 python () {
   import re
   cc=d.getVar("CC")
