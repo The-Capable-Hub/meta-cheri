@@ -22,6 +22,10 @@ PROVIDES:append:class-target = "\
         virtual/${TARGET_PREFIX}compilerlibs \
         "
 
-EXTRA_OECMAKE:append = " -DCOMPILER_RT_BUILD_STANDALONE_LIBATOMIC=ON"
+# Adding libatomic to a baremetal build breaks it, as it appears
+# __builtin_memcpy() still expands to a call to memcpy(), but the
+# code is linked with -nostdlib to avoid needing libc.
+# So for now only enable it for musl (i.e. poky) builds.
+EXTRA_OECMAKE:append:libc-musl = " -DCOMPILER_RT_BUILD_STANDALONE_LIBATOMIC=ON"
 
 COMPATIBLE_HOST = "${HOST_SYS}"
