@@ -6,8 +6,10 @@ DEPENDS:remove:class-target = "gcc-runtime"
 # Remove circular dependency.
 # compiler-rt needs header files from libc, but not libc.a itself, while
 # musl needs compiler-rt.a to link libc.so.
-DEPENDS:remove:class-target = "virtual/${MLPREFIX}libc"
-DEPENDS:append:class-target = " musl-initial"
+# This doens't appear to be a problem for newlib, so only make the change
+# for musl.
+DEPENDS:remove:class-target:libc-musl = "virtual/${MLPREFIX}libc"
+DEPENDS:append:class-target:libc-musl = " musl-initial"
 
 # meta-clang compiler-rt is adding dependencies on gcc libraries, but we do not
 # build them
