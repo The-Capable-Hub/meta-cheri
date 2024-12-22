@@ -1,0 +1,19 @@
+When building using a _defconfig file, the file is first preprocessed using
+"$(CPP) -x assembler-with-cpp" which, when using clan 17, 
+appears to add a space at the start of comment lines. This causes lines
+such as "# CONFIG_XYZ is not set" to be reported as unrecognised.
+
+Upstream-Status: Pending
+
+diff --git a/scripts/kconfig/Makefile b/scripts/kconfig/Makefile
+index 079add4d5d..b1059be7d5 100644
+--- a/scripts/kconfig/Makefile
++++ b/scripts/kconfig/Makefile
+@@ -94,6 +94,7 @@ endif
+ 
+ %_defconfig: $(obj)/conf
+ 	$(Q)$(CPP) -nostdinc -P -I $(srctree) -undef -x assembler-with-cpp $(srctree)/arch/$(SRCARCH)/configs/$@ -o generated_defconfig
++	sed -i 's/^ #/#/' generated_defconfig
+ 	$(Q)$< $(silent) --defconfig=generated_defconfig $(Kconfig)
+ 
+ # Added for U-Boot (backward compatibility)

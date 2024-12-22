@@ -6,4 +6,10 @@ EXTRA_OEMAKE:remove = 'CC="${TARGET_PREFIX}gcc ${TOOLCHAIN_OPTIONS}"'
 # " gets lost, resulting in a hard to debug failure.
 EXTRA_OEMAKE:append = ' CC="${CC} " LD="${LD}"'
 
-CODASIP_GIT_BRANCH = "summitdemo24"
+CODASIP_GIT_BRANCH:cheri = "hobgoblin-cheri-v0.9.0"
+
+FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
+SRC_URI:append:cheri = " \
+    file://kconfig-preprocess-strip-spaces.patch \
+    file://regenerated-codasip-defconfigs.patch \
+"
