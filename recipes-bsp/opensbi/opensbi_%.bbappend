@@ -1,5 +1,5 @@
 CODASIP_GIT_BRANCH = "hobgoblin"
-CODASIP_GIT_BRANCH:cheri = "hobgoblin-cheri"
+CODASIP_GIT_BRANCH:cheri = "hobgoblin-cheri-v0.9.0"
 
 PV:cheri = "1.5+git${SRCPV}"
 
