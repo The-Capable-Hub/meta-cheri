@@ -1,6 +1,6 @@
 SRCREV:cheri = "${AUTOREV}"
 S:cheri="${WORKDIR}/git"
-CODASIP_GIT_BRANCH = "bakewell-morello"
+CODASIP_GIT_LINUX_HOBGOBLIN_CHERI_BRANCH ?= "bakewell-morello"
 SRC_URI:cheri = " \
-    git://${CODASIP_GIT_CHERILINUX_REPO}/linux.git;protocol=${CODASIP_GIT_PROTOCOL};branch=${CODASIP_GIT_BRANCH} \
+    git://${CODASIP_GIT_CHERILINUX_REPO}/linux.git;protocol=${CODASIP_GIT_PROTOCOL};branch=${CODASIP_GIT_LINUX_HOBGOBLIN_CHERI_BRANCH} \
 "
