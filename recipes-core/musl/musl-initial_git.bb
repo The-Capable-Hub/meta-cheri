@@ -6,8 +6,9 @@ HOMEPAGE = "http://www.musl-libc.org/"
 LICENSE = "MIT"
 SECTION = "libs"
 
+CODASIP_GIT_MUSL_CHERI_BRANCH ?= "bakewell"
 SRC_URI = " \
-    git://${CODASIP_GIT_REPO}/bakewell/musl-libc.git;protocol=${CODASIP_GIT_PROTOCOL};branch=bakewell \
+    git://${CODASIP_GIT_REPO}/bakewell/musl-libc.git;protocol=${CODASIP_GIT_PROTOCOL};branch=${CODASIP_GIT_MUSL_CHERI_BRANCH} \
 "
 BASEVER = "1.2.0"
 SRCREV = "${AUTOREV}"
