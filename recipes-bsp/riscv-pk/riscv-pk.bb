@@ -9,8 +9,9 @@ inherit autotools deploy
 
 EXTRA_AUTORECONF += " --exclude=aclocal"
 
+CODASIP_GIT_RISCV_PK_CHERI_BRANCH ?= "cheri-bakewell"
 SRC_URI = " \
-    git://${CODASIP_GIT_REPO}/cheririscv-pk.git;protocol=${CODASIP_GIT_PROTOCOL};branch=cheri-bakewell \
+    git://${CODASIP_GIT_REPO}/cheririscv-pk.git;protocol=${CODASIP_GIT_PROTOCOL};branch=${CODASIP_GIT_RISCV_PK_CHERI_BRANCH} \
 "
 
 S = "${WORKDIR}/git"
