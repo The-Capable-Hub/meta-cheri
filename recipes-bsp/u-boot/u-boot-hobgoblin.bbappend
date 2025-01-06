@@ -6,7 +6,8 @@ EXTRA_OEMAKE:remove = 'CC="${TARGET_PREFIX}gcc ${TOOLCHAIN_OPTIONS}"'
 # " gets lost, resulting in a hard to debug failure.
 EXTRA_OEMAKE:append = ' CC="${CC} " LD="${LD}"'
 
-CODASIP_GIT_BRANCH:cheri = "hobgoblin-cheri-v0.9.0"
+CODASIP_GIT_U_BOOT_HOBGOBLIN_CHERI_BRANCH ?=  "hobgoblin-cheri-v0.9.0"
+CODASIP_GIT_U_BOOT_HOBGOBLIN_BRANCH:cheri = "${CODASIP_GIT_U_BOOT_HOBGOBLIN_CHERI_BRANCH}"
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 SRC_URI:append:cheri = " \
