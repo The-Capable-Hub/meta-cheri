@@ -2,8 +2,9 @@ SRC_URI:remove = " \
     git://repo.or.cz/openocd.git;protocol=http;name=openocd;branch=master \
 "
 
+CODASIP_GIT_OPENOCD_CHERI_BRANCH ?= "bakewell"
 SRC_URI:prepend = " \
-    git://${CODASIP_GIT_REPO}/bakewell/cheri-riscv-openocd.git;protocol=ssh;name=openocd;branch=bakewell \
+    git://${CODASIP_GIT_REPO}/bakewell/cheri-riscv-openocd.git;protocol=ssh;name=openocd;branch=${CODASIP_GIT_OPENOCD_CHERI_BRANCH} \
 "
 
 SRCREV_openocd = "f7cb786c60abf792bf766be73127a87d35a59ccc"
