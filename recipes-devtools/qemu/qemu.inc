@@ -19,8 +19,9 @@ PV = "6.2.0+git${SRCPV}"
 
 S = "${WORKDIR}/git"
 
+CODASIP_GIT_QEMU_CHERI_BRANCH ?= "qemu-cheri"
 SRC_URI = " \
-	gitsm://${CODASIP_GIT_CHERILINUX_REPO}/qemu.git;protocol=${CODASIP_GIT_PROTOCOL};branch=qemu-cheri \
+	gitsm://${CODASIP_GIT_CHERILINUX_REPO}/qemu.git;protocol=${CODASIP_GIT_PROTOCOL};branch=${CODASIP_GIT_QEMU_CHERI_BRANCH} \
 "
 UPSTREAM_CHECK_REGEX = "qemu-(?P<pver>\d+(\.\d+)+)\.tar"
 
