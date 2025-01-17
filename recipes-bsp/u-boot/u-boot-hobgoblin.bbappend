@@ -12,5 +12,4 @@ CODASIP_GIT_U_BOOT_HOBGOBLIN_BRANCH:cheri = "${CODASIP_GIT_U_BOOT_HOBGOBLIN_CHER
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 SRC_URI:append:cheri = " \
     file://kconfig-preprocess-strip-spaces.patch \
-    file://regenerated-codasip-defconfigs.patch \
 "
