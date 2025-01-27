@@ -1,0 +1,90 @@
+Upstream-Status: Inappropriate [CHERI specific]
+
+--- libffi-3.4.4/src/riscv/sysv.S.orig	2025-01-02 17:22:13.646878443 +0000
++++ libffi-3.4.4/src/riscv/sysv.S	2025-01-02 19:03:23.295296049 +0000
+@@ -35,8 +35,8 @@
+ #ifdef __CHERI_PURE_CAPABILITY__
+ #define PTRREG(reg) c##reg
+ /* Could also use .macro to make it look more like an assembly instruction */
+-#define PTRADDI(dst, src, inc) cincoffset PTRREG(dst), PTRREG(src), inc
+-#define PTRMOVE(dst, src) cmove PTRREG(dst), PTRREG(src)
++#define PTRADDI(dst, src, inc) caddi PTRREG(dst), PTRREG(src), inc
++#define PTRMOVE(dst, src) cmv PTRREG(dst), PTRREG(src)
+ #else
+ #define PTRREG(reg) reg
+ #define PTRADDI(dst, src, inc) addi dst, src, inc
+@@ -129,7 +129,7 @@
+     PTRADDI(fp, a1, FRAME_LEN)
+ #ifdef __CHERI_PURE_CAPABILITY__
+     /* Restore csp bounds on cfp */
+-    csetaddr cfp, csp, fp
++    scaddr cfp, csp, fp
+ #endif
+     PTRMOVE(sp, a0)
+     .cfi_def_cfa 8, 0 # our frame is fully set up
+@@ -160,7 +160,7 @@
+ 
+     /* Call */
+ #ifdef __CHERI_PURE_CAPABILITY__
+-    cjalr   ct1
++    jalr    ct1
+ #else
+     jalr    t1
+ #endif
+@@ -181,11 +181,7 @@
+     .cfi_restore 1
+     LOAD_ARG(fp, -2*PTRS, fp)
+     .cfi_restore 8
+-#ifdef __CHERI_PURE_CAPABILITY__
+-    cret
+-#else
+     ret
+-#endif
+     .cfi_endproc
+     .size   ffi_call_asm, .-ffi_call_asm
+ 
+@@ -243,8 +239,8 @@
+     PTRMOVE(a4, sp)
+ 
+ #ifdef __CHERI_PURE_CAPABILITY__
+-    cllc    cra, ffi_closure_inner
+-    cjalr   cra
++    llc     cra, ffi_closure_inner
++    jalr    cra
+ #else
+     call    ffi_closure_inner
+ #endif
+@@ -265,11 +261,7 @@
+     .cfi_restore 8
+     PTRADDI(sp, sp, FRAME_LEN)
+     .cfi_def_cfa_offset 0
+-#ifdef __CHERI_PURE_CAPABILITY__
+-    cret
+-#else
+     ret
+-#endif
+     .cfi_endproc
+     .size ffi_closure_asm, .-ffi_closure_asm
+ 
+@@ -326,8 +318,8 @@
+     PTRMOVE(a4, sp)
+ 
+ #ifdef __CHERI_PURE_CAPABILITY__
+-    cllc    cra, ffi_closure_inner
+-    cjalr   cra
++    llc     cra, ffi_closure_inner
++    jalr    cra
+ #else
+     call    ffi_closure_inner
+ #endif
+@@ -348,10 +340,6 @@
+     .cfi_restore 8
+     PTRADDI(sp, sp, FRAME_LEN)
+     .cfi_def_cfa_offset 0
+-#ifdef __CHERI_PURE_CAPABILITY__
+-    cret
+-#else
+     ret
+-#endif
+     .cfi_endproc
+     .size ffi_go_closure_asm, .-ffi_go_closure_asm
