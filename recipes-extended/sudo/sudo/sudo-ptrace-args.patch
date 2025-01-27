@@ -1,0 +1,84 @@
+CHERI/musl sys/ptrace.h has a prototype of
+  long ptrace(int, int, void *, void *);
+while glibc uses
+  extern long int ptrace (enum __ptrace_request __request, ...) __THROW;
+
+Need to coerce the last two arguments to void*, although in most (all?)
+cases they are only treated as addresses not capabilities.
+
+Upstream-Status: Inappropriate [CHERI specific]
+
+--- sudo-1.9.15p5/src/exec_ptrace.c.orig	2023-12-15 19:08:31.000000000 +0000
++++ sudo-1.9.15p5/src/exec_ptrace.c	2025-01-25 11:01:52.255417974 +0000
+@@ -432,7 +432,7 @@
+      * is the unit ptrace(2) uses.
+      */
+     for (;;) {
+-	word = ptrace(PTRACE_PEEKDATA, pid, addr, NULL);
++      word = ptrace(PTRACE_PEEKDATA, pid, (void*)addr, NULL);
+ 	if (word == (unsigned long)-1) {
+ 	    sudo_debug_printf(
+ 		SUDO_DEBUG_ERROR|SUDO_DEBUG_LINENO|SUDO_DEBUG_ERRNO,
+@@ -578,7 +578,7 @@
+     do {
+ # ifdef SECCOMP_AUDIT_ARCH_COMPAT
+ 	if (next_word == (unsigned long)-1) {
+-	    word = ptrace(PTRACE_PEEKDATA, pid, addr, NULL);
++	  word = ptrace(PTRACE_PEEKDATA, pid, (void*)addr, NULL);
+ 	    if (regs->compat) {
+ 		/* Stash the next compat word in next_word. */
+ #  if BYTE_ORDER == BIG_ENDIAN
+@@ -595,7 +595,7 @@
+ 	    next_word = (unsigned long)-1;
+ 	}
+ # else /* SECCOMP_AUDIT_ARCH_COMPAT */
+-	word = ptrace(PTRACE_PEEKDATA, pid, addr, NULL);
++	word = ptrace(PTRACE_PEEKDATA, pid, (void*)addr, NULL);
+ # endif /* SECCOMP_AUDIT_ARCH_COMPAT */
+ 	switch (word) {
+ 	case -1:
+@@ -724,7 +724,7 @@
+ 	    }
+ 	    u.buf[i] = *str++;
+ 	}
+-	if (ptrace(PTRACE_POKEDATA, pid, addr, u.word) == -1) {
++	if (ptrace(PTRACE_POKEDATA, pid, (void*)addr, (void*)u.word) == -1) {
+ 	    sudo_warn("%s: ptrace(PTRACE_POKEDATA, %d, 0x%lx, %.*s)",
+ 		__func__, (int)pid, addr, (int)sizeof(u.buf), u.buf);
+ 	    debug_return_ssize_t(-1);
+@@ -919,7 +919,7 @@
+ 	}
+ # endif
+ 	/* Next write the string address to tracee at addr. */
+-	if (ptrace(PTRACE_POKEDATA, pid, addr, word) == -1) {
++	if (ptrace(PTRACE_POKEDATA, pid, (void*)addr, (void*)word) == -1) {
+ 	    sudo_warn("%s: ptrace(PTRACE_POKEDATA, %d, 0x%lx, 0x%lx)",
+ 		__func__, (int)pid, addr, word);
+ 	    debug_return_ssize_t(-1);
+@@ -929,7 +929,7 @@
+ 
+     /* Finally, write the terminating NULL to tracee if needed. */
+     if (!regs->compat || (i & 1) == 0) {
+-	if (ptrace(PTRACE_POKEDATA, pid, addr, NULL) == -1) {
++      if (ptrace(PTRACE_POKEDATA, pid, (void*)addr, NULL) == -1) {
+ 	    sudo_warn("%s: ptrace(PTRACE_POKEDATA, %d, 0x%lx, NULL)",
+ 		__func__, (int)pid, addr);
+ 	    debug_return_ssize_t(-1);
+@@ -1238,7 +1238,7 @@
+ 	arg_max = 128 * 1024;
+ 
+     /* Seize control of the child process. */
+-    if (ptrace(PTRACE_SEIZE, child, NULL, ptrace_opts) == -1) {
++    if (ptrace(PTRACE_SEIZE, child, NULL, (void*)ptrace_opts) == -1) {
+ 	/*
+ 	 * If the process is already being traced, we will get EPERM.
+ 	 * We don't treat that as a fatal error since we want it to be
+@@ -2051,7 +2051,7 @@
+ 		__func__, (int)pid);
+     } else {
+ 	/* Restart child immediately. */
+-	if (ptrace(PTRACE_CONT, pid, NULL, signo) == -1 && errno != ESRCH)
++	if (ptrace(PTRACE_CONT, pid, NULL, (void*)signo) == -1 && errno != ESRCH)
+ 	    sudo_warn("%s: ptrace(PTRACE_CONT, %d, NULL, %ld)",
+ 		__func__, (int)pid, signo);
+     }
