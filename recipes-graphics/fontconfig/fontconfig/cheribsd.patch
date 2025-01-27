@@ -1,0 +1,445 @@
+Downloaded from
+https://github.com/CTSRD-CHERI/cheribsd-ports/blob/main/x11-fonts/fontconfig/files/cheribsd.patch
+
+Upstream-Status: Inappropriate [CHERI specific]
+
+diff --git fc-lang/fc-lang.py fc-lang/fc-lang.py
+index cc1dea8..627d470 100755
+--- fc-lang/fc-lang.py
++++ fc-lang/fc-lang.py
+@@ -244,9 +244,9 @@ if __name__=='__main__':
+     print('#define OFF0        (LEAF0 + {} * sizeof (FcCharLeaf))'.format(len(leaves)))
+     print('#define NUM0        (OFF0 + {} * sizeof (uintptr_t))'.format(tn))
+     print('#define SET(n)      (n * sizeof (FcLangCharSet) + offsetof (FcLangCharSet, charset))')
+-    print('#define OFF(s,o)    (OFF0 + o * sizeof (uintptr_t) - SET(s))')
+-    print('#define NUM(s,n)    (NUM0 + n * sizeof (FcChar16) - SET(s))')
+-    print('#define LEAF(o,l)   (LEAF0 + l * sizeof (FcCharLeaf) - (OFF0 + o * sizeof (intptr_t)))')
++    print('#define OFF(s,o)    FcOffsetEncode(OFF0 + o * sizeof (FcCharLeaf *) - SET(s), FcCharLeaf *)')
++    print('#define NUM(s,n)    FcOffsetEncode(NUM0 + n * sizeof (FcChar16) - SET(s), FcChar16)')
++    print('#define LEAF(o,l)   FcOffsetEncode(LEAF0 + l * sizeof (FcCharLeaf) - (OFF0 + o * sizeof (FcCharLeaf *)), FcCharLeaf)')
+     print('#define fcLangCharSets (fcLangData.langCharSets)')
+     print('#define fcLangCharSetIndices (fcLangData.langIndices)')
+     print('#define fcLangCharSetIndicesInv (fcLangData.langIndicesInv)')
+@@ -257,7 +257,7 @@ if __name__=='__main__':
+ static const struct {{
+     FcLangCharSet  langCharSets[{}];
+     FcCharLeaf     leaves[{}];
+-    uintptr_t      leaf_offsets[{}];
++    FcCharLeaf    *leaf_offsets[{}];
+     FcChar16       numbers[{}];
+     {}       langIndices[{}];
+     {}       langIndicesInv[{}];
+diff --git src/fccache.c src/fccache.c
+index cebbb81..cb7460e 100644
+--- src/fccache.c
++++ src/fccache.c
+@@ -898,13 +898,15 @@ FcCacheOffsetsValid (FcCache *cache)
+             FcPattern		*font = FcFontSetFont (fs, i);
+             FcPatternElt	*e;
+             FcValueListPtr	 l;
++            intptr_t		 elts_offset = FcOffsetDecode(font->elts);
+ 	    char                *last_offset;
+ 
+             if ((char *) font < base ||
+                 (char *) font > end - sizeof (FcFontSet) ||
+-                font->elts_offset < 0 ||
+-                font->elts_offset > end - (char *) font ||
+-                font->num > (end - (char *) font - font->elts_offset) / sizeof (FcPatternElt) ||
++                !FcIsEncodedOffset(font->elts) ||
++                elts_offset < 0 ||
++                elts_offset > end - (char *) font ||
++                font->num > (end - (char *) font - elts_offset) / sizeof (FcPatternElt) ||
+ 		!FcRefIsConst (&font->ref))
+                 return FcFalse;
+ 
+@@ -915,7 +917,7 @@ FcCacheOffsetsValid (FcCache *cache)
+ 
+ 	    for (j = 0; j < font->num; j++)
+ 	    {
+-		last_offset = (char *) font + font->elts_offset;
++		last_offset = (char *) font + elts_offset;
+ 		for (l = FcPatternEltValues(&e[j]); l; l = FcValueListNext(l))
+ 		{
+ 		    if ((char *) l < last_offset || (char *) l > end - sizeof (*l) ||
+diff --git src/fccfg.c src/fccfg.c
+index f62e228..c04203c 100644
+--- src/fccfg.c
++++ src/fccfg.c
+@@ -430,6 +430,7 @@ FcConfigAddCache (FcConfig *config, FcCache *cache,
+ 	    FcPattern	*font = FcFontSetFont (fs, i);
+ 	    FcChar8	*font_file;
+ 	    FcChar8	*relocated_font_file = NULL;
++	    assert(FcIsEncodedOffset(font->elts) && "Cache validation broken?");
+ 
+ 	    if (FcPatternObjectGetString (font, FC_FILE_OBJECT,
+ 					  0, &font_file) == FcResultMatch)
+diff --git src/fccharset.c src/fccharset.c
+index cd927d9..cde51ca 100644
+--- src/fccharset.c
++++ src/fccharset.c
+@@ -37,8 +37,8 @@ FcCharSetCreate (void)
+ 	return 0;
+     FcRefInit (&fcs->ref, 1);
+     fcs->num = 0;
+-    fcs->leaves_offset = 0;
+-    fcs->numbers_offset = 0;
++    fcs->leaves = NULL;
++    fcs->numbers = NULL;
+     return fcs;
+ }
+ 
+@@ -51,8 +51,8 @@ FcCharSetPromote (FcValuePromotionBuffer *vbuf)
+ 
+     FcRefSetConst (&fcs->ref);
+     fcs->num = 0;
+-    fcs->leaves_offset = 0;
+-    fcs->numbers_offset = 0;
++    fcs->leaves = NULL;
++    fcs->numbers = NULL;
+ 
+     return fcs;
+ }
+@@ -150,7 +150,7 @@ FcCharSetPutLeaf (FcCharSet	*fcs,
+ 		  FcCharLeaf	*leaf,
+ 		  int		pos)
+ {
+-    intptr_t	*leaves = FcCharSetLeaves (fcs);
++    FcCharLeaf	**leaves = FcCharSetLeaves (fcs);
+     FcChar16	*numbers = FcCharSetNumbers (fcs);
+ 
+     ucs4 >>= 8;
+@@ -177,8 +177,7 @@ FcCharSetPutLeaf (FcCharSet	*fcs,
+       {
+ 	int i;
+         unsigned int alloced = fcs->num;
+-	intptr_t *new_leaves;
+-	ptrdiff_t distance;
++        FcCharLeaf **new_leaves;
+ 
+ 	alloced *= 2;
+ 	numbers = realloc (numbers, alloced * sizeof (*numbers));
+@@ -188,26 +187,29 @@ FcCharSetPutLeaf (FcCharSet	*fcs,
+ 	if (!new_leaves)
+ 	{
+ 	    /*
+-	     * Revert the reallocation of numbers. We update numbers_offset
+-	     * first in case realloc() fails.
++	     * Revert the reallocation of numbers. We update numbers first in
++	     * case realloc() fails.
+ 	     */
+-	    fcs->numbers_offset = FcPtrToOffset (fcs, numbers);
++	    fcs->numbers = numbers;
+ 	    numbers = realloc (numbers, (alloced / 2) * sizeof (*numbers));
+ 	    /* unlikely to fail though */
+ 	    if (!numbers)
+ 		return FcFalse;
+-	    fcs->numbers_offset = FcPtrToOffset (fcs, numbers);
++	    fcs->numbers = numbers;
+ 	    return FcFalse;
+ 	}
+-	distance = (char *) new_leaves - (char *) leaves;
++	/* Relocate all offset-encoded leaves objects (not the ones stored as real pointers) */
+ 	for (i = 0; i < fcs->num; i++) {
+-	    new_leaves[i] -= distance;
++	   if (FcIsEncodedOffset(new_leaves[i])) {
++		ptrdiff_t distance = (char *) new_leaves - (char *) leaves;
++		new_leaves[i] = FcOffsetEncode(FcOffsetDecode(new_leaves[i]) - distance, FcCharLeaf);
++	   }
+ 	}
+ 	leaves = new_leaves;
+       }
+ 
+-      fcs->leaves_offset = FcPtrToOffset (fcs, leaves);
+-      fcs->numbers_offset = FcPtrToOffset (fcs, numbers);
++      fcs->leaves = leaves;
++      fcs->numbers = numbers;
+     }
+ 
+     memmove (leaves + pos + 1, leaves + pos,
+@@ -215,7 +217,7 @@ FcCharSetPutLeaf (FcCharSet	*fcs,
+     memmove (numbers + pos + 1, numbers + pos,
+ 	     (fcs->num - pos) * sizeof (*numbers));
+     numbers[pos] = (FcChar16) ucs4;
+-    leaves[pos] = FcPtrToOffset (leaves, leaf);
++    leaves[pos] = leaf;
+     fcs->num++;
+     return FcTrue;
+ }
+@@ -233,7 +235,7 @@ FcCharSetFindLeafCreate (FcCharSet *fcs, FcChar32 ucs4)
+ 
+     pos = FcCharSetFindLeafPos (fcs, ucs4);
+     if (pos >= 0)
+-	return FcCharSetLeaf(fcs, pos);
++	return FcCharSetLeaf(fcs, pos); // FIXME: CHERI UBSAN triggers here
+ 
+     leaf = calloc (1, sizeof (FcCharLeaf));
+     if (!leaf)
+@@ -257,8 +259,7 @@ FcCharSetInsertLeaf (FcCharSet *fcs, FcChar32 ucs4, FcCharLeaf *leaf)
+     if (pos >= 0)
+     {
+ 	free (FcCharSetLeaf (fcs, pos));
+-	FcCharSetLeaves(fcs)[pos] = FcPtrToOffset (FcCharSetLeaves(fcs),
+-						   leaf);
++	FcCharSetLeaves(fcs)[pos] = leaf;
+ 	return FcTrue;
+     }
+     pos = -pos - 1;
+@@ -1177,24 +1178,20 @@ FcCharSetFreezeBase (FcCharSetFreezer *freezer, FcCharSet *fcs)
+     ent->set.num = fcs->num;
+     if (fcs->num)
+     {
+-	intptr_t    *ent_leaves;
+-
+-	ent->set.leaves_offset = sizeof (ent->set);
+-	ent->set.numbers_offset = (ent->set.leaves_offset +
+-				   fcs->num * sizeof (intptr_t));
++	ent->set.leaves = (FcCharLeaf **)((char *)&ent->set + sizeof (ent->set));
++	ent->set.numbers = (FcChar16 *)((char *)ent->set.leaves +
++					fcs->num * sizeof (*ent->set.leaves));
+ 
+-	ent_leaves = FcCharSetLeaves (&ent->set);
+ 	for (i = 0; i < fcs->num; i++)
+-	    ent_leaves[i] = FcPtrToOffset (ent_leaves,
+-					   FcCharSetLeaf (fcs, i));
++	    ent->set.leaves[i] = FcCharSetLeaf(fcs, i);
+ 	memcpy (FcCharSetNumbers (&ent->set),
+ 		FcCharSetNumbers (fcs),
+ 		fcs->num * sizeof (FcChar16));
+     }
+     else
+     {
+-	ent->set.leaves_offset = 0;
+-	ent->set.numbers_offset = 0;
++	ent->set.leaves = NULL;
++	ent->set.numbers = NULL;
+     }
+ 
+     ent->hash = hash;
+@@ -1303,7 +1300,7 @@ FcCharSetFreezerDestroy (FcCharSetFreezer *freezer)
+ FcBool
+ FcCharSetSerializeAlloc (FcSerialize *serialize, const FcCharSet *cs)
+ {
+-    intptr_t	    *leaves;
++    FcCharLeaf 	   **leaves;
+     FcChar16	    *numbers;
+     int		    i;
+ 
+@@ -1326,9 +1323,9 @@ FcCharSetSerializeAlloc (FcSerialize *serialize, const FcCharSet *cs)
+ 
+     if (!FcSerializeAlloc (serialize, cs, sizeof (FcCharSet)))
+ 	return FcFalse;
+-    if (!FcSerializeAlloc (serialize, leaves, cs->num * sizeof (intptr_t)))
++    if (!FcSerializeAlloc (serialize, leaves, cs->num * sizeof (*cs->leaves)))
+ 	return FcFalse;
+-    if (!FcSerializeAlloc (serialize, numbers, cs->num * sizeof (FcChar16)))
++    if (!FcSerializeAlloc (serialize, numbers, cs->num * sizeof (*cs->numbers)))
+ 	return FcFalse;
+     for (i = 0; i < cs->num; i++)
+ 	if (!FcSerializeAlloc (serialize, FcCharSetLeaf(cs, i),
+@@ -1341,7 +1338,7 @@ FcCharSet *
+ FcCharSetSerialize(FcSerialize *serialize, const FcCharSet *cs)
+ {
+     FcCharSet	*cs_serialized;
+-    intptr_t	*leaves, *leaves_serialized;
++    FcCharLeaf	**leaves, **leaves_serialized;
+     FcChar16	*numbers, *numbers_serialized;
+     FcCharLeaf	*leaf, *leaf_serialized;
+     int		i;
+@@ -1367,16 +1364,14 @@ FcCharSetSerialize(FcSerialize *serialize, const FcCharSet *cs)
+ 	if (!leaves_serialized)
+ 	    return NULL;
+ 
+-	cs_serialized->leaves_offset = FcPtrToOffset (cs_serialized,
+-						      leaves_serialized);
++	cs_serialized->leaves = FcPtrToEncodedOffset(cs_serialized, leaves_serialized, FcCharLeaf *);
+ 	
+ 	numbers = FcCharSetNumbers (cs);
+ 	numbers_serialized = FcSerializePtr (serialize, numbers);
+ 	if (!numbers)
+ 	    return NULL;
+ 
+-	cs_serialized->numbers_offset = FcPtrToOffset (cs_serialized,
+-						       numbers_serialized);
++	cs_serialized->numbers = FcPtrToEncodedOffset (cs_serialized, numbers_serialized, FcChar16);
+ 
+ 	for (i = 0; i < cs->num; i++)
+ 	{
+@@ -1385,15 +1380,14 @@ FcCharSetSerialize(FcSerialize *serialize, const FcCharSet *cs)
+ 	    if (!leaf_serialized)
+ 		return NULL;
+ 	    *leaf_serialized = *leaf;
+-	    leaves_serialized[i] = FcPtrToOffset (leaves_serialized,
+-						  leaf_serialized);
++	    leaves_serialized[i] = FcPtrToEncodedOffset (leaves_serialized, leaf_serialized, FcCharLeaf);
+ 	    numbers_serialized[i] = numbers[i];
+ 	}
+     }
+     else
+     {
+-	cs_serialized->leaves_offset = 0;
+-	cs_serialized->numbers_offset = 0;
++	cs_serialized->leaves = NULL;
++	cs_serialized->numbers = NULL;
+     }
+ 
+     return cs_serialized;
+diff --git src/fcdbg.c src/fcdbg.c
+index e2c6b56..655ac73 100644
+--- src/fcdbg.c
++++ src/fcdbg.c
+@@ -154,7 +154,6 @@ void
+ FcCharSetPrint (const FcCharSet *c)
+ {
+     int	i, j;
+-    intptr_t	*leaves = FcCharSetLeaves (c);
+     FcChar16	*numbers = FcCharSetNumbers (c);
+ 
+ #if 0
+@@ -173,8 +172,7 @@ FcCharSetPrint (const FcCharSet *c)
+     printf ("\n");
+     for (i = 0; i < c->num; i++)
+     {
+-	intptr_t	leaf_offset = leaves[i];
+-	FcCharLeaf	*leaf = FcOffsetToPtr (leaves, leaf_offset, FcCharLeaf);
++	FcCharLeaf	*leaf = FcCharSetLeaf (c, i);
+ 	
+ 	printf ("\t");
+ 	printf ("%04x:", numbers[i]);
+diff --git src/fcint.h src/fcint.h
+index 78cee54..b73c158 100644
+--- src/fcint.h
++++ src/fcint.h
+@@ -225,11 +225,13 @@ typedef struct _FcPatternElt {
+ struct _FcPattern {
+     int		    num;
+     int		    size;
+-    intptr_t	    elts_offset;
++    FcPatternElt    *elts;
+     FcRef	    ref;
+ };
+ 
+-#define FcPatternElts(p)	FcOffsetMember(p,elts_offset,FcPatternElt)
++#define FcPatternElts(p)	(FcIsEncodedOffset((p)->elts) ? \
++				 FcEncodedOffsetToPtr(p, (p)->elts, FcPatternElt) : \
++				 ((p)->elts))
+ 
+ #define FcFontSetFonts(fs)	FcPointerMember(fs,fonts,FcPattern *)
+ 
+@@ -367,15 +369,23 @@ typedef struct _FcCharLeaf {
+ struct _FcCharSet {
+     FcRef	    ref;	/* reference count */
+     int		    num;	/* size of leaves and numbers arrays */
+-    intptr_t	    leaves_offset;
+-    intptr_t	    numbers_offset;
++    FcCharLeaf	  **leaves;
++    FcChar16	   *numbers;
+ };
+-
+-#define FcCharSetLeaves(c)	FcOffsetMember(c,leaves_offset,intptr_t)
+-#define FcCharSetLeaf(c,i)	(FcOffsetToPtr(FcCharSetLeaves(c), \
+-					       FcCharSetLeaves(c)[i], \
+-					       FcCharLeaf))
+-#define FcCharSetNumbers(c)	FcOffsetMember(c,numbers_offset,FcChar16)
++#define FcCharSetLeaves(c)	(FcIsEncodedOffset((c)->leaves) ? \
++				 FcEncodedOffsetToPtr(c, (c)->leaves, FcCharLeaf*) : \
++				 (c)->leaves)
++static inline FcCharLeaf* FcCharSetLeaf(const struct _FcCharSet *c, size_t i)
++{
++    FcCharLeaf	**leaves =  FcCharSetLeaves(c);
++    if (FcIsEncodedOffset(leaves[i])) {
++	return FcEncodedOffsetToPtr(leaves, leaves[i], FcCharLeaf);
++    }
++    return leaves[i];
++}
++#define FcCharSetNumbers(c)	(FcIsEncodedOffset((c)->numbers) ? \
++				 FcEncodedOffsetToPtr(c, (c)->numbers, FcChar16) : \
++				 (c)->numbers)
+ 
+ #define FCSS_DEFAULT            0 /* default behavior */
+ #define FCSS_ALLOW_DUPLICATES   1 /* allows for duplicate strings in the set */
+@@ -448,7 +458,7 @@ typedef union _FcAlign {
+ 
+ typedef struct _FcSerializeBucket {
+     const void	*object; /* key */
+-    uintptr_t	hash;    /* hash of key */
++    ptraddr_t	hash;    /* hash of key */
+     intptr_t	offset;  /* value */
+ } FcSerializeBucket;
+ 
+diff --git src/fcpat.c src/fcpat.c
+index cdbeec4..1809ace 100644
+--- src/fcpat.c
++++ src/fcpat.c
+@@ -36,7 +36,7 @@ FcPatternCreate (void)
+     memset (p, 0, sizeof (FcPattern));
+     p->num = 0;
+     p->size = 0;
+-    p->elts_offset = FcPtrToOffset (p, NULL);
++    p->elts = NULL;
+     FcRefInit (&p->ref, 1);
+     return p;
+ }
+@@ -394,7 +394,7 @@ FcPatternCacheRewriteFile (const FcPattern *p,
+     new_path = data;
+ 
+     *new_p = *p;
+-    new_p->elts_offset = FcPtrToOffset (new_p, new_elts);
++    new_p->elts = new_elts;
+ 
+     /* Copy all but the FILE values from the cache */
+     for (i = 0, j = 0; i < p->num; i++)
+@@ -525,7 +525,7 @@ FcPatternObjectInsertElt (FcPattern *p, FcObject object)
+ 		e = (FcPatternElt *) malloc (s * sizeof (FcPatternElt));
+ 	    if (!e)
+ 		return FcFalse;
+-	    p->elts_offset = FcPtrToOffset (p, e);
++	    p->elts = e;
+ 	    while (p->size < s)
+ 	    {
+ 		e[p->size].object = 0;
+@@ -1481,8 +1481,9 @@ FcPatternSerialize (FcSerialize *serialize, const FcPattern *pat)
+     if (!elts_serialized)
+ 	return NULL;
+ 
+-    pat_serialized->elts_offset = FcPtrToOffset (pat_serialized,
+-						 elts_serialized);
++    pat_serialized->elts = FcPtrToEncodedOffset (pat_serialized,
++						 elts_serialized,
++						 FcPatternElt);
+ 
+     for (i = 0; i < FcPatternObjectCount (pat); i++)
+     {
+diff --git src/fcserialize.c src/fcserialize.c
+index 2388dcd..47c7f34 100644
+--- src/fcserialize.c
++++ src/fcserialize.c
+@@ -93,17 +93,17 @@ FcSerializeHashPtr (const void *object)
+ }
+ 
+ 
+-#elif ((SIZEOF_VOID_P) * (CHAR_BIT)) == 64
++#else
+ 
+ /*
+  * Based on splittable64/splitmix64 from Mix13
+  * https://zimbry.blogspot.com/2011/09/better-bit-mixing-improving-on.html
+  * https://prng.di.unimi.it/splitmix64.c
+  */
+-static uintptr_t
++static ptraddr_t
+ FcSerializeHashPtr (const void *object)
+ {
+-    uintptr_t x = (uintptr_t)object;
++    ptraddr_t x = (ptraddr_t)object;
+     x ^= x >> 30;
+     x *= 0xbf58476d1ce4e5b9U;
+     x ^= x >> 27;
+@@ -117,7 +117,7 @@ FcSerializeHashPtr (const void *object)
+ static FcSerializeBucket*
+ FcSerializeFind (const FcSerialize *serialize, const void *object)
+ {
+-    uintptr_t hash = FcSerializeHashPtr (object);
++    ptraddr_t hash = FcSerializeHashPtr (object);
+     size_t buckets_count = serialize->buckets_count;
+     size_t index = hash & (buckets_count-1);
+     for (size_t n = 0; n < buckets_count; ++n) {
