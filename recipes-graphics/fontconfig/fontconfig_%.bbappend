@@ -1,6 +1,7 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/fontconfig:"
 SRC_URI += " \
     file://cheribsd.patch;striplevel=0 \
+    file://cheri-fixes.patch \
 "
 
 do_configure:prepend() {
