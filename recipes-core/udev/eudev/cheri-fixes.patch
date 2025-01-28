@@ -1,0 +1,17 @@
+Upstream-Status: Inappropriate [CHERI specific]
+
+--- eudev-3.2.12/src/shared/macro.h	2022-10-03 12:15:31.000000000 +0100
++++ eudev-3.2.12/src/shared/macro.h	2025-01-28 09:55:39.921959704 +0000
+@@ -60,8 +60,11 @@
+ 
+ #define ALIGN4(l) (((l) + 3) & ~3)
+ #define ALIGN8(l) (((l) + 7) & ~7)
++#define ALIGN16(l) (((l) + 15) & ~15)
+ 
+-#if __SIZEOF_POINTER__ == 8
++#if __SIZEOF_POINTER__ == 16
++#define ALIGN(l) ALIGN16(l)
++#elif __SIZEOF_POINTER__ == 8
+ #define ALIGN(l) ALIGN8(l)
+ #elif __SIZEOF_POINTER__ == 4
+ #define ALIGN(l) ALIGN4(l)
