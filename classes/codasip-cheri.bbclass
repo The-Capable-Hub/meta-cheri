@@ -33,3 +33,11 @@ RDEPENDS:packagegroup-core-standalone-sdk-target:remove = "libatomic"
 RDEPENDS:packagegroup-core-standalone-sdk-target:remove = "libatomic-dev"
 RDEPENDS:packagegroup-core-standalone-sdk-target:remove = "libstdc++"
 RDEPENDS:packagegroup-core-standalone-sdk-target:remove = "libstdc++-dev"
+
+# Remove the requirement for python3.
+# This needs to be before the recipe is read (and in particular it can't
+# be in a .bbappend file), otherwise the
+#    inherit ... python3targetconfig
+# will be evaluated using the current value of PACKAGECONFIG not the
+# final one.
+PACKAGECONFIG:remove:pn-libxml2:cheri = "python"
