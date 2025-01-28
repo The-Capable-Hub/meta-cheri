@@ -1,0 +1,49 @@
+Musl for CHERI defines timer_t as a structure to avoid problems
+with pointer arithmetic. kbd assumes that it is a pointer and so can
+assign NULL to it as an invalid timer value. Add an explicit
+'timer_created' flag instead.
+
+Upstream-Status: Inappropriate [CHERI specific]
+
+--- kbd-2.6.3/src/openvt.c	2023-08-09 12:57:23.000000000 +0100
++++ kbd-2.6.3/src/openvt.c	2025-01-28 14:36:18.653153946 +0000
+@@ -5,6 +5,7 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <stdarg.h>
++#include <stdbool.h>
+ #include <string.h>
+ #include <unistd.h>
+ #include <getopt.h>
+@@ -186,7 +187,8 @@
+ change_vt(int fd, int vtno)
+ {
+ 	int rc = -1;
+-	timer_t timerid = NULL;
++	timer_t timerid;
++	bool timer_created = false;
+ 	struct sigaction sa;
+ 	struct sigevent sev;
+ 	struct itimerspec its;
+@@ -207,8 +208,12 @@
+ 	if (timer_create(CLOCK_REALTIME, &sev, &timerid) < 0) {
+ 		kbd_warning(errno, _("Unable to create timer"));
+ 		goto fail;
++	} else {
++		timer_created = true;
+ 	}
+ 
++
++
+ 	its.it_value.tv_sec     = 1;
+ 	its.it_value.tv_nsec    = 0;
+ 	its.it_interval.tv_sec  = its.it_value.tv_sec;
+@@ -235,7 +240,7 @@
+ 
+ 	rc = 0;
+ fail:
+-	if (timerid)
++	if (timer_created)
+ 		timer_delete(timerid);
+ 
+ 	signal(SIGALRM, SIG_DFL);
