@@ -1,0 +1,43 @@
+Upstream-Status: Inappropriate [CHERI specific]
+
+Index: git/src/basic/architecture.h
+===================================================================
+--- git.orig/src/basic/architecture.h
++++ git/src/basic/architecture.h
+@@ -227,6 +227,9 @@ Architecture uname_architecture(void);
+ #  elif __SIZEOF_POINTER__ == 8
+ #    define native_architecture() ARCHITECTURE_RISCV64
+ #    define LIB_ARCH_TUPLE "riscv64-linux-gnu"
++#  elif __SIZEOF_POINTER__ == 16
++#    define native_architecture() ARCHITECTURE_RISCV64
++#    define LIB_ARCH_TUPLE "riscv64cheri-linux-gnu"
+ #  else
+ #    error "Unrecognized riscv architecture variant"
+ #  endif
+Index: git/src/fundamental/macro-fundamental.h
+===================================================================
+--- git.orig/src/fundamental/macro-fundamental.h
++++ git/src/fundamental/macro-fundamental.h
+@@ -350,7 +350,11 @@ static inline size_t ALIGN_TO(size_t l,
+ #define ALIGN4_PTR(p) ((void*) ALIGN4((uintptr_t) p))
+ #define ALIGN8_PTR(p) ((void*) ALIGN8((uintptr_t) p))
+ #define ALIGN(l)  ALIGN_TO(l, sizeof(void*))
++#ifdef __CHERI_PURE_CAPABILITY__
++#define ALIGN_PTR(p) ({ typeof(p) _p = (p); (void*) __builtin_cheri_address_set(_p, ALIGN((uintptr_t) (_p))); })
++#else
+ #define ALIGN_PTR(p) ((void*) ALIGN((uintptr_t) (p)))
++#endif
+ 
+ /* Checks if the specified pointer is aligned as appropriate for the specific type */
+ #define IS_ALIGNED16(p) (((uintptr_t) p) % alignof(uint16_t) == 0)
+Index: git/src/basic/missing_magic.h
+===================================================================
+--- git.orig/src/basic/missing_magic.h
++++ git/src/basic/missing_magic.h
+@@ -202,5 +202,5 @@
+ #ifndef BCACHEFS_SUPER_MAGIC
+ #  define BCACHEFS_SUPER_MAGIC 0xca451a4e
+ #else
+-assert_cc(BCACHEFS_SUPER_MAGIC == 0xca451a4e)
++assert_cc(BCACHEFS_SUPER_MAGIC == 0xca451a4e);
+ #endif
