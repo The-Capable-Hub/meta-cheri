@@ -1,0 +1,659 @@
+Downloaded from
+https://github.com/CTSRD-CHERI/cheribsd-ports/blob/main/devel/dbus
+
+Upstream-Status: Inappropriate [CHERI specific]
+diff --git CMakeLists.txt CMakeLists.txt
+index fc405d2c..108fa538 100644
+--- CMakeLists.txt
++++ CMakeLists.txt
+@@ -669,6 +669,10 @@ if(DBUS_BUILD_TESTS)
+     endif()
+ endif()
+ 
++if(APPLE)
++    option(DBUS_ENABLE_LAUNCHD "Use launchd autolaunch" ON)
++endif()
++
+ set(DBUS_LIBRARIES dbus-1)
+ set(DBUS_INTERNAL_LIBRARIES dbus-internal)
+ 
+diff --git cmake/config.h.cmake cmake/config.h.cmake
+index fa42023f..03c67d80 100644
+--- cmake/config.h.cmake
++++ cmake/config.h.cmake
+@@ -68,6 +68,7 @@
+ #  define DBUS_ENABLE_CHECKS 1
+ #endif
+ #cmakedefine DBUS_ENABLE_EMBEDDED_TESTS 1
++#cmakedefine DBUS_ENABLE_LAUNCHD 1
+ #cmakedefine DBUS_ENABLE_MODULAR_TESTS 1
+ #cmakedefine DBUS_USE_OUTPUT_DEBUG_STRING 1
+ 
+diff --git dbus/CMakeLists.txt dbus/CMakeLists.txt
+index 9e3f0a14..4569fad4 100644
+--- dbus/CMakeLists.txt
++++ dbus/CMakeLists.txt
+@@ -65,6 +65,9 @@ if(UNIX)
+         dbus-transport-unix.c
+         dbus-server-unix.c
+     )
++    if(DBUS_ENABLE_LAUNCHD)
++        set(DBUS_LIB_SOURCES ${DBUS_LIB_SOURCES} dbus-server-launchd.c)
++    endif()
+ else(UNIX)
+     set(DBUS_LIB_SOURCES ${DBUS_LIB_SOURCES}
+         dbus-transport-win.c
+diff --git dbus/dbus-internals.h dbus/dbus-internals.h
+index 739b1b26..4c27b7f3 100644
+--- dbus/dbus-internals.h
++++ dbus/dbus-internals.h
+@@ -283,11 +283,13 @@ _dbus_assert_error_xor_bool (const DBusError *error,
+  */
+ 
+ #define _DBUS_ALIGN_VALUE(this, boundary) \
+-  (( ((uintptr_t)(this)) + (((uintptr_t)(boundary)) -1)) & (~(((uintptr_t)(boundary))-1)))
++  (( ((uintptr_t)(this)) + (((size_t)(boundary)) -1)) & (~(((size_t)(boundary))-1)))
+ 
+ #define _DBUS_ALIGN_ADDRESS(this, boundary) \
+   ((void*)_DBUS_ALIGN_VALUE(this, boundary))
+ 
++#define _DBUS_IS_ALIGNED(this, boundary) \
++  ((size_t)(this) % (boundary) == 0)
+ 
+ DBUS_PRIVATE_EXPORT
+ char*       _dbus_strdup                (const char  *str);
+diff --git dbus/dbus-marshal-basic.c dbus/dbus-marshal-basic.c
+index ab080d0e..f02df4a7 100644
+--- dbus/dbus-marshal-basic.c
++++ dbus/dbus-marshal-basic.c
+@@ -106,7 +106,7 @@ _DBUS_ASSERT_ALIGNMENT (DBus8ByteStruct, <=, 8);
+ static void
+ pack_2_octets (dbus_uint16_t   value,
+                int             byte_order,
+-               unsigned char  *data)
++               void           *data)
+ {
+   _dbus_assert (_DBUS_ALIGN_ADDRESS (data, 2) == data);
+ 
+@@ -119,7 +119,7 @@ pack_2_octets (dbus_uint16_t   value,
+ static void
+ pack_4_octets (dbus_uint32_t   value,
+                int             byte_order,
+-               unsigned char  *data)
++               void           *data)
+ {
+   _dbus_assert (_DBUS_ALIGN_ADDRESS (data, 4) == data);
+ 
+@@ -132,7 +132,7 @@ pack_4_octets (dbus_uint32_t   value,
+ static void
+ pack_8_octets (dbus_uint64_t      value,
+                int                byte_order,
+-               unsigned char     *data)
++               void              *data)
+ {
+   _dbus_assert (_DBUS_ALIGN_ADDRESS (data, 8) == data);
+ 
+@@ -182,9 +182,9 @@ _dbus_unpack_uint16 (int                  byte_order,
+   _dbus_assert (_DBUS_ALIGN_ADDRESS (data, 2) == data);
+ 
+   if (byte_order == DBUS_LITTLE_ENDIAN)
+-    return DBUS_UINT16_FROM_LE (*(dbus_uint16_t*)data);
++    return DBUS_UINT16_FROM_LE (*(const dbus_uint16_t*)(const void*)data);
+   else
+-    return DBUS_UINT16_FROM_BE (*(dbus_uint16_t*)data);
++    return DBUS_UINT16_FROM_BE (*(const dbus_uint16_t*)(const void*)data);
+ }
+ #endif /* _dbus_unpack_uint16 */
+ 
+@@ -203,9 +203,9 @@ _dbus_unpack_uint32 (int                  byte_order,
+   _dbus_assert (_DBUS_ALIGN_ADDRESS (data, 4) == data);
+ 
+   if (byte_order == DBUS_LITTLE_ENDIAN)
+-    return DBUS_UINT32_FROM_LE (*(dbus_uint32_t*)data);
++    return DBUS_UINT32_FROM_LE (*(const dbus_uint32_t*)(const void*)data);
+   else
+-    return DBUS_UINT32_FROM_BE (*(dbus_uint32_t*)data);
++    return DBUS_UINT32_FROM_BE (*(const dbus_uint32_t*)(const void*)data);
+ }
+ #endif /* _dbus_unpack_uint32 */
+ 
+@@ -553,7 +553,7 @@ _dbus_marshal_read_basic (const DBusString      *str,
+       {
+       volatile dbus_uint16_t *vp = value;
+       pos = _DBUS_ALIGN_VALUE (pos, 2);
+-      *vp = *(dbus_uint16_t *)(str_data + pos);
++      *vp = *(dbus_uint16_t *)(void*)(str_data + pos);
+       if (byte_order != DBUS_COMPILER_BYTE_ORDER)
+ 	*vp = DBUS_UINT16_SWAP_LE_BE (*vp);
+       pos += 2;
+@@ -566,7 +566,7 @@ _dbus_marshal_read_basic (const DBusString      *str,
+       {
+       volatile dbus_uint32_t *vp = value;
+       pos = _DBUS_ALIGN_VALUE (pos, 4);
+-      *vp = *(dbus_uint32_t *)(str_data + pos);
++      *vp = *(dbus_uint32_t *)(void*)(str_data + pos);
+       if (byte_order != DBUS_COMPILER_BYTE_ORDER)
+ 	*vp = DBUS_UINT32_SWAP_LE_BE (*vp);
+       pos += 4;
+@@ -579,9 +579,9 @@ _dbus_marshal_read_basic (const DBusString      *str,
+       volatile dbus_uint64_t *vp = value;
+       pos = _DBUS_ALIGN_VALUE (pos, 8);
+       if (byte_order != DBUS_COMPILER_BYTE_ORDER)
+-        *vp = DBUS_UINT64_SWAP_LE_BE (*(dbus_uint64_t*)(str_data + pos));
++        *vp = DBUS_UINT64_SWAP_LE_BE (*(dbus_uint64_t*)(void*)(str_data + pos));
+       else
+-        *vp = *(dbus_uint64_t*)(str_data + pos);
++        *vp = *(dbus_uint64_t*)(void*)(str_data + pos);
+       pos += 8;
+       }
+       break;
+@@ -953,7 +953,7 @@ _dbus_swap_array (unsigned char *data,
+     {
+       while (d != end)
+         {
+-          *((dbus_uint64_t*)d) = DBUS_UINT64_SWAP_LE_BE (*((dbus_uint64_t*)d));
++          *((dbus_uint64_t*)(void*)d) = DBUS_UINT64_SWAP_LE_BE (*((dbus_uint64_t*)(void*)d));
+           d += 8;
+         }
+     }
+@@ -961,7 +961,7 @@ _dbus_swap_array (unsigned char *data,
+     {
+       while (d != end)
+         {
+-          *((dbus_uint32_t*)d) = DBUS_UINT32_SWAP_LE_BE (*((dbus_uint32_t*)d));
++          *((dbus_uint32_t*)(void*)d) = DBUS_UINT32_SWAP_LE_BE (*((dbus_uint32_t*)(void*)d));
+           d += 4;
+         }
+     }
+@@ -971,7 +971,7 @@ _dbus_swap_array (unsigned char *data,
+       
+       while (d != end)
+         {
+-          *((dbus_uint16_t*)d) = DBUS_UINT16_SWAP_LE_BE (*((dbus_uint16_t*)d));
++          *((dbus_uint16_t*)(void*)d) = DBUS_UINT16_SWAP_LE_BE (*((dbus_uint16_t*)(void*)d));
+           d += 2;
+         }
+     }
+@@ -1398,9 +1398,9 @@ _dbus_verbose_bytes (const unsigned char *data,
+               _DBUS_ALIGN_ADDRESS (&data[i], 8) == &data[i])
+             {
+               _dbus_verbose (" u64: 0x%" PRIx64,
+-                             *(dbus_uint64_t*)&data[i-8]);
++                             *(dbus_uint64_t*)(void*)&data[i-8]);
+               _dbus_verbose (" dbl: %g",
+-                             *(double*)&data[i-8]);
++                             *(double*)(void*)&data[i-8]);
+             }
+ 
+           _dbus_verbose ("\n");
+diff --git dbus/dbus-marshal-byteswap.c dbus/dbus-marshal-byteswap.c
+index 7104e9c6..d828a233 100644
+--- dbus/dbus-marshal-byteswap.c
++++ dbus/dbus-marshal-byteswap.c
+@@ -53,7 +53,7 @@ byteswap_body_helper (DBusTypeReader       *reader,
+         case DBUS_TYPE_UINT16:
+           {
+             p = _DBUS_ALIGN_ADDRESS (p, 2);
+-            *((dbus_uint16_t*)p) = DBUS_UINT16_SWAP_LE_BE (*((dbus_uint16_t*)p));
++            *((dbus_uint16_t*)(void*)p) = DBUS_UINT16_SWAP_LE_BE (*((dbus_uint16_t*)(void*)p));
+             p += 2;
+           }
+           break;
+@@ -64,7 +64,7 @@ byteswap_body_helper (DBusTypeReader       *reader,
+         case DBUS_TYPE_UNIX_FD:
+           {
+             p = _DBUS_ALIGN_ADDRESS (p, 4);
+-            *((dbus_uint32_t*)p) = DBUS_UINT32_SWAP_LE_BE (*((dbus_uint32_t*)p));
++            *((dbus_uint32_t*)(void*)p) = DBUS_UINT32_SWAP_LE_BE (*((dbus_uint32_t*)(void*)p));
+             p += 4;
+           }
+           break;
+@@ -74,7 +74,7 @@ byteswap_body_helper (DBusTypeReader       *reader,
+         case DBUS_TYPE_DOUBLE:
+           {
+             p = _DBUS_ALIGN_ADDRESS (p, 8);
+-            *((dbus_uint64_t*)p) = DBUS_UINT64_SWAP_LE_BE (*((dbus_uint64_t*)p));
++            *((dbus_uint64_t*)(void*)p) = DBUS_UINT64_SWAP_LE_BE (*((dbus_uint64_t*)(void*)p));
+             p += 8;
+           }
+           break;
+@@ -89,7 +89,7 @@ byteswap_body_helper (DBusTypeReader       *reader,
+ 
+             array_len = _dbus_unpack_uint32 (old_byte_order, p);
+ 
+-            *((dbus_uint32_t*)p) = DBUS_UINT32_SWAP_LE_BE (*((dbus_uint32_t*)p));
++            *((dbus_uint32_t*)(void*)p) = DBUS_UINT32_SWAP_LE_BE (*((dbus_uint32_t*)(void*)p));
+             p += 4;
+ 
+             if (current_type == DBUS_TYPE_ARRAY)
+diff --git dbus/dbus-marshal-recursive.h dbus/dbus-marshal-recursive.h
+index c3b96819..1b313a4b 100644
+--- dbus/dbus-marshal-recursive.h
++++ dbus/dbus-marshal-recursive.h
+@@ -44,10 +44,10 @@ struct DBusTypeReader
+                                  * where we don't have another way to tell
+                                  */
+   dbus_uint32_t array_len_offset : 3; /**< bytes back from start_pos that len ends */
+-  const DBusString *type_str;   /**< string containing signature of block */
+   int type_pos;                 /**< current position in signature */
+-  const DBusString *value_str;  /**< string containing values of block */
+   int value_pos;                /**< current position in values */
++  const DBusString *type_str;   /**< string containing signature of block */
++  const DBusString *value_str;  /**< string containing values of block */
+ 
+   const DBusTypeReaderClass *klass; /**< the vtable for the reader */
+   union
+@@ -71,10 +71,10 @@ struct DBusTypeWriter
+ 
+   dbus_uint32_t enabled : 1; /**< whether to write values */
+ 
+-  DBusString *type_str; /**< where to write typecodes (or read type expectations) */
+   int type_pos;         /**< current pos in type_str */
+-  DBusString *value_str; /**< where to write values */
+   int value_pos;         /**< next position to write */
++  DBusString *type_str; /**< where to write typecodes (or read type expectations) */
++  DBusString *value_str; /**< where to write values */
+ 
+   union
+   {
+diff --git dbus/dbus-memory.c dbus/dbus-memory.c
+index cee74462..60266ed1 100644
+--- dbus/dbus-memory.c
++++ dbus/dbus-memory.c
+@@ -117,7 +117,7 @@ static DBusAtomic n_blocks_outstanding = {0};
+ /** size of the information about the block stored in guard mode */
+ #define GUARD_INFO_SIZE 8
+ /** size of the GUARD_VALUE-filled padding after the header info  */
+-#define GUARD_START_PAD 16
++#define GUARD_START_PAD 24
+ /** size of the GUARD_VALUE-filled padding at the end of the block */
+ #define GUARD_END_PAD 16
+ /** size of stuff at start of block */
+@@ -125,6 +125,8 @@ static DBusAtomic n_blocks_outstanding = {0};
+ /** total extra size over the requested allocation for guard stuff */
+ #define GUARD_EXTRA_SIZE (GUARD_START_OFFSET + GUARD_END_PAD)
+ 
++_DBUS_STATIC_ASSERT(GUARD_START_OFFSET % _DBUS_ALIGNOF(max_align_t) == 0);
++
+ static void
+ _dbus_initialize_malloc_debug (void)
+ {
+@@ -337,8 +339,8 @@ check_guards (void       *free_block,
+   if (free_block != NULL)
+     {
+       unsigned char *block = ((unsigned char*)free_block) - GUARD_START_OFFSET;
+-      size_t requested_bytes = *(dbus_uint32_t*)block;
+-      BlockSource source = *(dbus_uint32_t*)(block + 4);
++      size_t requested_bytes = *(dbus_uint32_t*)(void*)block;
++      BlockSource source = *(dbus_uint32_t*)(void*)(block + 4);
+       unsigned int i;
+       dbus_bool_t failed;
+ 
+@@ -352,7 +354,7 @@ check_guards (void       *free_block,
+       i = GUARD_INFO_SIZE;
+       while (i < GUARD_START_OFFSET)
+         {
+-          dbus_uint32_t value = *(dbus_uint32_t*) &block[i];
++          dbus_uint32_t value = *(dbus_uint32_t*)(void*) &block[i];
+           if (value != GUARD_VALUE)
+             {
+               _dbus_warn ("Block of %lu bytes from %s had start guard value 0x%ux at %d expected 0x%x",
+@@ -367,7 +369,7 @@ check_guards (void       *free_block,
+       i = GUARD_START_OFFSET + requested_bytes;
+       while (i < (GUARD_START_OFFSET + requested_bytes + GUARD_END_PAD))
+         {
+-          dbus_uint32_t value = *(dbus_uint32_t*) &block[i];
++          dbus_uint32_t value = *(dbus_uint32_t*)(void*) &block[i];
+           if (value != GUARD_VALUE)
+             {
+               _dbus_warn ("Block of %lu bytes from %s had end guard value 0x%ux at %d expected 0x%x",
+@@ -388,6 +390,8 @@ check_guards (void       *free_block,
+     }
+ }
+ 
++_DBUS_STATIC_ASSERT(GUARD_START_OFFSET + GUARD_END_PAD == GUARD_EXTRA_SIZE);
++
+ static void*
+ set_guards (void       *real_block,
+             size_t      requested_bytes,
+@@ -399,15 +403,13 @@ set_guards (void       *real_block,
+   if (block == NULL)
+     return NULL;
+ 
+-  _dbus_assert (GUARD_START_OFFSET + GUARD_END_PAD == GUARD_EXTRA_SIZE);
+-  
+-  *((dbus_uint32_t*)block) = requested_bytes;
+-  *((dbus_uint32_t*)(block + 4)) = source;
++  *((dbus_uint32_t*)(void*)block) = requested_bytes;
++  *((dbus_uint32_t*)(void*)(block + 4)) = source;
+ 
+   i = GUARD_INFO_SIZE;
+   while (i < GUARD_START_OFFSET)
+     {
+-      (*(dbus_uint32_t*) &block[i]) = GUARD_VALUE;
++      (*(dbus_uint32_t*)(void*) &block[i]) = GUARD_VALUE;
+       
+       i += 4;
+     }
+@@ -415,7 +417,7 @@ set_guards (void       *real_block,
+   i = GUARD_START_OFFSET + requested_bytes;
+   while (i < (GUARD_START_OFFSET + requested_bytes + GUARD_END_PAD))
+     {
+-      (*(dbus_uint32_t*) &block[i]) = GUARD_VALUE;
++      (*(dbus_uint32_t*)(void*) &block[i]) = GUARD_VALUE;
+       
+       i += 4;
+     }
+diff --git dbus/dbus-mempool.c dbus/dbus-mempool.c
+index 83aa2722..c9db1e59 100644
+--- dbus/dbus-mempool.c
++++ dbus/dbus-mempool.c
+@@ -65,12 +65,6 @@ struct DBusFreedElement
+   DBusFreedElement *next; /**< next element of the free list */
+ };
+ 
+-/**
+- * The dummy size of the variable-length "elements"
+- * field in DBusMemBlock
+- */
+-#define ELEMENT_PADDING 4
+-
+ /**
+  * Typedef for DBusMemBlock so the struct can recursively
+  * point to itself.
+@@ -87,13 +81,12 @@ struct DBusMemBlock
+                         *   only saved so we can free all the blocks
+                         *   when we free the mem pool.
+                         */
+-
+-  /* this is a long so that "elements" is aligned */
+   long used_so_far;     /**< bytes of this block already allocated as elements. */
+-  
+-  unsigned char elements[ELEMENT_PADDING]; /**< the block data, actually allocated to required size */
++  _Alignas(_DBUS_ALIGNOF(max_align_t)) unsigned char elements[]; /**< the block data, actually allocated to required size */
+ };
+ 
++_DBUS_STATIC_ASSERT(offsetof(struct DBusMemBlock, elements) % _DBUS_ALIGNOF(max_align_t) == 0);
++
+ /**
+  * Internals fields of DBusMemPool
+  */
+@@ -102,10 +95,10 @@ struct DBusMemPool
+   int element_size;                /**< size of a single object in the pool */
+   int block_size;                  /**< size of most recently allocated block */
+   unsigned int zero_elements : 1;  /**< whether to zero-init allocated elements */
++  int allocated_elements;          /**< Count of outstanding allocated elements */
+ 
+   DBusFreedElement *free_elements; /**< a free list of elements to recycle */
+   DBusMemBlock *blocks;            /**< blocks of memory from malloc() */
+-  int allocated_elements;          /**< Count of outstanding allocated elements */
+ };
+ 
+ /** @} */
+@@ -149,7 +142,9 @@ _dbus_mem_pool_new (int element_size,
+   /* Make the element size at least 8 bytes. */
+   if (element_size < 8)
+     element_size = 8;
+-  
++  if (element_size < (int) sizeof (void *))
++    element_size = sizeof (void *);
++
+   /* these assertions are equivalent but the first is more clear
+    * to programmers that see it fail.
+    */
+@@ -159,7 +154,7 @@ _dbus_mem_pool_new (int element_size,
+   /* align the element size to a pointer boundary so we won't get bus
+    * errors under other architectures.  
+    */
+-  pool->element_size = _DBUS_ALIGN_VALUE (element_size, sizeof (void *));
++  pool->element_size = _DBUS_ALIGN_VALUE (element_size, _DBUS_ALIGNOF(max_align_t));
+ 
+   pool->zero_elements = zero_elements != FALSE;
+ 
+@@ -215,6 +210,7 @@ _dbus_mem_pool_free (DBusMemPool *pool)
+ void*
+ _dbus_mem_pool_alloc (DBusMemPool *pool)
+ {
++  // FIXME: set bounds here
+ #ifdef DBUS_ENABLE_EMBEDDED_TESTS
+   if (_dbus_disable_mem_pools ())
+     {
+@@ -228,8 +224,7 @@ _dbus_mem_pool_alloc (DBusMemPool *pool)
+        * should vanish)
+        */
+       
+-      alloc_size = sizeof (DBusMemBlock) - ELEMENT_PADDING +
+-        pool->element_size;
++      alloc_size = sizeof (DBusMemBlock) + pool->element_size;
+       
+       if (pool->zero_elements)
+         block = dbus_malloc0 (alloc_size);
+@@ -244,6 +239,7 @@ _dbus_mem_pool_alloc (DBusMemPool *pool)
+ 
+           VALGRIND_MEMPOOL_ALLOC (pool, (void *) &block->elements[0],
+               pool->element_size);
++	  _dbus_assert(_DBUS_IS_ALIGNED(&block->elements[0], _DBUS_ALIGNOF(max_align_t)));
+           return (void*) &block->elements[0];
+         }
+       else
+@@ -269,7 +265,7 @@ _dbus_mem_pool_alloc (DBusMemPool *pool)
+             memset (element, '\0', pool->element_size);
+ 
+           pool->allocated_elements += 1;
+-
++	  _dbus_assert(_DBUS_IS_ALIGNED(element, _DBUS_ALIGNOF(max_align_t)));
+           return element;
+         }
+       else
+@@ -294,7 +290,7 @@ _dbus_mem_pool_alloc (DBusMemPool *pool)
+                                  pool->element_size) == 0);
+                 }
+ 
+-              alloc_size = sizeof (DBusMemBlock) - ELEMENT_PADDING + pool->block_size;
++              alloc_size = sizeof (DBusMemBlock) + pool->block_size;
+ 
+ #ifdef DBUS_ENABLE_EMBEDDED_TESTS
+               /* We save/restore the counter, so that memory pools won't
+@@ -311,6 +307,7 @@ _dbus_mem_pool_alloc (DBusMemPool *pool)
+                 block = dbus_malloc0 (alloc_size);
+               else
+                 block = dbus_malloc (alloc_size);
++	      _dbus_assert(_DBUS_IS_ALIGNED(block, _DBUS_ALIGNOF(max_align_t)));
+ 
+ #ifdef DBUS_ENABLE_EMBEDDED_TESTS
+               _dbus_set_fail_alloc_counter (saved_counter);
+@@ -324,14 +321,19 @@ _dbus_mem_pool_alloc (DBusMemPool *pool)
+               block->next = pool->blocks;
+               pool->blocks = block;          
+             }
+-      
++
++	  _dbus_assert(_DBUS_IS_ALIGNED(pool->blocks->used_so_far, _DBUS_ALIGNOF(max_align_t)));
++
+           element = &pool->blocks->elements[pool->blocks->used_so_far];
+-          
++	  _dbus_assert(_DBUS_IS_ALIGNED(pool->blocks->elements, _DBUS_ALIGNOF(max_align_t)));
++
+           pool->blocks->used_so_far += pool->element_size;
++	  _dbus_assert(_DBUS_IS_ALIGNED(pool->blocks->used_so_far, _DBUS_ALIGNOF(max_align_t)));
+ 
+           pool->allocated_elements += 1;
+ 
+           VALGRIND_MEMPOOL_ALLOC (pool, element, pool->element_size);
++	  _dbus_assert(_DBUS_IS_ALIGNED(element, _DBUS_ALIGNOF(max_align_t)));
+           return element;
+         }
+     }
+diff --git dbus/dbus-message.c dbus/dbus-message.c
+index 9bc13cf9..07e9780d 100644
+--- dbus/dbus-message.c
++++ dbus/dbus-message.c
+@@ -136,6 +136,7 @@ struct DBusMessageRealIter
+   } u; /**< the type writer or reader that does all the work */
+ };
+ 
++#ifndef __CHERI_PURE_CAPABILITY__ /* No backwards ABI compat required */
+ /**
+  * Layout of a DBusMessageIter on the stack in dbus 1.10.0. This is no
+  * longer used, but for ABI compatibility we need to assert that the
+@@ -158,6 +159,7 @@ typedef struct
+   int pad2;
+   void *pad3;
+ } DBusMessageIter_1_10_0;
++#endif
+ 
+ static void
+ get_const_signature (DBusHeader        *header,
+@@ -2069,16 +2071,21 @@ _dbus_message_iter_init_common (DBusMessage         *message,
+   _DBUS_STATIC_ASSERT (sizeof (DBusMessageRealIter) <= sizeof (DBusMessageIter));
+   _DBUS_STATIC_ASSERT (_DBUS_ALIGNOF (DBusMessageRealIter) <=
+       _DBUS_ALIGNOF (DBusMessageIter));
++#ifndef __CHERI_PURE_CAPABILITY__
+   /* A failure of these two assertions would indicate that we've broken
+    * ABI on this platform since 1.10.0. */
+   _DBUS_STATIC_ASSERT (sizeof (DBusMessageIter_1_10_0) ==
+       sizeof (DBusMessageIter));
+   _DBUS_STATIC_ASSERT (_DBUS_ALIGNOF (DBusMessageIter_1_10_0) ==
+       _DBUS_ALIGNOF (DBusMessageIter));
++#endif
+   /* If this static assertion fails, it means the DBusMessageIter struct
+    * is not "packed", which might result in "iter = other_iter" not copying
+    * every byte. */
+   _DBUS_STATIC_ASSERT (sizeof (DBusMessageIter) ==
++#if __SIZEOF_POINTER__ == 16
++      2 * sizeof(int) +
++#endif
+       4 * sizeof (void *) + sizeof (dbus_uint32_t) + 9 * sizeof (int));
+ 
+   /* Since the iterator will read or write who-knows-what from the
+diff --git dbus/dbus-message.h dbus/dbus-message.h
+index da2f2d9d..a3455e70 100644
+--- dbus/dbus-message.h
++++ dbus/dbus-message.h
+@@ -71,7 +71,7 @@ struct DBusMessageIter
+   int dummy9;           /**< Don't use this */
+   int dummy10;          /**< Don't use this */
+   int dummy11;          /**< Don't use this */
+-  int pad1;             /**< Don't use this */
++  int pad1[sizeof(void*) > 8 ? (sizeof(void*) - sizeof(int)) / sizeof(int) : 1]; /**< Don't use this */
+   void *pad2;           /**< Don't use this */
+   void *pad3;           /**< Don't use this */
+ };
+@@ -93,7 +93,7 @@ struct DBusMessageIter
+   0, /* dummy9 */ \
+   0, /* dummy10 */ \
+   0, /* dummy11 */ \
+-  0, /* pad1 */ \
++  {0}, /* pad1 */ \
+   NULL, /* pad2 */ \
+   NULL /* pad3 */ \
+ }
+diff --git dbus/dbus-string.c dbus/dbus-string.c
+index 278ceb07..5a60c079 100644
+--- dbus/dbus-string.c
++++ dbus/dbus-string.c
+@@ -980,15 +980,15 @@ _dbus_string_append (DBusString *str,
+ 
+ /** assign 2 bytes from one string to another */
+ #define ASSIGN_2_OCTETS(p, octets) \
+-  *((dbus_uint16_t*)(p)) = *((dbus_uint16_t*)(octets));
++  *((dbus_uint16_t*)(void*)(p)) = *((dbus_uint16_t*)(void*)(octets));
+ 
+ /** assign 4 bytes from one string to another */
+ #define ASSIGN_4_OCTETS(p, octets) \
+-  *((dbus_uint32_t*)(p)) = *((dbus_uint32_t*)(octets));
++  *((dbus_uint32_t*)(void*)(p)) = *((dbus_uint32_t*)(void*)(octets));
+ 
+ /** assign 8 bytes from one string to another */
+ #define ASSIGN_8_OCTETS(p, octets) \
+-  *((dbus_uint64_t*)(p)) = *((dbus_uint64_t*)(octets));
++  *((dbus_uint64_t*)(void*)(p)) = *((dbus_uint64_t*)(void*)(octets));
+ 
+ /**
+  * Inserts 2 bytes aligned on a 2 byte boundary
+diff --git dbus/dbus-sysdeps-unix.c dbus/dbus-sysdeps-unix.c
+index 6b32df66..e1ba15ac 100644
+--- dbus/dbus-sysdeps-unix.c
++++ dbus/dbus-sysdeps-unix.c
+@@ -439,7 +439,7 @@ _dbus_read_socket_with_unix_fds (DBusSocket        fd,
+         if (cm->cmsg_level == SOL_SOCKET && cm->cmsg_type == SCM_RIGHTS)
+           {
+             size_t i;
+-            int *payload = (int *) CMSG_DATA (cm);
++            int *payload = (int *)(void *) CMSG_DATA (cm);
+             size_t payload_len_bytes = (cm->cmsg_len - CMSG_LEN (0));
+             size_t payload_len_fds;
+             size_t fds_to_use;
+@@ -2350,7 +2350,7 @@ _dbus_read_credentials_socket  (DBusSocket       client_fd,
+             cmsgp->cmsg_level == SOL_SOCKET &&
+             cmsgp->cmsg_len >= CMSG_LEN (sizeof (struct cmsgcred)))
+           {
+-            cred = (struct cmsgcred *) CMSG_DATA (cmsgp);
++            cred = (struct cmsgcred *)(void *) CMSG_DATA (cmsgp);
+             pid_read = cred->cmcred_pid;
+             uid_read = cred->cmcred_euid;
+             break;
+diff --git test/internals/dbus-marshal-recursive-util.c test/internals/dbus-marshal-recursive-util.c
+index f81efffa..c14edf03 100644
+--- test/internals/dbus-marshal-recursive-util.c
++++ test/internals/dbus-marshal-recursive-util.c
+@@ -2631,8 +2631,8 @@ double_read_value (TestTypeNode   *node,
+   if (!_DBUS_DOUBLES_BITWISE_EQUAL (v, expected))
+     _dbus_test_fatal ("Expected double %g got %g\n bits = 0x%" PRIx64 " vs.\n bits = 0x%" PRIx64,
+                       expected, v,
+-                      *(dbus_uint64_t*)(char*)&expected,
+-                      *(dbus_uint64_t*)(char*)&v);
++                      *(dbus_uint64_t*)(void*)&expected,
++                      *(dbus_uint64_t*)(void*)&v);
+ 
+   return TRUE;
+ }
+diff --git test/internals/misc-internals.c test/internals/misc-internals.c
+index a1777bb2..0defb6aa 100644
+--- test/internals/misc-internals.c
++++ test/internals/misc-internals.c
+@@ -679,8 +679,8 @@ _dbus_server_test (const char *test_data_dir _DBUS_GNUC_UNUSED)
+     "tcp:host=localhost,port=1234",
+     "tcp:host=localhost,port=1234;tcp:port=5678",
+ #ifdef DBUS_UNIX
+-    "unix:path=./boogie",
+-    "tcp:port=1234;unix:path=./boogie",
++    "unix:path=/tmp/boogie",
++    "tcp:port=1234;unix:path=/tmp/boogie",
+ #endif
+   };
+ 
+diff --git test/test-utils-glib.c test/test-utils-glib.c
+index 231860a1..86859206 100644
+--- test/test-utils-glib.c
++++ test/test-utils-glib.c
+@@ -553,7 +553,7 @@ become_other_user (TestUser user,
+ }
+ 
+ /* Undo the effect of a successful call to become_other_user() */
+-static void
++static _DBUS_GNUC_NORETURN void
+ back_to_root (void)
+ {
+ #if defined(HAVE_GETRESUID) && defined(HAVE_SETRESUID) && defined(__linux__)
+@@ -562,6 +562,7 @@ back_to_root (void)
+ #else
+   g_error ("become_other_user() cannot succeed on this platform");
+ #endif
++  abort();
+ }
+ 
+ /*
+diff --git tools/dbus-launch-x11.c tools/dbus-launch-x11.c
+index 0b5d2928..b48273da 100644
+--- tools/dbus-launch-x11.c
++++ tools/dbus-launch-x11.c
+@@ -304,7 +304,7 @@ x11_get_address (char **paddress, pid_t *pid, long *wid)
+   int format;
+   unsigned long items;
+   unsigned long after;
+-  char *data;
++  void *data;
+ 
+   *paddress = NULL;
+ 
