@@ -1,0 +1,36 @@
+Upstream-Status: Inappropriate [CHERI specific]
+
+The memory for an XRRScreenResources is allocated by adding together the
+size of the structure plus all the extra data structures it points to, and
+performing a single XMalloc. However this takes no account of the alignment
+requirements of the extra data structures. This is a problem with CHERI as
+the XRRModeInfo struture contains a further pointer, and so needs to be
+correctly aligned.
+
+The easiest way to fix this is rearrange the order that the structures
+are assigned in the memory block, so that XRRModeInfo follows the
+XRRScreenResources, both of which contain pointers and so should be
+correctly aligned.
+
+Signed-off-by: Stuart Menefy <stuart.menefy@codasip.com>
+
+--- a/src/XrrScreen.c	2022-11-20 16:57:43.000000000 +0000
++++ b/src/XrrScreen.c	2025-02-01 19:03:12.210535533 +0000
+@@ -148,13 +148,13 @@
+ 
+     xrsr->timestamp = rep.timestamp;
+     xrsr->configTimestamp = rep.configTimestamp;
++    xrsr->nmode = rep.nModes;
++    xrsr->modes = (XRRModeInfo *) (xrsr + 1);
+     xrsr->ncrtc = rep.nCrtcs;
+-    xrsr->crtcs = (RRCrtc *) (xrsr + 1);
++    xrsr->crtcs = (RRCrtc *) (xrsr->modes + rep.nModes);
+     xrsr->noutput = rep.nOutputs;
+     xrsr->outputs = (RROutput *) (xrsr->crtcs + rep.nCrtcs);
+-    xrsr->nmode = rep.nModes;
+-    xrsr->modes = (XRRModeInfo *) (xrsr->outputs + rep.nOutputs);
+-    names = (char *) (xrsr->modes + rep.nModes);
++    names = (char *) (xrsr->outputs + rep.nOutputs);
+ 
+     _XRead32 (dpy, (long *) xrsr->crtcs, rep.nCrtcs << 2);
+     _XRead32 (dpy, (long *) xrsr->outputs, rep.nOutputs << 2);
