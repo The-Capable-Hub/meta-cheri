@@ -1,0 +1,36 @@
+Downloaded from
+https://github.com/CTSRD-CHERI/cheribsd-ports/blob/main/math/gmp/files/cheribsd.patch
+
+Refreshed from 6.2.1 to 6.3.0
+
+Upstream-Status: Inappropriate [CHERI specific]
+Index: configure
+===================================================================
+--- configure.orig
++++ configure
+@@ -4260,8 +4260,8 @@ echo "include_mpn(\`alpha/default.m4')"
+     CALLING_CONVENTIONS_OBJS='arm32call.lo arm32check.lo'
+     CALLING_CONVENTIONS_OBJS_64=""
+     cclist_64="gcc cc"
+-    any_32_testlist="sizeof-void*-4"
+-    any_64_testlist="sizeof-void*-8"
++    any_32_testlist="sizeof-long-4"
++    any_64_testlist="sizeof-long-8"
+ 
+     # This is needed for clang, which is not content with flags like -mfpu=neon
+     # alone.
+Index: configure.ac
+===================================================================
+--- configure.ac.orig
++++ configure.ac
+@@ -626,8 +626,8 @@ case $host in
+     CALLING_CONVENTIONS_OBJS='arm32call.lo arm32check.lo'
+     CALLING_CONVENTIONS_OBJS_64=""
+     cclist_64="gcc cc"
+-    any_32_testlist="sizeof-void*-4"
+-    any_64_testlist="sizeof-void*-8"
++    any_32_testlist="sizeof-long-4"
++    any_64_testlist="sizeof-long-8"
+ 
+     # FIXME: We make mandatory compiler options optional here.  We should
+     # either enforce them, or organise to strip paths as the corresponding
