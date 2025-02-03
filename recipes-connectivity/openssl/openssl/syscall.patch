@@ -1,0 +1,23 @@
+commit 6b948a5266ddd197940c2df71bdbf6bc70d33fe4
+Author: Christian Ehrhardt <christian.ehrhardt@codasip.com>
+Date:   Mon Feb 3 10:51:39 2025 +0100
+
+    Import upstream fix for syscall argument parsing
+    
+    Import a fix from upstream for syscall argument parsing.
+    
+Upstream-Status: Inappropriate [Already merged]
+
+diff --git a/engines/e_afalg.c b/engines/e_afalg.c
+index 2c08cbb..6c3c153 100644
+--- a/engines/e_afalg.c
++++ b/engines/e_afalg.c
+@@ -165,7 +165,7 @@ static ossl_inline int io_getevents(aio_context_t ctx, long min, long max,
+             ts32.tv_sec = (__kernel_long_t) timeout->tv_sec;
+             ts32.tv_nsec = (__kernel_long_t) timeout->tv_nsec;
+ 
+-            return syscall(__NR_io_getevents, ctx, min, max, events, ts32);
++            return syscall(__NR_io_getevents, ctx, min, max, events, &ts32);
+         } else {
+             return syscall(__NR_io_getevents, ctx, min, max, events, NULL);
+         }
