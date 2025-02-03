@@ -1,0 +1,13 @@
+Upstream-Status: Inappropriate [CHERI specific]
+
+--- a/backends/riscv_initreg.c	2023-03-03 15:42:26.000000000 +0000
++++ b/backends/riscv_initreg.c	2025-01-31 15:41:32.727517242 +0000
+@@ -54,7 +54,7 @@
+   struct iovec iovec;
+   iovec.iov_base = &gregs;
+   iovec.iov_len = sizeof (gregs);
+-  if (ptrace (PTRACE_GETREGSET, tid, NT_PRSTATUS, &iovec) != 0)
++  if (ptrace (PTRACE_GETREGSET, tid, (void*)NT_PRSTATUS, &iovec) != 0)
+     return false;
+ 
+   /* X0 is constant 0.  */
