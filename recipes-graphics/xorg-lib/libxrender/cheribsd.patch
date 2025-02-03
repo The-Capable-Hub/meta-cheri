@@ -1,0 +1,47 @@
+Downloaded from
+https://github.com/CTSRD-CHERI/cheribsd-ports/blob/main/x11/libXrender/files/cheribsd.patch
+
+Refreshed from 0.9.10 to apply to 0.9.11.
+
+Upstream-Status: Inappropriate [CHERI specific]
+
+Index: src/Xrender.c
+===================================================================
+--- src/Xrender.c.orig
++++ src/Xrender.c
+@@ -418,6 +418,7 @@ XRenderQueryFormats (Display *dpy)
+     unsigned			nf;
+     unsigned long		rlength;
+     unsigned long		nbytes;
++    unsigned long		padFormats;
+ 
+     RenderCheckExtension (dpy, info, 0);
+     LockDisplay (dpy);
+@@ -469,8 +470,17 @@ XRenderQueryFormats (Display *dpy)
+ 	(rep.numVisuals < ((INT_MAX / 4) / sizeof (XRenderVisual))) &&
+ 	(rep.numSubpixel < ((INT_MAX / 4) / 4)) &&
+ 	(rep.length < (INT_MAX >> 2)) ) {
++	/*
++	 * XXX: Use proper generalised aligning, not hard-coded padding based
++	 * on struct layout and pointer size knowledge.
++	 */
++#ifdef __CHERI_PURE_CAPABILITY__
++	padFormats = rep.numFormats % 2;
++#else
++	padFormats = 0;
++#endif
+ 	xri = Xmalloc (sizeof (XRenderInfo) +
+-		       (rep.numFormats * sizeof (XRenderPictFormat)) +
++		       ((rep.numFormats + padFormats) * sizeof (XRenderPictFormat)) +
+ 		       (rep.numScreens * sizeof (XRenderScreen)) +
+ 		       (rep.numDepths * sizeof (XRenderDepth)) +
+ 		       (rep.numVisuals * sizeof (XRenderVisual)));
+@@ -500,7 +510,7 @@ XRenderQueryFormats (Display *dpy)
+     xri->minor_version = async_state.minor_version;
+     xri->format = (XRenderPictFormat *) (xri + 1);
+     xri->nformat = (int) rep.numFormats;
+-    xri->screen = (XRenderScreen *) (xri->format + rep.numFormats);
++    xri->screen = (XRenderScreen *) (xri->format + rep.numFormats + padFormats);
+     xri->nscreen = (int) rep.numScreens;
+     xri->depth = (XRenderDepth *) (xri->screen + rep.numScreens);
+     xri->ndepth = (int) rep.numDepths;
