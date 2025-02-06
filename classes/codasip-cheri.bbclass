@@ -14,7 +14,7 @@ DISTRO_FEATURES:append = " ld-is-lld"
 
 SYSVINIT_SCRIPTS:remove = "modutils-initscripts"
 VIRTUAL-RUNTIME_init_manager = "busybox"
-VIRTUAL-RUNTIME_dev_manager = "busybox-mdev"
+VIRTUAL-RUNTIME_dev_manager = "eudev"
 VIRTUAL-RUNTIME_base-utils-syslog = ""
 
 # Override the toolchain specified in nonclangable.
