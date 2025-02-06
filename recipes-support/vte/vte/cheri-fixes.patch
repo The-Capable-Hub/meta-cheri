@@ -1,0 +1,46 @@
+Update the template used for generating _get_type() functions so that they use
+g_once_init_{enter,leave}_pointer where appropriate.
+
+We also need to bump the maximum API version of glib so that the
+G_DEFINE_TYPE macros expand with calls to g_once_init_{enter,leave}_pointer.
+
+See the upstream issue:
+  https://gitlab.gnome.org/GNOME/glib/-/issues/2842
+for more information.
+
+Upstream-Status: Inappropriate [CHERI specific]
+
+--- a/src/vtetypebuiltins.cc.template	2025-02-03 19:32:29.535514064 +0000
++++ b/src/vtetypebuiltins.cc.template	2023-06-01 20:33:31.000000000 +0100
+@@ -11,9 +11,9 @@
+ GType
+ @enum_name@_get_type (void)
+ {
+-  static gsize g_define_type_id = 0;
++  static GType g_define_type_id = 0;
+  
+-  if (g_once_init_enter (&g_define_type_id)) {
++  if (g_once_init_enter_pointer (&g_define_type_id)) {
+     static const G@Type@Value values[] = {
+ /*** END value-header ***/
+ 
+@@ -27,7 +27,7 @@
+     GType type_id = \
+        g_@type@_register_static (g_intern_static_string ("@EnumName@"), values);
+       
+-    g_once_init_leave (&g_define_type_id, type_id);
++    g_once_init_leave_pointer (&g_define_type_id, type_id);
+   }
+     
+   return g_define_type_id;
+--- a/meson.build	2025-02-03 19:32:29.535514064 +0000
++++ b/meson.build	2023-06-01 20:33:31.000000000 +0100
+@@ -11,7 +11,7 @@
+ gio_req_version           = '2.52.0'
+ glib_req_version          = '2.52.0'
+ glib_min_req_version      = '2.52'
+-glib_max_allowed_version  = '2.60'
++glib_max_allowed_version  = '2.76'
+ gnutls_req_version        = '3.2.7'
+ icu_uc_req_version        = '4.8'
+ pango_req_version         = '1.22.0'
