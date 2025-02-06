@@ -1,0 +1,32 @@
+Update the auto-generated _get_type() functions so that they use
+g_once_init_{enter,leave}_pointer where appropriate.
+
+See the upstream issue:
+  https://gitlab.gnome.org/GNOME/glib/-/issues/2842
+for more information.
+
+Upstream-Status: Inappropriate [CHERI specific]
+
+--- a/pango/pango-enum-types.c.template	2025-02-03 18:45:25.422469845 +0000
++++ b/pango/pango-enum-types.c.template	2025-02-03 18:45:02.167234058 +0000
+@@ -13,9 +13,9 @@
+ GType
+ @enum_name@_get_type (void)
+ {
+-  static gsize g_define_type_id__volatile = 0;
++  static GType g_define_type_id__volatile = 0;
+ 
+-  if (g_once_init_enter (&g_define_type_id__volatile))
++  if (g_once_init_enter_pointer (&g_define_type_id__volatile))
+     {
+       static const G@Type@Value values[] = {
+ /*** END value-header ***/
+@@ -29,7 +29,7 @@
+       };
+       GType g_define_type_id =
+         g_@type@_register_static (g_intern_static_string ("@EnumName@"), values);
+-      g_once_init_leave (&g_define_type_id__volatile, g_define_type_id);
++      g_once_init_leave_pointer (&g_define_type_id__volatile, g_define_type_id);
+     }
+ 
+   return g_define_type_id__volatile;
