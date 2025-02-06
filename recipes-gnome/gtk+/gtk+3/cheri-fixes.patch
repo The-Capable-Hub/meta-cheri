@@ -1,0 +1,151 @@
+Update the template used for generating _get_type() functions and the
+existing auto-generated versions so that they use
+g_once_init_{enter,leave}_pointer where appropriate.
+
+See the upstream issue:
+  https://gitlab.gnome.org/GNOME/glib/-/issues/2842
+for more information.
+
+We also need to update the PACK and UNPACK macros used with the
+GtkCssNodeDeclaration type. It stores additional information in the
+bottom bits of the pointer, but we need to ensure the macros use
+GTYPE_TO_POINTER and GPOINTER_TO_TYPE instead of the SIZE equivalent,
+as this uses uintptr_t as the intermediate integer type which ensures
+that the pointers don't loose provenance.
+
+Upstream-Status: Inappropriate [CHERI specific]
+
+diff -ur agdk/gdkenumtypes.c.template b/gdk/gdkenumtypes.c.template
+--- a/gdk/gdkenumtypes.c.template	2023-05-22 03:22:08.000000000 +0100
++++ b/gdk/gdkenumtypes.c.template	2025-02-03 10:25:06.658953237 +0000
+@@ -12,9 +12,9 @@
+ GType
+ @enum_name@_get_type (void)
+ {
+-  static gsize g_define_type_id__volatile = 0;
++  static GType g_define_type_id__volatile = 0;
+ 
+-  if (g_once_init_enter (&g_define_type_id__volatile))
++  if (g_once_init_enter_pointer (&g_define_type_id__volatile))
+     {
+       static const G@Type@Value values[] = {
+ /*** END value-header ***/
+@@ -28,7 +28,7 @@
+       };
+       GType g_define_type_id =
+         g_@type@_register_static (g_intern_static_string ("@EnumName@"), values);
+-      g_once_init_leave (&g_define_type_id__volatile, g_define_type_id);
++      g_once_init_leave_pointer (&g_define_type_id__volatile, g_define_type_id);
+     }
+ 
+   return g_define_type_id__volatile;
+diff -ur agtk/a11y/gtkcellaccessibleparent.c b/gtk/a11y/gtkcellaccessibleparent.c
+--- a/gtk/a11y/gtkcellaccessibleparent.c	2023-05-22 03:22:08.000000000 +0100
++++ b/gtk/a11y/gtkcellaccessibleparent.c	2025-02-03 10:28:15.874914790 +0000
+@@ -23,9 +23,9 @@
+ GType
+ gtk_cell_accessible_parent_get_type (void)
+ {
+-  static gsize g_define_type_id__volatile = 0;
++  static GType g_define_type_id__volatile = 0;
+ 
+-  if (g_once_init_enter (&g_define_type_id__volatile))
++  if (g_once_init_enter_pointer (&g_define_type_id__volatile))
+     {
+       GType g_define_type_id =
+         g_type_register_static_simple (G_TYPE_INTERFACE,
+@@ -36,7 +36,7 @@
+                                        NULL,
+                                        0);
+ 
+-      g_once_init_leave (&g_define_type_id__volatile, g_define_type_id);
++      g_once_init_leave_pointer (&g_define_type_id__volatile, g_define_type_id);
+     }
+ 
+   return g_define_type_id__volatile;
+diff -ur agtk/gtkmenutrackeritem.c b/gtk/gtkmenutrackeritem.c
+--- a/gtk/gtkmenutrackeritem.c	2023-05-22 03:22:08.000000000 +0100
++++ b/gtk/gtkmenutrackeritem.c	2025-02-03 10:28:40.526170344 +0000
+@@ -129,9 +129,9 @@
+ GType
+ gtk_menu_tracker_item_role_get_type (void)
+ {
+-  static gsize gtk_menu_tracker_item_role_type;
++  static GType gtk_menu_tracker_item_role_type;
+ 
+-  if (g_once_init_enter (&gtk_menu_tracker_item_role_type))
++  if (g_once_init_enter_pointer (&gtk_menu_tracker_item_role_type))
+     {
+       static const GEnumValue values[] = {
+         { GTK_MENU_TRACKER_ITEM_ROLE_NORMAL, "GTK_MENU_TRACKER_ITEM_ROLE_NORMAL", "normal" },
+@@ -143,7 +143,7 @@
+ 
+       type = g_enum_register_static ("GtkMenuTrackerItemRole", values);
+ 
+-      g_once_init_leave (&gtk_menu_tracker_item_role_type, type);
++      g_once_init_leave_pointer (&gtk_menu_tracker_item_role_type, type);
+     }
+ 
+   return gtk_menu_tracker_item_role_type;
+diff -ur agtk/gtkprivatetypebuiltins.c.template b/gtk/gtkprivatetypebuiltins.c.template
+--- a/gtk/gtkprivatetypebuiltins.c.template	2023-05-22 03:22:08.000000000 +0100
++++ b/gtk/gtkprivatetypebuiltins.c.template	2025-02-03 10:26:44.993972651 +0000
+@@ -14,9 +14,9 @@
+ GType
+ _@enum_name@_get_type (void)
+ {
+-  static gsize g_define_type_id__volatile = 0;
++  static GType g_define_type_id__volatile = 0;
+ 
+-  if (g_once_init_enter (&g_define_type_id__volatile))
++  if (g_once_init_enter_pointer (&g_define_type_id__volatile))
+     {
+       static const G@Type@Value values[] = {
+ /*** END value-header ***/
+@@ -30,7 +30,7 @@
+       };
+       GType g_define_type_id =
+         g_@type@_register_static (g_intern_static_string ("@EnumName@"), values);
+-      g_once_init_leave (&g_define_type_id__volatile, g_define_type_id);
++      g_once_init_leave_pointer (&g_define_type_id__volatile, g_define_type_id);
+     }
+ 
+   return g_define_type_id__volatile;
+diff -ur agtk/gtktypebuiltins.c.template b/gtk/gtktypebuiltins.c.template
+--- a/gtk/gtktypebuiltins.c.template	2023-05-22 03:22:08.000000000 +0100
++++ b/gtk/gtktypebuiltins.c.template	2025-02-03 10:26:05.593564196 +0000
+@@ -13,9 +13,9 @@
+ GType
+ @enum_name@_get_type (void)
+ {
+-  static gsize g_define_type_id__volatile = 0;
++  static GType g_define_type_id__volatile = 0;
+ 
+-  if (g_once_init_enter (&g_define_type_id__volatile))
++  if (g_once_init_enter_pointer (&g_define_type_id__volatile))
+     {
+       static const G@Type@Value values[] = {
+ /*** END value-header ***/
+@@ -29,7 +29,7 @@
+       };
+       GType g_define_type_id =
+         g_@type@_register_static (g_intern_static_string ("@EnumName@"), values);
+-      g_once_init_leave (&g_define_type_id__volatile, g_define_type_id);
++      g_once_init_leave_pointer (&g_define_type_id__volatile, g_define_type_id);
+     }
+ 
+   return g_define_type_id__volatile;
+--- a/gtk/gtkcssnodestylecache.c	2023-05-22 03:22:08.000000000 +0100
++++ b/gtk/gtkcssnodestylecache.c	2025-02-04 11:27:32.571116492 +0000
+@@ -28,9 +28,9 @@
+   GHashTable  *children;
+ };
+ 
+-#define UNPACK_DECLARATION(packed) ((GtkCssNodeDeclaration *) (GPOINTER_TO_SIZE (packed) & ~0x3))
++#define UNPACK_DECLARATION(packed) ((GtkCssNodeDeclaration *) (GPOINTER_TO_TYPE (packed) & ~0x3))
+ #define UNPACK_FLAGS(packed) (GPOINTER_TO_SIZE (packed) & 0x3)
+-#define PACK(decl, first_child, last_child) GSIZE_TO_POINTER (GPOINTER_TO_SIZE (decl) | ((first_child) ? 0x2 : 0) | ((last_child) ? 0x1 : 0))
++#define PACK(decl, first_child, last_child) GTYPE_TO_POINTER (GPOINTER_TO_TYPE (decl) | ((first_child) ? 0x2 : 0) | ((last_child) ? 0x1 : 0))
+ 
+ GtkCssNodeStyleCache *
+ gtk_css_node_style_cache_new (GtkCssStyle *style)
