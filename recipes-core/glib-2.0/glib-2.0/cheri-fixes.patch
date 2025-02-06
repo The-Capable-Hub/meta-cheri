@@ -1,0 +1,24 @@
+Add an assertion to ensure that we are not accidentally using the version
+of the G_DEFINE_TYPE macros which uses gsize internally.
+
+See the upstream issue:
+  https://gitlab.gnome.org/GNOME/glib/-/issues/2842
+for more information.
+
+Upstream-Status: Inappropriate [CHERI specific]
+
+--- a/gobject/gtype.h	2025-02-03 19:32:29.535514064 +0000
++++ b/gobject/gtype.h	2023-06-01 20:33:31.000000000 +0100
+@@ -2273,7 +2273,11 @@
+ #define _g_type_once_init_leave g_once_init_leave_pointer
+ #else  /* if GLIB_VERSION_MAX_ALLOWED < GLIB_VERSION_2_76 */
+ #define _g_type_once_init_type gsize
+-#define _g_type_once_init_enter g_once_init_enter
++#define _g_type_once_init_enter \
++	({ static_assert(GLIB_SIZEOF_VOID_P <= GLIB_SIZEOF_SIZE_T, \
++	  "Use of DEFINE_TYPE macros with gsize will fail for CHERI. " \
++	  "Increase GLIB_VERSION_MAX_ALLOWED to 2.76 or later."); 0; }), \
++	g_once_init_enter
+ #define _g_type_once_init_leave g_once_init_leave
+ #endif  /* GLIB_VERSION_MAX_ALLOWED >= GLIB_VERSION_2_76 */
+ 
