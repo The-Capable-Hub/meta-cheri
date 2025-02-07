@@ -1,0 +1,36 @@
+Upstream-Status: Inappropriate [CHERI specific]
+
+diff --git a/src/cairo-tor-scan-converter.c b/src/cairo-tor-scan-converter.c
+index e8142d5..ba7bf5b 100644
+--- a/src/cairo-tor-scan-converter.c
++++ b/src/cairo-tor-scan-converter.c
+@@ -277,13 +277,17 @@ struct _pool_chunk {
+      * chunk in the pool header. */
+     struct _pool_chunk *prev_chunk;
+ 
+-    /* Actual data starts here. Well aligned even for 64 bit types. */
+-    int64_t data;
++    /* Actual data starts here. Well aligned even for 64 bit and
++     * pointer types. */
++    union {
++	int64_t i64;
++	uintptr_t ptr;
++    } data;
+ };
+ 
+ /* The int64_t data member of _pool_chunk just exists to enforce alignment,
+  * it shouldn't be included in the allocated size for the struct. */
+-#define SIZEOF_POOL_CHUNK (sizeof(struct _pool_chunk) - sizeof(int64_t))
++#define SIZEOF_POOL_CHUNK (offsetof(struct _pool_chunk, data))
+ 
+ /* A memory pool.  This is supposed to be embedded on the stack or
+  * within some other structure.	 It may optionally be followed by an
+@@ -308,7 +312,7 @@ struct pool {
+      * array so that the 'int64_t data' member of _pool_chunk isn't
+      * included. This way embedding struct pool in other structs works
+      * without wasting space. */
+-    char sentinel[SIZEOF_POOL_CHUNK];
++    char sentinel[SIZEOF_POOL_CHUNK] __attribute__((aligned(__alignof__(struct _pool_chunk))));
+ };
+ 
+ /* A polygon edge. */

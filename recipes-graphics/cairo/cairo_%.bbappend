@@ -8,4 +8,5 @@ SRC_URI:append:class-target = " \
     file://cheribsd.patch;striplevel=0 \
     file://0001-aclocal.cairo.m4-ignore-linker-output.patch \
     file://cheri-fixes.patch \
+    file://scan_converter.patch \
 "
