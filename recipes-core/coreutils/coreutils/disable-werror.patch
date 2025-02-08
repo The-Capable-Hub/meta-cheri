@@ -1,0 +1,17 @@
+Several of the tests link or compiles performed while configuring generate
+warning messages similar to:
+    riscv64-codasip-linux-musl-ld.lld: warning: could not determine size of cap reloc against local object __EH_FRAME_LIST__
+Currently configure is setup to treat any output as an error. Disable this.
+
+Upstream-Status: Inappropriate [CHERI specific]
+
+--- a/configure.ac	2023-05-22 03:22:08.000000000 +0100
++++ b/configure.ac	2025-02-03 10:25:06.658953237 +0000
+@@ -12,7 +12,6 @@
+ ac_save_CFLAGS=$CFLAGS
+ ac_save_LDFLAGS=$LDFLAGS
+ cu_save_c_werror_flag=$ac_c_werror_flag
+-AC_LANG_WERROR
+ # Detect warnings about ignored "constructor" attributes.
+ gl_WARN_ADD([-Werror], [CFLAGS])
+ gl_WARN_ADD([-errwarn], [CFLAGS])
