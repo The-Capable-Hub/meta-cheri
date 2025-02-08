@@ -3,7 +3,8 @@ HOMEPAGE = "http://www.tigervnc.com/"
 LICENSE = "GPL-2.0-or-later"
 SECTION = "x11/utils"
 DEPENDS = "xserver-xorg gnutls jpeg libxtst gettext-native fltk libpam"
-RDEPENDS:${PN} = "coreutils hicolor-icon-theme perl bash xkbcomp"
+# Removed from RDEPENDS for CHERI: perl bash
+RDEPENDS:${PN} = "coreutils hicolor-icon-theme xkbcomp"
 
 LIC_FILES_CHKSUM = "file://LICENCE.TXT;md5=75b02c2872421380bbd47781d2bd75d3"
 
@@ -21,13 +22,14 @@ SRC_URI = "git://github.com/TigerVNC/tigervnc.git;branch=1.14-branch;protocol=ht
            file://0001-do-not-build-tests-sub-directory.patch \
            file://0002-add-missing-dynamic-library-to-FLTK_LIBRARIES.patch \
            file://0003-tigervnc-add-fPIC-option-to-COMPILE_FLAGS.patch \
+           file://cheribsd.patch.xserver \
 "
 
 # Keep sync with xorg-server in oe-core
 XORG_PN ?= "xorg-server"
 XORG_PV ?= "21.1.15"
 SRC_URI += "${XORG_MIRROR}/individual/xserver/${XORG_PN}-${XORG_PV}.tar.xz;name=xorg"
-XORG_S = "${UNPACKDIR}/${XORG_PN}-${XORG_PV}"
+XORG_S = "${WORKDIR}/${XORG_PN}-${XORG_PV}"
 SRC_URI[xorg.sha256sum] = "841c82901282902725762df03adbbcd68153d4cdfb0d61df0cfd73ad677ae089"
 
 # It is the directory containing the Xorg source for the
@@ -56,6 +58,9 @@ do_patch_xserver () {
     xserverpatch="${S}/unix/xserver21.patch"
     echo "Apply $xserverpatch"
     patch -p1 -b --suffix .vnc < $xserverpatch
+    xserverpatch="${WORKDIR}/cheribsd.patch.xserver"
+    echo "Apply $xserverpatch"
+    patch -p0 -b --suffix .vnc < $xserverpatch
 }
 
 EXTRA_OECONF = "--disable-xorg --disable-xnest --disable-xvfb --disable-dmx \
