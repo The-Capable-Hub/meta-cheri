@@ -124,6 +124,14 @@ do_install:append() {
     oe_runmake 'DESTDIR=${D}' install
 
     cd $olddir
+
+    if ${@bb.utils.contains('DISTRO_FEATURES', 'xserver-vnc', 'true', 'false', d)} ; then
+	install -d ${D}/etc/X11
+	cat <<-EOF > ${D}/etc/X11/xserver-common
+	    XSERVER=/usr/bin/Xvnc
+	    ARGS="password=0d590089ec237d72"
+	EOF
+    fi
 }
 
 FILES:${PN} += " \
