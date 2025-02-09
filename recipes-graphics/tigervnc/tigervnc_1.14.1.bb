@@ -2,7 +2,8 @@ DESCRIPTION = "TigerVNC remote display system"
 HOMEPAGE = "http://www.tigervnc.com/"
 LICENSE = "GPL-2.0-or-later"
 SECTION = "x11/utils"
-DEPENDS = "xserver-xorg gnutls jpeg libxtst gettext-native fltk libpam"
+# Removed from DEPENDS for CHERI: gnutls
+DEPENDS = "xserver-xorg jpeg libxtst gettext-native fltk libpam"
 # Removed from RDEPENDS for CHERI: perl bash
 RDEPENDS:${PN} = "coreutils hicolor-icon-theme xkbcomp"
 
