@@ -21,6 +21,8 @@ SRC_URI:prepend = " \
   file://tar-fix-fallout.patch \
   file://busybox-vi-bias-fix.patch \
   file://0001-cheri-Fix-pointer-handling-in-job-table.patch \
+  file://0001-vi-fix-read-outside-of-text-buffer-during-insert.patch \
+  file://0002-vi-fix-a-crash-when-inserting-before-the-first-line.patch \
 "
 SRCREV = "12507073b16c4d0d84f3c895cf2c3e9fd540eef6"
 S = "${WORKDIR}/git"

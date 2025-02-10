@@ -1,0 +1,30 @@
+From 83486cda47e6c42a3d62c9e6ecbbbfcdb8964f21 Mon Sep 17 00:00:00 2001
+From: Martin Kaiser <martin.kaiser@codasip.com>
+Date: Mon, 10 Feb 2025 16:44:52 +0100
+Subject: [PATCH 2/2] vi: fix a crash when inserting before the first line
+
+Check that we can read p[-1] if p points to the beginning of a line.
+In other words: This works only if there is a previous line before this
+one.
+---
+ editors/vi.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Upstream-Status: Inappropriate [upstream has fixed this differently]
+
+diff --git a/editors/vi.c b/editors/vi.c
+index d46303b71..56fab6783 100644
+--- a/editors/vi.c
++++ b/editors/vi.c
+@@ -3675,7 +3675,7 @@ static void do_cmd(int c)
+ 	case 'O':			// O- open a empty line above
+ 		//    0i\n ESC -i
+ 		p = begin_line(dot);
+-		if (p[-1] == '\n') {
++		if (p > dot && p[-1] == '\n') {
+ 			dot_prev();
+ 	case 'o':			// o- open a empty line below; Yes, I know it is in the middle of the "if (..."
+ 			dot_end();
+-- 
+2.43.5
+
