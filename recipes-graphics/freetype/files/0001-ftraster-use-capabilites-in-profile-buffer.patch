@@ -1,0 +1,122 @@
+From a580fba8d7ee4b346f8e7b9e3809edc851328f46 Mon Sep 17 00:00:00 2001
+From: Martin Kaiser <martin.kaiser@codasip.com>
+Date: Mon, 10 Feb 2025 10:03:17 +0100
+Subject: [PATCH] ftraster: use capabilites in profile buffer
+
+Fix the profiles buffer for cheri systems.
+
+struct black_TWorker_ points to the current profile and a contains a
+buffer of profile pointers. Code that modifies or selects a profile
+iterates over this buffer.
+
+On a cheri system, the buffer must store capabilites instead of signed
+long entries. Update the buffer and the variables that access it.
+
+---
+ src/raster/ftraster.c | 25 ++++++++++++++-----------
+ 1 file changed, 14 insertions(+), 11 deletions(-)
+
+Upstream-Status: Pending
+
+diff --git a/src/raster/ftraster.c b/src/raster/ftraster.c
+index 192ca07..e68eea5 100644
+--- a/src/raster/ftraster.c
++++ b/src/raster/ftraster.c
+@@ -47,6 +47,8 @@
+    *
+    */
+ 
++#include <stdint.h>           /* for intptr_t */
++
+ #ifdef STANDALONE_
+ 
+   /* The size in bytes of the render pool used by the scan-line converter  */
+@@ -301,6 +303,7 @@
+   typedef unsigned short  UShort, *PUShort;
+   typedef long            Long, *PLong;
+   typedef unsigned long   ULong;
++  typedef intptr_t        IntPtr, *PIntPtr;
+ 
+   typedef unsigned char   Byte, *PByte;
+   typedef char            Bool;
+@@ -347,7 +350,7 @@
+   {
+     FT_F26Dot6  X;           /* current coordinate during sweep          */
+     PProfile    link;        /* link to next profile (various purposes)  */
+-    PLong       offset;      /* start of profile's data in render pool   */
++    PIntPtr     offset;      /* start of profile's data in render pool   */
+     UShort      flags;       /* Bit 0-2: drop-out mode                   */
+                              /* Bit 3: profile orientation (up/down)     */
+                              /* Bit 4: is top profile?                   */
+@@ -367,7 +370,7 @@
+ 
+ 
+ #define AlignProfileSize \
+-  ( ( sizeof ( TProfile ) + sizeof ( Alignment ) - 1 ) / sizeof ( Long ) )
++  ( ( sizeof ( TProfile ) + sizeof ( Alignment ) - 1 ) / sizeof ( IntPtr ) )
+ 
+ 
+ #undef RAS_ARG
+@@ -464,10 +467,10 @@
+     Int         precision_step;
+     Int         precision_jitter;
+ 
+-    PLong       buff;               /* The profiles buffer                 */
+-    PLong       sizeBuff;           /* Render pool size                    */
+-    PLong       maxBuff;            /* Profiles buffer size                */
+-    PLong       top;                /* Current cursor in buffer            */
++    PIntPtr     buff;               /* The profiles buffer                 */
++    PIntPtr     sizeBuff;           /* Render pool size                    */
++    PIntPtr     maxBuff;            /* Profiles buffer size                */
++    PIntPtr     top;                /* Current cursor in buffer            */
+ 
+     FT_Error    error;
+ 
+@@ -762,7 +765,7 @@
+   static Bool
+   Insert_Y_Turn( RAS_ARGS Int  y )
+   {
+-    PLong  y_turns;
++    PIntPtr  y_turns;
+     Int    n;
+ 
+ 
+@@ -990,7 +993,7 @@
+     Int    e1, e2, f1, f2, size;     /* XXX: is `Short' sufficient? */
+     Long   Ix, Rx, Ax;
+ 
+-    PLong  top;
++    PIntPtr  top;
+ 
+ 
+     Dx = x2 - x1;
+@@ -1186,7 +1189,7 @@
+ 
+     TPoint*  start_arc;
+ 
+-    PLong top;
++    PIntPtr top;
+ 
+ 
+     y1  = arc[degree].y;
+@@ -2137,7 +2140,7 @@
+     current = *list;
+     while ( current )
+     {
+-      current->X       = *current->offset;
++      current->X       = (FT_F26Dot6)(*current->offset);
+       current->offset += ( current->flags & Flow_Up ) ? 1 : -1;
+       current->height--;
+       current = current->link;
+@@ -3233,7 +3236,7 @@
+     black_TWorker  worker[1];
+ #endif
+ 
+-    Long  buffer[FT_MAX_BLACK_POOL];
++    IntPtr  buffer[FT_MAX_BLACK_POOL];
+ 
+ 
+     if ( !raster )
+-- 
+2.43.5
+
