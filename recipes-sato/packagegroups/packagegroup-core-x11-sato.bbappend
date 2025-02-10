@@ -8,3 +8,5 @@ RDEPENDS:${PN}-base:remove = \
 
 # This pulls in rust (via adwaita and librsvg).
 RDEPENDS:${PN}-apps:remove = "pcmanfm"
+
+PREFERRED_VERSION_librsvg = "2.40.21"
