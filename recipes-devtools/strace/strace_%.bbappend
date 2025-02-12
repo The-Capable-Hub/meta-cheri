@@ -9,4 +9,5 @@ SRC_URI:append:cheri = " \
 	file://cheri_uapi.patch \
 	file://cheri_tcp_compile_fix.patch \
 	file://cheri_iovec_decode_fix.patch \
+	file://cheri_print_array.patch \
 "
