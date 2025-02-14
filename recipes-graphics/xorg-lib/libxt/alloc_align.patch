@@ -1,0 +1,15 @@
+Upstream-Status: Inappropriate [CHERI specific]
+
+diff --git a/src/Alloc.c b/src/Alloc.c
+index 5bb27ce..f3fdc92 100644
+--- a/src/Alloc.c
++++ b/src/Alloc.c
+@@ -312,6 +312,8 @@ _XtHeapAlloc(Heap *heap, Cardinal bytes)
+         heap->bytes_remaining = HEAP_SEGMENT_SIZE - sizeof(char *);
+     }
+     bytes = (Cardinal) ((bytes + (sizeof(long) - 1)) & (~(sizeof(long) - 1)));
++    /* In case sizeof (void *) > sizeof(long). */
++    bytes = (Cardinal) ((bytes + (sizeof(void *) - 1)) & (~(sizeof(void *) - 1)));
+     heap_loc = heap->current;
+     heap->current += bytes;
+     heap->bytes_remaining = (heap->bytes_remaining - (int) bytes);      /* can be negative, if rounded */
