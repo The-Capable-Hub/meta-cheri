@@ -1,0 +1,88 @@
+commit 51d03c069e41cb6376aafd9b8e7a2d3925d7ba18
+Author: Christian Ehrhardt <christian.ehrhardt@codasip.com>
+Date:   Mon Feb 17 10:06:34 2025 +0100
+
+    cheri: Fix selection item size
+    
+    In GTK selection items can be GdkAtoms which internally are pointers.
+    Thus on a non-cheri 64-bit system they have the size of a long, i.e.
+    a pointer. This is despite the format which is still set as 32 which
+    normally means 32-bit, i.e. the size of an unsigned int.
+    
+    On CHERI the size of the atoms increase to 16-byte (because they are
+    pointers). Thus when calculating the size of an item and we know
+    that it contains GdkAtoms use sizeof(GdkAtom) instead of unsigned long.
+    
+    The relevant check is borrowed from other places in the file thus
+    should at least not have false positives.
+    
+    While there properly handle the case where the selection is sent
+    incrementally and make sure that copied chunks do not end in the
+    middle of an item.
+
+Upstream-Status: Inappropriate [CHERI specific]
+
+diff --git a/gtk/gtkselection.c b/gtk/gtkselection.c
+index 82755e9..65022e3 100644
+--- a/gtk/gtkselection.c
++++ b/gtk/gtkselection.c
+@@ -216,7 +216,7 @@ static void gtk_selection_invoke_handler    (GtkWidget        *widget,
+ 					     guint             time);
+ static void gtk_selection_default_handler   (GtkWidget        *widget,
+ 					     GtkSelectionData *data);
+-static int  gtk_selection_bytes_per_item    (gint              format);
++static int  gtk_selection_bytes_per_item    (GtkSelectionData *data);
+ 
+ /* Local Data */
+ static gint initialize = TRUE;
+@@ -2623,7 +2623,7 @@ _gtk_selection_request (GtkWidget *widget,
+       
+       g_return_val_if_fail ((data.format >= 8) && (data.format % 8 == 0), FALSE);
+       
+-      items = data.length / gtk_selection_bytes_per_item (data.format);
++      items = data.length / gtk_selection_bytes_per_item (&data);
+       
+       if (data.length > selection_max_size)
+ 	{
+@@ -2799,6 +2799,7 @@ _gtk_selection_incr_event (GdkWindow	   *window,
+ 	  
+ 	  info->idle_time = 0;
+ 	  
++	  bytes_per_item = gtk_selection_bytes_per_item (&info->conversions[i].data);
+ 	  if (info->conversions[i].offset == -2) /* only the last 0-length
+ 						    piece*/
+ 	    {
+@@ -2815,6 +2816,9 @@ _gtk_selection_incr_event (GdkWindow	   *window,
+ 	      if (num_bytes > selection_max_size)
+ 		{
+ 		  num_bytes = selection_max_size;
++		  /* Don't break a chunk in the middle of an item. */
++		  if (num_bytes > bytes_per_item)
++                    num_bytes -= num_bytes % bytes_per_item;
+ 		  info->conversions[i].offset += selection_max_size;
+ 		}
+ 	      else
+@@ -2826,7 +2830,6 @@ _gtk_selection_incr_event (GdkWindow	   *window,
+ 		     GDK_WINDOW_XID(info->requestor), event->atom);
+ #endif
+ 
+-	  bytes_per_item = gtk_selection_bytes_per_item (info->conversions[i].data.format);
+ 	  gdk_error_trap_push ();
+ 	  gdk_property_change (info->requestor, event->atom,
+ 			       info->conversions[i].data.type,
+@@ -3449,9 +3452,13 @@ G_DEFINE_BOXED_TYPE (GtkTargetEntry, gtk_target_entry,
+                      gtk_target_entry_free)
+ 
+ static int
+-gtk_selection_bytes_per_item (gint format)
++gtk_selection_bytes_per_item (GtkSelectionData *data)
+ {
+-  switch (format)
++  if (data->type == GDK_SELECTION_TYPE_ATOM ||
++      data->type == gdk_atom_intern_static_string ("ATOM_PAIR"))
++    return sizeof(GdkAtom);
++
++  switch (data->format)
+     {
+     case 8:
+       return sizeof (char);
