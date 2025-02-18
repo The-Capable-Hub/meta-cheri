@@ -1,0 +1,72 @@
+commit 807d9a1e80d1a46ed5bc906d6f413f8730658330
+Author: Christian Ehrhardt <christian.ehrhardt@codasip.com>
+Date:   Tue Feb 18 11:24:53 2025 +0100
+
+    cheri: Pointer handling fixes
+    
+    - The align macro must use uintptr_t to align pointers.
+    - Pool memory that is shared between processes cannot contain
+      pointers with CHERI because the mmap capability will not have
+      the capbility read/write permissions. Thus allocate the header
+      structure which is the only part that will contain pointers
+      outside of the shared memory block even if the size would
+      otherwise fit. If you don't trust your priviledge separated
+      partner this feels like a good idea anyway.
+
+Upstream-Status: Pending
+
+diff --git a/src/pulsecore/core-util.h b/src/pulsecore/core-util.h
+index a69d53b..0f59e3b 100644
+--- a/src/pulsecore/core-util.h
++++ b/src/pulsecore/core-util.h
+@@ -317,7 +317,7 @@ size_t pa_page_size(void);
+ 
+ /* Rounds down */
+ static inline void* PA_PAGE_ALIGN_PTR(const void *p) {
+-    return (void*) (((size_t) p) & ~(pa_page_size() - 1));
++    return (void*) (((uintptr_t) p) & ~(pa_page_size() - 1));
+ }
+ 
+ /* Rounds up */
+diff --git a/src/pulsecore/macro.h b/src/pulsecore/macro.h
+index ec8d31c..2d5a858 100644
+--- a/src/pulsecore/macro.h
++++ b/src/pulsecore/macro.h
+@@ -29,6 +29,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include <stdbool.h>
++#include <inttypes.h>
+ 
+ #ifndef PACKAGE
+ #error "Please include config.h before including this file!"
+@@ -36,7 +37,7 @@
+ 
+ /* Rounds down */
+ static inline void* PA_ALIGN_PTR(const void *p) {
+-    return (void*) (((size_t) p) & ~(sizeof(void*) - 1));
++    return (void*) (((uintptr_t) p) & ~(sizeof(void*) - 1));
+ }
+ 
+ /* Rounds up */
+diff --git a/src/pulsecore/memblock.c b/src/pulsecore/memblock.c
+index fb83dac..b253fe7 100644
+--- a/src/pulsecore/memblock.c
++++ b/src/pulsecore/memblock.c
+@@ -382,7 +382,15 @@ pa_memblock *pa_memblock_new_pool(pa_mempool *p, size_t length) {
+     if (length == (size_t) -1)
+         length = pa_mempool_block_size_max(p);
+ 
+-    if (p->block_size >= PA_ALIGN(sizeof(pa_memblock)) + length) {
++    /*
++     * When using CHERI meta-data that contains pointers cannot be
++     * allocated from shared memory.
++     */
++    if (p->block_size >= PA_ALIGN(sizeof(pa_memblock)) + length
++#ifdef __CHERI__
++        && p->memory.type == PA_MEM_TYPE_PRIVATE
++#endif
++    ) {
+ 
+         if (!(slot = mempool_allocate_slot(p)))
+             return NULL;
