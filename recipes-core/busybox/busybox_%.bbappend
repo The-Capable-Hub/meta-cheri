@@ -24,6 +24,7 @@ SRC_URI:prepend = " \
   file://0001-vi-fix-read-outside-of-text-buffer-during-insert.patch \
   file://0002-vi-fix-a-crash-when-inserting-before-the-first-line.patch \
   file://0001-vi-fix-cheri-crash-when-opening-an-empty-file.patch \
+  file://awk.patch \
 "
 SRCREV = "12507073b16c4d0d84f3c895cf2c3e9fd540eef6"
 S = "${WORKDIR}/git"
