@@ -1,0 +1,106 @@
+From b1631372c9a41d4f6ade853615da21acab6718c9 Mon Sep 17 00:00:00 2001
+From: Christian Ehrhardt <christian.ehrhardt@codasip.com>
+Date: Tue, 18 Feb 2025 21:52:23 +0100
+Subject: [PATCH 2/2] cheri: Fix compilation
+
+Fix compilation for CHERI. Most of the errors are caused
+by the hacks that change the prototype of the syscall()
+and ptrace() macros.
+---
+ include/lapi/preadv2.h                          | 4 ++++
+ include/lapi/pwritev2.h                         | 4 ++++
+ testcases/kernel/controllers/freezer/vfork.c    | 2 +-
+ testcases/kernel/syscalls/ipc/semctl/semctl03.c | 2 +-
+ testcases/kernel/syscalls/ipc/semctl/semctl09.c | 2 +-
+ testcases/kernel/syscalls/mprotect/mprotect04.c | 2 +-
+ 6 files changed, 12 insertions(+), 4 deletions(-)
+
+Upstream-Status: Inappropriate [ CHERI Specific ]
+
+diff --git a/include/lapi/preadv2.h b/include/lapi/preadv2.h
+index db89547e2..9eaf49305 100644
+--- a/include/lapi/preadv2.h
++++ b/include/lapi/preadv2.h
+@@ -17,7 +17,11 @@
+ #if !defined(HAVE_PREADV2)
+ 
+ /* LO_HI_LONG taken from glibc */
++#if __SIZEOF_LONG__ == 4
+ # define LO_HI_LONG(val) (long) (val), (long) (((uint64_t) (val)) >> 32)
++#else
++# define LO_HI_LONG(val) (long) (val)
++#endif
+ 
+ static inline ssize_t preadv2(int fd, const struct iovec *iov, int iovcnt,
+                               off_t offset, int flags)
+diff --git a/include/lapi/pwritev2.h b/include/lapi/pwritev2.h
+index 48b53f463..21cae9ceb 100644
+--- a/include/lapi/pwritev2.h
++++ b/include/lapi/pwritev2.h
+@@ -13,7 +13,11 @@
+ #if !defined(HAVE_PWRITEV2)
+ 
+ /* LO_HI_LONG taken from glibc */
++#if __SIZEOF_LONG__ == 4
+ # define LO_HI_LONG(val) (long) (val), (long) (((uint64_t) (val)) >> 32)
++#else
++# define LO_HI_LONG(val) (long) (val)
++#endif
+ 
+ static inline ssize_t pwritev2(int fd, const struct iovec *iov, int iovcnt,
+                                off_t offset, int flags)
+diff --git a/testcases/kernel/controllers/freezer/vfork.c b/testcases/kernel/controllers/freezer/vfork.c
+index 0b25e90c2..acbe0cb45 100644
+--- a/testcases/kernel/controllers/freezer/vfork.c
++++ b/testcases/kernel/controllers/freezer/vfork.c
+@@ -349,7 +349,7 @@ int main(int argc, char **argv)
+ 			} else {
+ 
+ 				if (ptrace(PTRACE_SETOPTIONS, child, NULL,
+-					   PTRACE_O_TRACEVFORK) == -1) {
++					   (void *)(uintptr_t)PTRACE_O_TRACEVFORK) == -1) {
+ 					tst_resm(TINFO | TERRNO,
+ 						 "ptrace(PTRACE_SETOPTIONS) "
+ 						 "failed.");
+diff --git a/testcases/kernel/syscalls/ipc/semctl/semctl03.c b/testcases/kernel/syscalls/ipc/semctl/semctl03.c
+index dacd929b6..12ad46f1b 100644
+--- a/testcases/kernel/syscalls/ipc/semctl/semctl03.c
++++ b/testcases/kernel/syscalls/ipc/semctl/semctl03.c
+@@ -31,7 +31,7 @@ static int libc_semctl(int semid, int semnum, int cmd, union semun arg)
+ 
+ static int sys_semctl(int semid, int semnum, int cmd, union semun arg)
+ {
+-	return tst_syscall(__NR_semctl, semid, semnum, cmd, arg);
++	return tst_syscall(__NR_semctl, semid, semnum, cmd, arg.__buf);
+ }
+ 
+ static struct tcases {
+diff --git a/testcases/kernel/syscalls/ipc/semctl/semctl09.c b/testcases/kernel/syscalls/ipc/semctl/semctl09.c
+index efbc67f33..b09cfd8f9 100644
+--- a/testcases/kernel/syscalls/ipc/semctl/semctl09.c
++++ b/testcases/kernel/syscalls/ipc/semctl/semctl09.c
+@@ -62,7 +62,7 @@ static inline int do_semctl(int semid, int semnum, int cmd)
+ 
+ 	switch (tst_variant) {
+ 	case 0:
+-		return tst_syscall(__NR_semctl, semid, semnum, cmd, un);
++		return tst_syscall(__NR_semctl, semid, semnum, cmd, un.__buf);
+ 	case 1:
+ 		return semctl(semid, semnum, cmd, un);
+ 	}
+diff --git a/testcases/kernel/syscalls/mprotect/mprotect04.c b/testcases/kernel/syscalls/mprotect/mprotect04.c
+index e6e7063b0..43f02794d 100644
+--- a/testcases/kernel/syscalls/mprotect/mprotect04.c
++++ b/testcases/kernel/syscalls/mprotect/mprotect04.c
+@@ -190,7 +190,7 @@ static void *get_func(void *mem, size_t *func_page_offset)
+ 	void *func_copy_start, *page_to_copy;
+ 	void *mem_start = mem;
+ #ifdef __CHERI_PURE_CAPABILITY__
+-	void *exec_func_ptr = cheri_address_set(cheri_pcc_get(), &exec_func);
++	void *exec_func_ptr = cheri_address_set(cheri_pcc_get(), (unsigned long)&exec_func);
+ #else
+ 	void *exec_func_ptr = &exec_func;
+ #endif
+-- 
+2.43.5
+
