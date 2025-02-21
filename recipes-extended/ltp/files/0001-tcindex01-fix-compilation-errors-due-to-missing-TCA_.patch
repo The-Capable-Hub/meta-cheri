@@ -1,7 +1,7 @@
 From f1ea359d1df14980f9b4b20d48b6b0c4297a54b3 Mon Sep 17 00:00:00 2001
 From: Li Wang <liwang@redhat.com>
 Date: Tue, 16 Jan 2024 11:17:28 +0800
-Subject: [PATCH 1/2] tcindex01: fix compilation errors due to missing
+Subject: tcindex01: fix compilation errors due to missing
  TCA_TCINDEX_ constants
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8

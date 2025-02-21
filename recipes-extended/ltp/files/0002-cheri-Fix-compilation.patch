@@ -1,7 +1,7 @@
 From b1631372c9a41d4f6ade853615da21acab6718c9 Mon Sep 17 00:00:00 2001
 From: Christian Ehrhardt <christian.ehrhardt@codasip.com>
 Date: Tue, 18 Feb 2025 21:52:23 +0100
-Subject: [PATCH 2/2] cheri: Fix compilation
+Subject: cheri: Fix compilation
 
 Fix compilation for CHERI. Most of the errors are caused
 by the hacks that change the prototype of the syscall()

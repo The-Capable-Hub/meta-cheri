@@ -1,0 +1,95 @@
+From 7dd76d6a80d90943dab6bd80c63c873c7c3cf4a8 Mon Sep 17 00:00:00 2001
+From: Christian Ehrhardt <christian.ehrhardt@codasip.com>
+Date: Thu, 20 Feb 2025 17:00:38 +0100
+Subject: Test fixes
+
+- Add PROT_MAX() to some mmap() calls that want to change the
+  permissions on the mmaped area later.
+- Disable overcommit temporarily on skipped tests. Otherwise it
+  is possible that the cleanup code is never executed due to an
+  out of memory condition.
+- In locktests.c prevent an out of bounds access on test end.
+
+...
+
+Add PROT_MAX(...) to hugemmap test that expects to be able to
+increase mapping permissions with mprotect.
+---
+ testcases/kernel/mem/hugetlb/hugemmap/hugemmap23.c |  2 +-
+ testcases/kernel/mem/mmapstress/mmapstress04.c     |  3 ++-
+ testcases/kernel/mem/tunable/overcommit_memory.c   |  5 +++++
+ testcases/network/nfsv4/locks/locktests.c          | 13 ++++++++-----
+ 4 files changed, 16 insertions(+), 7 deletions(-)
+
+Upstream-Status: Inappropriate [ CHERI Specific ]
+
+diff --git a/testcases/kernel/mem/hugetlb/hugemmap/hugemmap23.c b/testcases/kernel/mem/hugetlb/hugemmap/hugemmap23.c
+index 4c1cff325..48f3829a8 100644
+--- a/testcases/kernel/mem/hugetlb/hugemmap/hugemmap23.c
++++ b/testcases/kernel/mem/hugetlb/hugemmap/hugemmap23.c
+@@ -169,7 +169,7 @@ static void run_test(unsigned int i)
+ 
+ 	tst_res(TINFO, "Test Name: %s", tc->tname);
+ 
+-	p = SAFE_MMAP(NULL, tc->len1*hpage_size, tc->prot1, MAP_SHARED, fd, 0);
++	p = SAFE_MMAP(NULL, tc->len1*hpage_size, tc->prot1 | PROT_MAX(PROT_READ | PROT_WRITE | PROT_EXEC), MAP_SHARED, fd, 0);
+ 
+ 	ret = test_prot(p, tc->prot1, tc->prot1_str);
+ 	if (ret)
+diff --git a/testcases/kernel/mem/mmapstress/mmapstress04.c b/testcases/kernel/mem/mmapstress/mmapstress04.c
+index d71c469bc..9d4ee04c7 100644
+--- a/testcases/kernel/mem/mmapstress/mmapstress04.c
++++ b/testcases/kernel/mem/mmapstress/mmapstress04.c
+@@ -28,7 +28,8 @@ static void setup(void)
+ 	 * Pick large enough area, PROT_NONE doesn't matter,
+ 	 * because we remap it later.
+ 	 */
+-	mmap_area = SAFE_MMAP(NULL, page_size * NUM_PAGES, PROT_NONE,
++	mmap_area = SAFE_MMAP(NULL, page_size * NUM_PAGES,
++		PROT_NONE | PROT_MAX(PROT_READ|PROT_WRITE),
+ 		MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+ }
+ 
+diff --git a/testcases/kernel/mem/tunable/overcommit_memory.c b/testcases/kernel/mem/tunable/overcommit_memory.c
+index ffb7a6d9d..f7ffadbf1 100644
+--- a/testcases/kernel/mem/tunable/overcommit_memory.c
++++ b/testcases/kernel/mem/tunable/overcommit_memory.c
+@@ -219,6 +219,11 @@ static void update_mem_commit(void)
+ 			tst_brk(TBROK, "Unexpected error: "
+ 				"CommitLimit < Committed_AS");
+ 		}
++		/*
++		 * Prevent subsequent out of memory failures before the
++		 * actual test cleanup.
++		 */
++		set_sys_tune("overcommit_memory", 1, 1);
+ 
+ 		tst_brk(TCONF, "Specified overcommit_ratio %ld <= default %ld, "
+ 			"so it's possible for CommitLimit < Committed_AS and skip test",
+diff --git a/testcases/network/nfsv4/locks/locktests.c b/testcases/network/nfsv4/locks/locktests.c
+index 54faca3ec..c0da1b6c5 100644
+--- a/testcases/network/nfsv4/locks/locktests.c
++++ b/testcases/network/nfsv4/locks/locktests.c
+@@ -270,11 +270,14 @@ void lockWholeFile(struct flock *request)
+ 
+ void selectTest(int n, struct s_test *test)
+ {
+-
+-	test->test = testSuiv(n);
+-	test->resAtt = resAttSuiv(n);
+-	test->nom = nomTestSuiv(n);
+-	test->type = lockSuiv(n);
++	if (n < MAXTEST) {
++		test->test = testSuiv(n);
++		test->resAtt = resAttSuiv(n);
++		test->nom = nomTestSuiv(n);
++		test->type = lockSuiv(n);
++	} else {
++		memset(test, 0, sizeof(*test));
++	}
+ }
+ 
+ /* Final test report */
+-- 
+2.43.5
+

@@ -6,6 +6,8 @@ SRC_URI = " \
     file://cheri-fixes.patch \
     file://0001-tcindex01-fix-compilation-errors-due-to-missing-TCA_.patch \
     file://0002-cheri-Fix-compilation.patch \
+    file://0003-Test-fixes.patch \
+    file://0004-hugemmap-Workaround-for-LLVM-miscompilation.patch \
 "
 
 # Yocto has a massive dependency list, hopefully many of them are optional, but as many aren't yet
