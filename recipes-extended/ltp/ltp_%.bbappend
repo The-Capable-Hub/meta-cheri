@@ -7,12 +7,20 @@ SRC_URI = " \
     file://0001-tcindex01-fix-compilation-errors-due-to-missing-TCA_.patch \
     file://0002-cheri-Fix-compilation.patch \
     file://0003-Test-fixes.patch \
-    file://0004-hugemmap-Workaround-for-LLVM-miscompilation.patch \
+    file://cheri-Allow-SIGILL-instead-of-SIGSEGV.patch \
+    file://cheri-Fix-some-tests.patch \
 "
+
+SRC_URI:append:qemu-tweaks = " \
+    file://qemu-Disable-some-tests-that-take-too-long-on-qemu.patch \
+    file://qemu-Increase-timer-threshold.patch \
+"
+
 
 # Yocto has a massive dependency list, hopefully many of them are optional, but as many aren't yet
 # built for CHERI remove them so we can work out what is and what isn't mandatory,
-RDEPENDS:${PN} = ""
+RDEPENDS:${PN}:append = "ethtool modutils-initscripts kernel-base"
+RDEPENDS:${PN}:remove = "python3-core perl"
 
 
 LDFLAGS:remove = "-fuse-ld=bfd"

@@ -1,0 +1,70 @@
+From 6409e2646c61dc6f3f02d4b38451da929fd47816 Mon Sep 17 00:00:00 2001
+From: Christian Ehrhardt <christian.ehrhardt@codasip.com>
+Date: Tue, 4 Mar 2025 09:42:21 +0100
+Subject: cheri: Fix some tests
+
+- The level calculation in pidns05.c is wrong and results in
+  an actual array overrun.
+- In openfile.c the stack allocation is too large and the stack
+  capability will go out of bounds.
+- In select03.c there is a tests where an invalid pointer is given
+  to the kernel and a EFAULT error is expected. Unfortunately, that
+  pointer is pre-processed by musl resulting in a SIGSEGV instead.
+  This is not really a CHERI issue.
+
+Upstream-Status: Inappropriate [ CHERI Specific ]
+
+diff --git a/testcases/kernel/containers/pidns/pidns05.c b/testcases/kernel/containers/pidns/pidns05.c
+index 0e7739aaa..ef6416bf6 100644
+--- a/testcases/kernel/containers/pidns/pidns05.c
++++ b/testcases/kernel/containers/pidns/pidns05.c
+@@ -34,13 +34,13 @@ static void child_func(int *level)
+ 	TST_EXP_EQ_LI(cpid, 1);
+ 	TST_EXP_EQ_LI(ppid, 0);
+ 
++	(*level)++;
++
+ 	if (*level >= MAX_DEPTH) {
+ 		TST_CHECKPOINT_WAKE(0);
+ 		return;
+ 	}
+ 
+-	(*level)++;
+-
+ 	if (!SAFE_CLONE(&clone_args)) {
+ 		child_func(level);
+ 		return;
+diff --git a/testcases/kernel/fs/openfile/openfile.c b/testcases/kernel/fs/openfile/openfile.c
+index ce87d15c2..dcdc5c69f 100644
+--- a/testcases/kernel/fs/openfile/openfile.c
++++ b/testcases/kernel/fs/openfile/openfile.c
+@@ -207,9 +207,10 @@ void *threads(void *thread_id_)
+ {
+ 	int thread_id = (uintptr_t) thread_id_;
+ 	char errmsg[80];
+-	FILE *fd_list[MAXFILES];
++	FILE **fd_list;
+ 	int i;
+ 
++	fd_list = calloc(MAXFILES, sizeof(FILE *));
+ 	/* Open files */
+ 	for (i = 0; i < numfiles; i++) {
+ 		if (debug)
+diff --git a/testcases/kernel/syscalls/select/select03.c b/testcases/kernel/syscalls/select/select03.c
+index 1cec3a4c7..ca56afa39 100644
+--- a/testcases/kernel/syscalls/select/select03.c
++++ b/testcases/kernel/syscalls/select/select03.c
+@@ -39,7 +39,10 @@ static struct tcases {
+ 	{ "Faulty readfds", &maxfds, &faulty_fds, &pwritefds_reg, &nullfds, &valid_to, EFAULT },
+ 	{ "Faulty writefds", &maxfds, &preadfds_reg, &faulty_fds, &nullfds, &valid_to, EFAULT },
+ 	{ "Faulty exceptfds", &maxfds, &preadfds_reg, &pwritefds_reg, &faulty_fds, &valid_to, EFAULT },
++#ifndef __CHERI_PURE_CAPABILITY__
++	/* FIXCHERI: This is actually a musl thing not a CHERI purecap issue. */
+ 	{ "Faulty timeout", &maxfds, &preadfds_reg, &pwritefds_reg, &nullfds, &invalid_to, EFAULT },
++#endif
+ };
+ 
+ static void verify_select(unsigned int n)
+-- 
+2.43.5
+
