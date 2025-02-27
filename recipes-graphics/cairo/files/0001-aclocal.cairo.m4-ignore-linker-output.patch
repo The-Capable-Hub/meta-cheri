@@ -1,0 +1,32 @@
+Upstream-Status: Inappropriate [dirty hack]
+
+From 3d143d2325c9c29359a6f5b1f70d6b8cd4213890 Mon Sep 17 00:00:00 2001
+From: Martin Kaiser <martin.kaiser@codasip.com>
+Date: Wed, 29 Jan 2025 12:20:53 +0100
+Subject: [PATCH] aclocal.cairo.m4: ignore linker output
+
+Ignore linker output that makes tests fail. It seems that cherillvm's
+linker emits warnings that cannot be disabled via -Wno-xxx.
+---
+ build/aclocal.cairo.m4 | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/build/aclocal.cairo.m4 b/build/aclocal.cairo.m4
+index 64c1a2e2f..9d4f83e79 100644
+--- a/build/aclocal.cairo.m4
++++ b/build/aclocal.cairo.m4
+@@ -101,9 +101,9 @@ AC_DEFUN([CAIRO_CC_TRY_LINK_WITH_ENV_SILENT],[dnl
+ 	$1
+ 	AC_LINK_IFELSE(
+ 		[AC_LANG_SOURCE([$_compile_program])],
+-		[cairo_cc_stderr=`test -f conftest.err && cat conftest.err`
++		[cairo_cc_stderr=""
+ 		 cairo_cc_flag=yes],
+-		[cairo_cc_stderr=`test -f conftest.err && cat conftest.err`
++		[cairo_cc_stderr=""
+ 		 cairo_cc_flag=no])
+ 
+ 	if test "x$cairo_cc_stderr" != "x"; then
+-- 
+2.43.5
+
