@@ -7,4 +7,5 @@ FILESEXTRAPATHS:prepend :=  "${FILE_DIRNAME}/files/:"
 SRC_URI += " \
     file://cheribsd.patch;striplevel=0 \
     file://0001-aclocal.cairo.m4-ignore-linker-output.patch \
+    file://cheri-fixes.patch \
 "
