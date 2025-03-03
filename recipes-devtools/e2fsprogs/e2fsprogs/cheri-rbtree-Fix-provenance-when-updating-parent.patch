@@ -1,0 +1,26 @@
+From b158f26c3f230b01342295cc46e70ba4883c6772 Mon Sep 17 00:00:00 2001
+From: Christian Ehrhardt <christian.ehrhardt@codasip.com>
+Date: Mon, 3 Mar 2025 17:28:55 +0100
+Subject: cheri: rbtree: Fix provenance when updating parent
+
+When updating the parent pointer make sure that provenance
+is taken from the new pointer and not from the old one.
+
+Upstream-Status: Inappropriate [ CHERI specific ]
+
+diff --git a/lib/ext2fs/rbtree.h b/lib/ext2fs/rbtree.h
+index 790f5c1c..724e9757 100644
+--- a/lib/ext2fs/rbtree.h
++++ b/lib/ext2fs/rbtree.h
+@@ -128,7 +128,7 @@ struct rb_root
+ 
+ static inline void ext2fs_rb_set_parent(struct rb_node *rb, struct rb_node *p)
+ {
+-	rb->rb_parent_color = (rb->rb_parent_color & 3) | (uintptr_t)p;
++	rb->rb_parent_color = (uintptr_t)p | ((unsigned long)rb->rb_parent_color & 3);
+ }
+ static inline void ext2fs_rb_set_color(struct rb_node *rb, int color)
+ {
+-- 
+2.43.5
+
