@@ -1,0 +1,25 @@
+From a1d7f8064e9d706e731ed69489e92af6415e9d48 Mon Sep 17 00:00:00 2001
+From: Christian Ehrhardt <christian.ehrhardt@codasip.com>
+Date: Fri, 28 Feb 2025 08:18:09 +0100
+Subject: Remove unsupported -Wlogical-op warning.
+
+The CHERI llvm compiler apparently does not support this
+warning option. Remove it.
+
+Upstream-Status: Inappropriate [ CHERI specific ]
+
+diff --git a/configure.ac b/configure.ac
+index 528f1bb..2b9b4a5 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -184,7 +184,6 @@ AC_SUBST([blacklist_6_modules])
+ 
+ regular_CFLAGS="-Wall -Waggregate-return -Wmissing-declarations \
+ 	-Wmissing-prototypes -Wredundant-decls -Wshadow -Wstrict-prototypes \
+-	-Wlogical-op \
+ 	-Winline -pipe";
+ regular_CPPFLAGS="${largefile_cppflags} -D_REENTRANT \
+ 	-DXTABLES_LIBDIR=\\\"\${xtlibdir}\\\" -DXTABLES_INTERNAL";
+-- 
+2.43.5
+

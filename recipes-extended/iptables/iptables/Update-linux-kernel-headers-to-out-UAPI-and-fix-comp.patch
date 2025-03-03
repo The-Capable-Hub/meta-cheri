@@ -1,0 +1,2618 @@
+From 0070511301187d4b2d9d9b75e0ead6621b457c08 Mon Sep 17 00:00:00 2001
+From: Christian Ehrhardt <christian.ehrhardt@codasip.com>
+Date: Fri, 28 Feb 2025 08:16:15 +0100
+Subject: Update linux kernel headers to out UAPI and fix compile
+
+The iptables sources come with their own version of the linux
+kernel headers, presumably because iptables needs newer versions
+than those available on various build environments.
+
+This is not a problem with our setup so just copy all linux
+kernel headers that shipped with the iptables tarball from
+our linux-libc-headers package.
+
+This results in minor compile errors. Fix those.
+
+Upstream-Status: Inappropriate [ CHERI specific ]
+
+diff --git a/extensions/libxt_CONNMARK.c b/extensions/libxt_CONNMARK.c
+index a6568c9..90a5abc 100644
+--- a/extensions/libxt_CONNMARK.c
++++ b/extensions/libxt_CONNMARK.c
+@@ -31,11 +31,6 @@ struct xt_connmark_target_info {
+ 	uint8_t mode;
+ };
+ 
+-enum {
+-	D_SHIFT_LEFT = 0,
+-	D_SHIFT_RIGHT,
+-};
+-
+ enum {
+ 	O_SET_MARK = 0,
+ 	O_SAVE_MARK,
+diff --git a/extensions/libxt_osf.c b/extensions/libxt_osf.c
+index c567d9e..8f0be8d 100644
+--- a/extensions/libxt_osf.c
++++ b/extensions/libxt_osf.c
+@@ -23,8 +23,8 @@
+ #include <stdio.h>
+ #include <string.h>
+ #include <xtables.h>
+-#include <netinet/ip.h>
+-#include <netinet/tcp.h>
++#include <linux/ip.h>
++#include <linux/tcp.h>
+ #include <linux/netfilter/xt_osf.h>
+ 
+ enum {
+diff --git a/include/linux/filter.h b/include/linux/filter.h
+index a9ae93c..eaef459 100644
+--- a/include/linux/filter.h
++++ b/include/linux/filter.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ /*
+  * Linux Socket Filter Data Structures
+  */
+@@ -7,7 +8,7 @@
+ 
+ 
+ #include <linux/types.h>
+-
++#include <linux/bpf_common.h>
+ 
+ /*
+  * Current version of the filter code architecture.
+@@ -32,56 +33,6 @@ struct sock_fprog {	/* Required for SO_ATTACH_FILTER. */
+ 	struct sock_filter *filter;
+ };
+ 
+-/*
+- * Instruction classes
+- */
+-
+-#define BPF_CLASS(code) ((code) & 0x07)
+-#define         BPF_LD          0x00
+-#define         BPF_LDX         0x01
+-#define         BPF_ST          0x02
+-#define         BPF_STX         0x03
+-#define         BPF_ALU         0x04
+-#define         BPF_JMP         0x05
+-#define         BPF_RET         0x06
+-#define         BPF_MISC        0x07
+-
+-/* ld/ldx fields */
+-#define BPF_SIZE(code)  ((code) & 0x18)
+-#define         BPF_W           0x00
+-#define         BPF_H           0x08
+-#define         BPF_B           0x10
+-#define BPF_MODE(code)  ((code) & 0xe0)
+-#define         BPF_IMM         0x00
+-#define         BPF_ABS         0x20
+-#define         BPF_IND         0x40
+-#define         BPF_MEM         0x60
+-#define         BPF_LEN         0x80
+-#define         BPF_MSH         0xa0
+-
+-/* alu/jmp fields */
+-#define BPF_OP(code)    ((code) & 0xf0)
+-#define         BPF_ADD         0x00
+-#define         BPF_SUB         0x10
+-#define         BPF_MUL         0x20
+-#define         BPF_DIV         0x30
+-#define         BPF_OR          0x40
+-#define         BPF_AND         0x50
+-#define         BPF_LSH         0x60
+-#define         BPF_RSH         0x70
+-#define         BPF_NEG         0x80
+-#define		BPF_MOD		0x90
+-#define		BPF_XOR		0xa0
+-
+-#define         BPF_JA          0x00
+-#define         BPF_JEQ         0x10
+-#define         BPF_JGT         0x20
+-#define         BPF_JGE         0x30
+-#define         BPF_JSET        0x40
+-#define BPF_SRC(code)   ((code) & 0x08)
+-#define         BPF_K           0x00
+-#define         BPF_X           0x08
+-
+ /* ret - BPF_K and BPF_X also apply */
+ #define BPF_RVAL(code)  ((code) & 0x18)
+ #define         BPF_A           0x10
+@@ -91,10 +42,6 @@ struct sock_fprog {	/* Required for SO_ATTACH_FILTER. */
+ #define         BPF_TAX         0x00
+ #define         BPF_TXA         0x80
+ 
+-#ifndef BPF_MAXINSNS
+-#define BPF_MAXINSNS 4096
+-#endif
+-
+ /*
+  * Macros for filter block array initializers.
+  */
+@@ -131,9 +78,13 @@ struct sock_fprog {	/* Required for SO_ATTACH_FILTER. */
+ #define SKF_AD_VLAN_TAG_PRESENT 48
+ #define SKF_AD_PAY_OFFSET	52
+ #define SKF_AD_RANDOM	56
+-#define SKF_AD_MAX	60
+-#define SKF_NET_OFF   (-0x100000)
+-#define SKF_LL_OFF    (-0x200000)
++#define SKF_AD_VLAN_TPID	60
++#define SKF_AD_MAX	64
++
++#define SKF_NET_OFF	(-0x100000)
++#define SKF_LL_OFF	(-0x200000)
+ 
++#define BPF_NET_OFF	SKF_NET_OFF
++#define BPF_LL_OFF	SKF_LL_OFF
+ 
+ #endif /* __LINUX_FILTER_H__ */
+diff --git a/include/linux/kernel.h b/include/linux/kernel.h
+index d4c59f6..3925249 100644
+--- a/include/linux/kernel.h
++++ b/include/linux/kernel.h
+@@ -1,29 +1,10 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _LINUX_KERNEL_H
+ #define _LINUX_KERNEL_H
+ 
+-/*
+- * 'kernel.h' contains some often-used function prototypes etc
+- */
+-#define __ALIGN_KERNEL(x, a)		__ALIGN_KERNEL_MASK(x, (typeof(x))(a) - 1)
+-#define __ALIGN_KERNEL_MASK(x, mask)	(((x) + (mask)) & ~(mask))
+-
+-
+-#define SI_LOAD_SHIFT	16
+-struct sysinfo {
+-	long uptime;			/* Seconds since boot */
+-	unsigned long loads[3];		/* 1, 5, and 15 minute load averages */
+-	unsigned long totalram;		/* Total usable main memory size */
+-	unsigned long freeram;		/* Available memory size */
+-	unsigned long sharedram;	/* Amount of shared memory */
+-	unsigned long bufferram;	/* Memory used by buffers */
+-	unsigned long totalswap;	/* Total swap space size */
+-	unsigned long freeswap;		/* swap space still available */
+-	unsigned short procs;		/* Number of current processes */
+-	unsigned short pad;		/* explicit padding for m68k */
+-	unsigned long totalhigh;	/* Total high memory size */
+-	unsigned long freehigh;		/* Available high memory size */
+-	unsigned int mem_unit;		/* Memory unit size in bytes */
+-	char _f[20-2*sizeof(long)-sizeof(int)];	/* Padding: libc5 uses this.. */
+-};
+-
++#ifdef __GLIBC__
++#include <linux/sysinfo.h>
++#include <linux/const.h>
+ #endif
++
++#endif /* _LINUX_KERNEL_H */
+diff --git a/include/linux/netfilter.h b/include/linux/netfilter.h
+index 042d8b1..30c045b 100644
+--- a/include/linux/netfilter.h
++++ b/include/linux/netfilter.h
+@@ -1,13 +1,11 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef __LINUX_NETFILTER_H
+ #define __LINUX_NETFILTER_H
+ 
+ #include <linux/types.h>
+ 
+-#ifndef _NETINET_IN_H
+ #include <linux/in.h>
+ #include <linux/in6.h>
+-#endif
+-#include <limits.h>
+ 
+ /* Responses from hook functions. */
+ #define NF_DROP 0
+@@ -35,10 +33,6 @@
+ #define NF_DROP_ERR(x) (((-x) << 16) | NF_DROP)
+ 
+ /* only for userspace compatibility */
+-/* Generic cache responses from hook functions.
+-   <= 0x2000 is used for protocol-flags. */
+-#define NFC_UNKNOWN 0x4000
+-#define NFC_ALTERED 0x8000
+ 
+ /* NF_VERDICT_BITS should be 8 now, but userspace might break if this changes */
+ #define NF_VERDICT_BITS 16
+@@ -49,11 +43,13 @@ enum nf_inet_hooks {
+ 	NF_INET_FORWARD,
+ 	NF_INET_LOCAL_OUT,
+ 	NF_INET_POST_ROUTING,
+-	NF_INET_NUMHOOKS
++	NF_INET_NUMHOOKS,
++	NF_INET_INGRESS = NF_INET_NUMHOOKS,
+ };
+ 
+ enum nf_dev_hooks {
+ 	NF_NETDEV_INGRESS,
++	NF_NETDEV_EGRESS,
+ 	NF_NETDEV_NUMHOOKS
+ };
+ 
+diff --git a/include/linux/netfilter/ipset/ip_set.h b/include/linux/netfilter/ipset/ip_set.h
+index b69bbc7..f9725c3 100644
+--- a/include/linux/netfilter/ipset/ip_set.h
++++ b/include/linux/netfilter/ipset/ip_set.h
+@@ -1,24 +1,24 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ /* Copyright (C) 2000-2002 Joakim Axelsson <gozem@linux.nu>
+  *                         Patrick Schaaf <bof@bof.de>
+  *                         Martin Josefsson <gandalf@wlug.westbo.se>
+- * Copyright (C) 2003-2011 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
+- *
+- * This program is free software; you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License version 2 as
+- * published by the Free Software Foundation.
++ * Copyright (C) 2003-2011 Jozsef Kadlecsik <kadlec@netfilter.org>
+  */
+-#ifndef _UAPI_IP_SET_H
+-#define _UAPI_IP_SET_H
+-
++#ifndef _IP_SET_H
++#define _IP_SET_H
+ 
+ #include <linux/types.h>
+ 
+-/* The protocol version */
+-#define IPSET_PROTOCOL		6
++/* The protocol versions */
++#define IPSET_PROTOCOL		7
++#define IPSET_PROTOCOL_MIN	6
+ 
+ /* The max length of strings including NUL: set and type identifiers */
+ #define IPSET_MAXNAMELEN	32
+ 
++/* The maximum permissible comment length we will accept over netlink */
++#define IPSET_MAX_COMMENT_SIZE	255
++
+ /* Message types and commands */
+ enum ipset_cmd {
+ 	IPSET_CMD_NONE,
+@@ -35,17 +35,19 @@ enum ipset_cmd {
+ 	IPSET_CMD_TEST,		/* 11: Test an element in a set */
+ 	IPSET_CMD_HEADER,	/* 12: Get set header data only */
+ 	IPSET_CMD_TYPE,		/* 13: Get set type */
++	IPSET_CMD_GET_BYNAME,	/* 14: Get set index by name */
++	IPSET_CMD_GET_BYINDEX,	/* 15: Get set name by index */
+ 	IPSET_MSG_MAX,		/* Netlink message commands */
+ 
+ 	/* Commands in userspace: */
+-	IPSET_CMD_RESTORE = IPSET_MSG_MAX, /* 14: Enter restore mode */
+-	IPSET_CMD_HELP,		/* 15: Get help */
+-	IPSET_CMD_VERSION,	/* 16: Get program version */
+-	IPSET_CMD_QUIT,		/* 17: Quit from interactive mode */
++	IPSET_CMD_RESTORE = IPSET_MSG_MAX, /* 16: Enter restore mode */
++	IPSET_CMD_HELP,		/* 17: Get help */
++	IPSET_CMD_VERSION,	/* 18: Get program version */
++	IPSET_CMD_QUIT,		/* 19: Quit from interactive mode */
+ 
+ 	IPSET_CMD_MAX,
+ 
+-	IPSET_CMD_COMMIT = IPSET_CMD_MAX, /* 18: Commit buffered commands */
++	IPSET_CMD_COMMIT = IPSET_CMD_MAX, /* 20: Commit buffered commands */
+ };
+ 
+ /* Attributes at command level */
+@@ -63,6 +65,7 @@ enum {
+ 	IPSET_ATTR_LINENO,	/* 9: Restore lineno */
+ 	IPSET_ATTR_PROTOCOL_MIN, /* 10: Minimal supported version number */
+ 	IPSET_ATTR_REVISION_MIN	= IPSET_ATTR_PROTOCOL_MIN, /* type rev min */
++	IPSET_ATTR_INDEX,	/* 11: Kernel index of set */
+ 	__IPSET_ATTR_CMD_MAX,
+ };
+ #define IPSET_ATTR_CMD_MAX	(__IPSET_ATTR_CMD_MAX - 1)
+@@ -80,14 +83,17 @@ enum {
+ 	IPSET_ATTR_PROTO,	/* 7 */
+ 	IPSET_ATTR_CADT_FLAGS,	/* 8 */
+ 	IPSET_ATTR_CADT_LINENO = IPSET_ATTR_LINENO,	/* 9 */
++	IPSET_ATTR_MARK,	/* 10 */
++	IPSET_ATTR_MARKMASK,	/* 11 */
++	IPSET_ATTR_BITMASK,	/* 12 */
+ 	/* Reserve empty slots */
+ 	IPSET_ATTR_CADT_MAX = 16,
+ 	/* Create-only specific attributes */
+-	IPSET_ATTR_GC,
++	IPSET_ATTR_INITVAL,	/* was unused IPSET_ATTR_GC */
+ 	IPSET_ATTR_HASHSIZE,
+ 	IPSET_ATTR_MAXELEM,
+ 	IPSET_ATTR_NETMASK,
+-	IPSET_ATTR_PROBES,
++	IPSET_ATTR_BUCKETSIZE,	/* was unused IPSET_ATTR_PROBES */
+ 	IPSET_ATTR_RESIZE,
+ 	IPSET_ATTR_SIZE,
+ 	/* Kernel-only */
+@@ -110,9 +116,11 @@ enum {
+ 	IPSET_ATTR_IFACE,
+ 	IPSET_ATTR_BYTES,
+ 	IPSET_ATTR_PACKETS,
++	IPSET_ATTR_COMMENT,
+ 	IPSET_ATTR_SKBMARK,
+ 	IPSET_ATTR_SKBPRIO,
+ 	IPSET_ATTR_SKBQUEUE,
++	IPSET_ATTR_PAD,
+ 	__IPSET_ATTR_ADT_MAX,
+ };
+ #define IPSET_ATTR_ADT_MAX	(__IPSET_ATTR_ADT_MAX - 1)
+@@ -143,13 +151,16 @@ enum ipset_errno {
+ 	IPSET_ERR_IPADDR_IPV4,
+ 	IPSET_ERR_IPADDR_IPV6,
+ 	IPSET_ERR_COUNTER,
++	IPSET_ERR_COMMENT,
++	IPSET_ERR_INVALID_MARKMASK,
+ 	IPSET_ERR_SKBINFO,
++	IPSET_ERR_BITMASK_NETMASK_EXCL,
+ 
+ 	/* Type specific error codes */
+ 	IPSET_ERR_TYPE_SPECIFIC = 4352,
+ };
+ 
+-/* Flags at command level or match/target flags, lower half of cmdattrs */
++/* Flags at command level or match/target flags, lower half of cmdattrs*/
+ enum ipset_cmd_flags {
+ 	IPSET_FLAG_BIT_EXIST	= 0,
+ 	IPSET_FLAG_EXIST	= (1 << IPSET_FLAG_BIT_EXIST),
+@@ -186,9 +197,26 @@ enum ipset_cadt_flags {
+ 	IPSET_FLAG_NOMATCH	= (1 << IPSET_FLAG_BIT_NOMATCH),
+ 	IPSET_FLAG_BIT_WITH_COUNTERS = 3,
+ 	IPSET_FLAG_WITH_COUNTERS = (1 << IPSET_FLAG_BIT_WITH_COUNTERS),
++	IPSET_FLAG_BIT_WITH_COMMENT = 4,
++	IPSET_FLAG_WITH_COMMENT = (1 << IPSET_FLAG_BIT_WITH_COMMENT),
++	IPSET_FLAG_BIT_WITH_FORCEADD = 5,
++	IPSET_FLAG_WITH_FORCEADD = (1 << IPSET_FLAG_BIT_WITH_FORCEADD),
++	IPSET_FLAG_BIT_WITH_SKBINFO = 6,
++	IPSET_FLAG_WITH_SKBINFO = (1 << IPSET_FLAG_BIT_WITH_SKBINFO),
++	IPSET_FLAG_BIT_IFACE_WILDCARD = 7,
++	IPSET_FLAG_IFACE_WILDCARD = (1 << IPSET_FLAG_BIT_IFACE_WILDCARD),
+ 	IPSET_FLAG_CADT_MAX	= 15,
+ };
+ 
++/* The flag bits which correspond to the non-extension create flags */
++enum ipset_create_flags {
++	IPSET_CREATE_FLAG_BIT_FORCEADD = 0,
++	IPSET_CREATE_FLAG_FORCEADD = (1 << IPSET_CREATE_FLAG_BIT_FORCEADD),
++	IPSET_CREATE_FLAG_BIT_BUCKETSIZE = 1,
++	IPSET_CREATE_FLAG_BUCKETSIZE = (1 << IPSET_CREATE_FLAG_BIT_BUCKETSIZE),
++	IPSET_CREATE_FLAG_BIT_MAX = 7,
++};
++
+ /* Commands with settype-specific attributes */
+ enum ipset_adt {
+ 	IPSET_ADD,
+@@ -201,6 +229,7 @@ enum ipset_adt {
+ 
+ /* Sets are identified by an index in kernel space. Tweak with ip_set_id_t
+  * and IPSET_INVALID_ID if you want to increase the max number of sets.
++ * Also, IPSET_ATTR_INDEX must be changed.
+  */
+ typedef __u16 ip_set_id_t;
+ 
+@@ -274,11 +303,10 @@ struct ip_set_req_get_set_family {
+ 	union ip_set_name_index set;
+ };
+ 
+-
+ #define IP_SET_OP_VERSION	0x00000100	/* Ask kernel version */
+ struct ip_set_req_version {
+ 	unsigned int op;
+ 	unsigned int version;
+ };
+ 
+-#endif /* _UAPI_IP_SET_H */
++#endif /* _IP_SET_H */
+diff --git a/include/linux/netfilter/nf_conntrack_common.h b/include/linux/netfilter/nf_conntrack_common.h
+index 38aa52d..3c99056 100644
+--- a/include/linux/netfilter/nf_conntrack_common.h
++++ b/include/linux/netfilter/nf_conntrack_common.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _NF_CONNTRACK_COMMON_H
+ #define _NF_CONNTRACK_COMMON_H
+ /* Connection state tracking for netfilter.  This is separated from,
+@@ -20,11 +21,19 @@ enum ip_conntrack_info {
+ 
+ 	IP_CT_ESTABLISHED_REPLY = IP_CT_ESTABLISHED + IP_CT_IS_REPLY,
+ 	IP_CT_RELATED_REPLY = IP_CT_RELATED + IP_CT_IS_REPLY,
+-	IP_CT_NEW_REPLY = IP_CT_NEW + IP_CT_IS_REPLY,	
+-	/* Number of distinct IP_CT types (no NEW in reply dirn). */
+-	IP_CT_NUMBER = IP_CT_IS_REPLY * 2 - 1
++	/* No NEW in reply direction. */
++
++	/* Number of distinct IP_CT types. */
++	IP_CT_NUMBER,
++
++	/* only for userspace compatibility */
++	IP_CT_NEW_REPLY = IP_CT_NUMBER,
+ };
+ 
++#define NF_CT_STATE_INVALID_BIT			(1 << 0)
++#define NF_CT_STATE_BIT(ctinfo)			(1 << ((ctinfo) % IP_CT_IS_REPLY + 1))
++#define NF_CT_STATE_UNTRACKED_BIT		(1 << 6)
++
+ /* Bitset representing status of connection. */
+ enum ip_conntrack_status {
+ 	/* It's an expected connection: bit 0 set.  This bit never changed */
+@@ -80,9 +89,32 @@ enum ip_conntrack_status {
+ 	IPS_TEMPLATE_BIT = 11,
+ 	IPS_TEMPLATE = (1 << IPS_TEMPLATE_BIT),
+ 
+-	/* Conntrack is a fake untracked entry */
++	/* Conntrack is a fake untracked entry.  Obsolete and not used anymore */
+ 	IPS_UNTRACKED_BIT = 12,
+ 	IPS_UNTRACKED = (1 << IPS_UNTRACKED_BIT),
++
++
++	/* Conntrack got a helper explicitly attached (ruleset, ctnetlink). */
++	IPS_HELPER_BIT = 13,
++	IPS_HELPER = (1 << IPS_HELPER_BIT),
++
++	/* Conntrack has been offloaded to flow table. */
++	IPS_OFFLOAD_BIT = 14,
++	IPS_OFFLOAD = (1 << IPS_OFFLOAD_BIT),
++
++	/* Conntrack has been offloaded to hardware. */
++	IPS_HW_OFFLOAD_BIT = 15,
++	IPS_HW_OFFLOAD = (1 << IPS_HW_OFFLOAD_BIT),
++
++	/* Be careful here, modifying these bits can make things messy,
++	 * so don't let users modify them directly.
++	 */
++	IPS_UNCHANGEABLE_MASK = (IPS_NAT_DONE_MASK | IPS_NAT_MASK |
++				 IPS_EXPECTED | IPS_CONFIRMED | IPS_DYING |
++				 IPS_SEQ_ADJUST | IPS_TEMPLATE | IPS_UNTRACKED |
++				 IPS_OFFLOAD | IPS_HW_OFFLOAD),
++
++	__IPS_MAX_BIT = 16,
+ };
+ 
+ /* Connection tracking event types */
+@@ -95,8 +127,11 @@ enum ip_conntrack_events {
+ 	IPCT_PROTOINFO,		/* protocol information has changed */
+ 	IPCT_HELPER,		/* new helper has been set */
+ 	IPCT_MARK,		/* new mark has been set */
+-	IPCT_NATSEQADJ,		/* NAT is doing sequence adjustment */
++	IPCT_SEQADJ,		/* sequence adjustment has changed */
++	IPCT_NATSEQADJ = IPCT_SEQADJ,
+ 	IPCT_SECMARK,		/* new security mark has been set */
++	IPCT_LABEL,		/* new connlabel has been set */
++	IPCT_SYNPROXY,		/* synproxy has been set */
+ };
+ 
+ enum ip_conntrack_expect_events {
+diff --git a/include/linux/netfilter/nf_conntrack_tuple_common.h b/include/linux/netfilter/nf_conntrack_tuple_common.h
+index 2f6bbc5..a7d2d7c 100644
+--- a/include/linux/netfilter/nf_conntrack_tuple_common.h
++++ b/include/linux/netfilter/nf_conntrack_tuple_common.h
+@@ -1,6 +1,11 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _NF_CONNTRACK_TUPLE_COMMON_H
+ #define _NF_CONNTRACK_TUPLE_COMMON_H
+ 
++#include <linux/types.h>
++#include <linux/netfilter.h>
++#include <linux/netfilter/nf_conntrack_common.h> /* IP_CT_IS_REPLY */
++
+ enum ip_conntrack_dir {
+ 	IP_CT_DIR_ORIGINAL,
+ 	IP_CT_DIR_REPLY,
+diff --git a/include/linux/netfilter/nf_nat.h b/include/linux/netfilter/nf_nat.h
+index b600000..a64586e 100644
+--- a/include/linux/netfilter/nf_nat.h
++++ b/include/linux/netfilter/nf_nat.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _NETFILTER_NF_NAT_H
+ #define _NETFILTER_NF_NAT_H
+ 
+@@ -10,6 +11,7 @@
+ #define NF_NAT_RANGE_PERSISTENT			(1 << 3)
+ #define NF_NAT_RANGE_PROTO_RANDOM_FULLY		(1 << 4)
+ #define NF_NAT_RANGE_PROTO_OFFSET		(1 << 5)
++#define NF_NAT_RANGE_NETMAP			(1 << 6)
+ 
+ #define NF_NAT_RANGE_PROTO_RANDOM_ALL		\
+ 	(NF_NAT_RANGE_PROTO_RANDOM | NF_NAT_RANGE_PROTO_RANDOM_FULLY)
+@@ -17,7 +19,8 @@
+ #define NF_NAT_RANGE_MASK					\
+ 	(NF_NAT_RANGE_MAP_IPS | NF_NAT_RANGE_PROTO_SPECIFIED |	\
+ 	 NF_NAT_RANGE_PROTO_RANDOM | NF_NAT_RANGE_PERSISTENT |	\
+-	 NF_NAT_RANGE_PROTO_RANDOM_FULLY | NF_NAT_RANGE_PROTO_OFFSET)
++	 NF_NAT_RANGE_PROTO_RANDOM_FULLY | NF_NAT_RANGE_PROTO_OFFSET | \
++	 NF_NAT_RANGE_NETMAP)
+ 
+ struct nf_nat_ipv4_range {
+ 	unsigned int			flags;
+diff --git a/include/linux/netfilter/nf_tables.h b/include/linux/netfilter/nf_tables.h
+index e94d1fa..aa4094c 100644
+--- a/include/linux/netfilter/nf_tables.h
++++ b/include/linux/netfilter/nf_tables.h
+@@ -97,6 +97,15 @@ enum nft_verdicts {
+  * @NFT_MSG_NEWFLOWTABLE: add new flow table (enum nft_flowtable_attributes)
+  * @NFT_MSG_GETFLOWTABLE: get flow table (enum nft_flowtable_attributes)
+  * @NFT_MSG_DELFLOWTABLE: delete flow table (enum nft_flowtable_attributes)
++ * @NFT_MSG_GETRULE_RESET: get rules and reset stateful expressions (enum nft_obj_attributes)
++ * @NFT_MSG_DESTROYTABLE: destroy a table (enum nft_table_attributes)
++ * @NFT_MSG_DESTROYCHAIN: destroy a chain (enum nft_chain_attributes)
++ * @NFT_MSG_DESTROYRULE: destroy a rule (enum nft_rule_attributes)
++ * @NFT_MSG_DESTROYSET: destroy a set (enum nft_set_attributes)
++ * @NFT_MSG_DESTROYSETELEM: destroy a set element (enum nft_set_elem_attributes)
++ * @NFT_MSG_DESTROYOBJ: destroy a stateful object (enum nft_object_attributes)
++ * @NFT_MSG_DESTROYFLOWTABLE: destroy flow table (enum nft_flowtable_attributes)
++ * @NFT_MSG_GETSETELEM_RESET: get set elements and reset attached stateful expressions (enum nft_set_elem_attributes)
+  */
+ enum nf_tables_msg_types {
+ 	NFT_MSG_NEWTABLE,
+@@ -124,6 +133,15 @@ enum nf_tables_msg_types {
+ 	NFT_MSG_NEWFLOWTABLE,
+ 	NFT_MSG_GETFLOWTABLE,
+ 	NFT_MSG_DELFLOWTABLE,
++	NFT_MSG_GETRULE_RESET,
++	NFT_MSG_DESTROYTABLE,
++	NFT_MSG_DESTROYCHAIN,
++	NFT_MSG_DESTROYRULE,
++	NFT_MSG_DESTROYSET,
++	NFT_MSG_DESTROYSETELEM,
++	NFT_MSG_DESTROYOBJ,
++	NFT_MSG_DESTROYFLOWTABLE,
++	NFT_MSG_GETSETELEM_RESET,
+ 	NFT_MSG_MAX,
+ };
+ 
+@@ -161,13 +179,17 @@ enum nft_hook_attributes {
+  * enum nft_table_flags - nf_tables table flags
+  *
+  * @NFT_TABLE_F_DORMANT: this table is not active
++ * @NFT_TABLE_F_OWNER:   this table is owned by a process
++ * @NFT_TABLE_F_PERSIST: this table shall outlive its owner
+  */
+ enum nft_table_flags {
+ 	NFT_TABLE_F_DORMANT	= 0x1,
+ 	NFT_TABLE_F_OWNER	= 0x2,
++	NFT_TABLE_F_PERSIST	= 0x4,
+ };
+ #define NFT_TABLE_F_MASK	(NFT_TABLE_F_DORMANT | \
+-				 NFT_TABLE_F_OWNER)
++				 NFT_TABLE_F_OWNER | \
++				 NFT_TABLE_F_PERSIST)
+ 
+ /**
+  * enum nft_table_attributes - nf_tables table netlink attributes
+@@ -245,6 +267,7 @@ enum nft_chain_attributes {
+  * @NFTA_RULE_USERDATA: user data (NLA_BINARY, NFT_USERDATA_MAXLEN)
+  * @NFTA_RULE_ID: uniquely identifies a rule in a transaction (NLA_U32)
+  * @NFTA_RULE_POSITION_ID: transaction unique identifier of the previous rule (NLA_U32)
++ * @NFTA_RULE_CHAIN_ID: add the rule to chain by ID, alternative to @NFTA_RULE_CHAIN (NLA_U32)
+  */
+ enum nft_rule_attributes {
+ 	NFTA_RULE_UNSPEC,
+@@ -266,9 +289,11 @@ enum nft_rule_attributes {
+ /**
+  * enum nft_rule_compat_flags - nf_tables rule compat flags
+  *
++ * @NFT_RULE_COMPAT_F_UNUSED: unused
+  * @NFT_RULE_COMPAT_F_INV: invert the check result
+  */
+ enum nft_rule_compat_flags {
++	NFT_RULE_COMPAT_F_UNUSED = (1 << 0),
+ 	NFT_RULE_COMPAT_F_INV	= (1 << 1),
+ 	NFT_RULE_COMPAT_F_MASK	= NFT_RULE_COMPAT_F_INV,
+ };
+@@ -669,7 +694,7 @@ enum nft_range_ops {
+  * enum nft_range_attributes - nf_tables range expression netlink attributes
+  *
+  * @NFTA_RANGE_SREG: source register of data to compare (NLA_U32: nft_registers)
+- * @NFTA_RANGE_OP: cmp operation (NLA_U32: nft_cmp_ops)
++ * @NFTA_RANGE_OP: cmp operation (NLA_U32: nft_range_ops)
+  * @NFTA_RANGE_FROM_DATA: data range from (NLA_NESTED: nft_data_attributes)
+  * @NFTA_RANGE_TO_DATA: data range to (NLA_NESTED: nft_data_attributes)
+  */
+@@ -753,11 +778,14 @@ enum nft_dynset_attributes {
+  * @NFT_PAYLOAD_LL_HEADER: link layer header
+  * @NFT_PAYLOAD_NETWORK_HEADER: network header
+  * @NFT_PAYLOAD_TRANSPORT_HEADER: transport header
++ * @NFT_PAYLOAD_INNER_HEADER: inner header / payload
+  */
+ enum nft_payload_bases {
+ 	NFT_PAYLOAD_LL_HEADER,
+ 	NFT_PAYLOAD_NETWORK_HEADER,
+ 	NFT_PAYLOAD_TRANSPORT_HEADER,
++	NFT_PAYLOAD_INNER_HEADER,
++	NFT_PAYLOAD_TUN_HEADER,
+ };
+ 
+ /**
+@@ -777,6 +805,32 @@ enum nft_payload_csum_flags {
+ 	NFT_PAYLOAD_L4CSUM_PSEUDOHDR = (1 << 0),
+ };
+ 
++enum nft_inner_type {
++	NFT_INNER_UNSPEC	= 0,
++	NFT_INNER_VXLAN,
++	NFT_INNER_GENEVE,
++};
++
++enum nft_inner_flags {
++	NFT_INNER_HDRSIZE	= (1 << 0),
++	NFT_INNER_LL		= (1 << 1),
++	NFT_INNER_NH		= (1 << 2),
++	NFT_INNER_TH		= (1 << 3),
++};
++#define NFT_INNER_MASK		(NFT_INNER_HDRSIZE | NFT_INNER_LL | \
++				 NFT_INNER_NH | NFT_INNER_TH)
++
++enum nft_inner_attributes {
++	NFTA_INNER_UNSPEC,
++	NFTA_INNER_NUM,
++	NFTA_INNER_TYPE,
++	NFTA_INNER_FLAGS,
++	NFTA_INNER_HDRSIZE,
++	NFTA_INNER_EXPR,
++	__NFTA_INNER_MAX
++};
++#define NFTA_INNER_MAX	(__NFTA_INNER_MAX - 1)
++
+ /**
+  * enum nft_payload_attributes - nf_tables payload expression netlink attributes
+  *
+@@ -814,12 +868,14 @@ enum nft_exthdr_flags {
+  * @NFT_EXTHDR_OP_TCP: match against tcp options
+  * @NFT_EXTHDR_OP_IPV4: match against ipv4 options
+  * @NFT_EXTHDR_OP_SCTP: match against sctp chunks
++ * @NFT_EXTHDR_OP_DCCP: match against dccp otions
+  */
+ enum nft_exthdr_op {
+ 	NFT_EXTHDR_OP_IPV6,
+ 	NFT_EXTHDR_OP_TCPOPT,
+ 	NFT_EXTHDR_OP_IPV4,
+ 	NFT_EXTHDR_OP_SCTP,
++	NFT_EXTHDR_OP_DCCP,
+ 	__NFT_EXTHDR_OP_MAX
+ };
+ #define NFT_EXTHDR_OP_MAX	(__NFT_EXTHDR_OP_MAX - 1)
+@@ -833,7 +889,7 @@ enum nft_exthdr_op {
+  * @NFTA_EXTHDR_LEN: extension header length (NLA_U32)
+  * @NFTA_EXTHDR_FLAGS: extension header flags (NLA_U32)
+  * @NFTA_EXTHDR_OP: option match type (NLA_U32)
+- * @NFTA_EXTHDR_SREG: option match type (NLA_U32)
++ * @NFTA_EXTHDR_SREG: source register (NLA_U32: nft_registers)
+  */
+ enum nft_exthdr_attributes {
+ 	NFTA_EXTHDR_UNSPEC,
+@@ -886,6 +942,7 @@ enum nft_exthdr_attributes {
+  * @NFT_META_TIME_HOUR: hour of day (in seconds)
+  * @NFT_META_SDIF: slave device interface index
+  * @NFT_META_SDIFNAME: slave device interface name
++ * @NFT_META_BRI_BROUTE: packet br_netfilter_broute bit
+  */
+ enum nft_meta_keys {
+ 	NFT_META_LEN,
+@@ -896,7 +953,8 @@ enum nft_meta_keys {
+ 	NFT_META_OIF,
+ 	NFT_META_IIFNAME,
+ 	NFT_META_OIFNAME,
+-	NFT_META_IIFTYPE,
++	NFT_META_IFTYPE,
++#define NFT_META_IIFTYPE	NFT_META_IFTYPE
+ 	NFT_META_OIFTYPE,
+ 	NFT_META_SKUID,
+ 	NFT_META_SKGID,
+@@ -923,6 +981,8 @@ enum nft_meta_keys {
+ 	NFT_META_TIME_HOUR,
+ 	NFT_META_SDIF,
+ 	NFT_META_SDIFNAME,
++	NFT_META_BRI_BROUTE,
++	__NFT_META_IIFTYPE,
+ };
+ 
+ /**
+@@ -1213,10 +1273,10 @@ enum nft_last_attributes {
+ /**
+  * enum nft_log_attributes - nf_tables log expression netlink attributes
+  *
+- * @NFTA_LOG_GROUP: netlink group to send messages to (NLA_U32)
++ * @NFTA_LOG_GROUP: netlink group to send messages to (NLA_U16)
+  * @NFTA_LOG_PREFIX: prefix to prepend to log messages (NLA_STRING)
+  * @NFTA_LOG_SNAPLEN: length of payload to include in netlink message (NLA_U32)
+- * @NFTA_LOG_QTHRESHOLD: queue threshold (NLA_U32)
++ * @NFTA_LOG_QTHRESHOLD: queue threshold (NLA_U16)
+  * @NFTA_LOG_LEVEL: log level (NLA_U32)
+  * @NFTA_LOG_FLAGS: logging flags (NLA_U32)
+  */
+diff --git a/include/linux/netfilter/nf_tables_compat.h b/include/linux/netfilter/nf_tables_compat.h
+index 36fb81d..0e2b9fc 100644
+--- a/include/linux/netfilter/nf_tables_compat.h
++++ b/include/linux/netfilter/nf_tables_compat.h
+@@ -1,6 +1,25 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _NFT_COMPAT_NFNETLINK_H_
+ #define _NFT_COMPAT_NFNETLINK_H_
+ 
++enum nft_target_attributes {
++	NFTA_TARGET_UNSPEC,
++	NFTA_TARGET_NAME,
++	NFTA_TARGET_REV,
++	NFTA_TARGET_INFO,
++	__NFTA_TARGET_MAX
++};
++#define NFTA_TARGET_MAX		(__NFTA_TARGET_MAX - 1)
++
++enum nft_match_attributes {
++	NFTA_MATCH_UNSPEC,
++	NFTA_MATCH_NAME,
++	NFTA_MATCH_REV,
++	NFTA_MATCH_INFO,
++	__NFTA_MATCH_MAX
++};
++#define NFTA_MATCH_MAX		(__NFTA_MATCH_MAX - 1)
++
+ #define NFT_COMPAT_NAME_MAX	32
+ 
+ enum {
+diff --git a/include/linux/netfilter/nfnetlink.h b/include/linux/netfilter/nfnetlink.h
+index c6d1991..b89a3e6 100644
+--- a/include/linux/netfilter/nfnetlink.h
++++ b/include/linux/netfilter/nfnetlink.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _NFNETLINK_H
+ #define _NFNETLINK_H
+ #include <linux/types.h>
+@@ -19,7 +20,7 @@ enum nfnetlink_groups {
+ 	NFNLGRP_CONNTRACK_EXP_DESTROY,
+ #define NFNLGRP_CONNTRACK_EXP_DESTROY	NFNLGRP_CONNTRACK_EXP_DESTROY
+ 	NFNLGRP_NFTABLES,
+-#define NFNLGRP_NFTABLES		NFNLGRP_NFTABLES
++#define NFNLGRP_NFTABLES                NFNLGRP_NFTABLES
+ 	NFNLGRP_ACCT_QUOTA,
+ #define NFNLGRP_ACCT_QUOTA		NFNLGRP_ACCT_QUOTA
+ 	NFNLGRP_NFTRACE,
+@@ -59,7 +60,8 @@ struct nfgenmsg {
+ #define NFNL_SUBSYS_CTHELPER		9
+ #define NFNL_SUBSYS_NFTABLES		10
+ #define NFNL_SUBSYS_NFT_COMPAT		11
+-#define NFNL_SUBSYS_COUNT		12
++#define NFNL_SUBSYS_HOOK		12
++#define NFNL_SUBSYS_COUNT		13
+ 
+ /* Reserved control nfnetlink messages */
+ #define NFNL_MSG_BATCH_BEGIN		NLMSG_MIN_TYPE
+diff --git a/include/linux/netfilter/x_tables.h b/include/linux/netfilter/x_tables.h
+index 4120970..15e4a9c 100644
+--- a/include/linux/netfilter/x_tables.h
++++ b/include/linux/netfilter/x_tables.h
+@@ -1,6 +1,7 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _X_TABLES_H
+ #define _X_TABLES_H
+-#include <linux/kernel.h>
++#include <linux/const.h>
+ #include <linux/types.h>
+ 
+ #define XT_FUNCTION_MAXNAMELEN 30
+@@ -27,7 +28,7 @@ struct xt_entry_match {
+ 		__u16 match_size;
+ 	} u;
+ 
+-	unsigned char data[0];
++	unsigned char data[];
+ };
+ 
+ struct xt_entry_target {
+@@ -118,7 +119,7 @@ struct xt_counters_info {
+ 	unsigned int num_counters;
+ 
+ 	/* The counters (actually `number' of these). */
+-	struct xt_counters counters[0];
++	struct xt_counters counters[];
+ };
+ 
+ #define XT_INV_PROTO		0x40	/* Invert the sense of PROTO. */
+diff --git a/include/linux/netfilter/xt_AUDIT.h b/include/linux/netfilter/xt_AUDIT.h
+index 38751d2..56a3f60 100644
+--- a/include/linux/netfilter/xt_AUDIT.h
++++ b/include/linux/netfilter/xt_AUDIT.h
+@@ -1,12 +1,9 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ /*
+  * Header file for iptables xt_AUDIT target
+  *
+  * (C) 2010-2011 Thomas Graf <tgraf@redhat.com>
+  * (C) 2010-2011 Red Hat, Inc.
+- *
+- * This program is free software; you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License version 2 as
+- * published by the Free Software Foundation.
+  */
+ 
+ #ifndef _XT_AUDIT_TARGET_H
+diff --git a/include/linux/netfilter/xt_CHECKSUM.h b/include/linux/netfilter/xt_CHECKSUM.h
+index 9a2e466..c578088 100644
+--- a/include/linux/netfilter/xt_CHECKSUM.h
++++ b/include/linux/netfilter/xt_CHECKSUM.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ /* Header file for iptables ipt_CHECKSUM target
+  *
+  * (C) 2002 by Harald Welte <laforge@gnumonks.org>
+diff --git a/include/linux/netfilter/xt_CLASSIFY.h b/include/linux/netfilter/xt_CLASSIFY.h
+index a813bf1..fe059a9 100644
+--- a/include/linux/netfilter/xt_CLASSIFY.h
++++ b/include/linux/netfilter/xt_CLASSIFY.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_CLASSIFY_H
+ #define _XT_CLASSIFY_H
+ 
+diff --git a/include/linux/netfilter/xt_CONNMARK.h b/include/linux/netfilter/xt_CONNMARK.h
+index 2f2e48e..36cc956 100644
+--- a/include/linux/netfilter/xt_CONNMARK.h
++++ b/include/linux/netfilter/xt_CONNMARK.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_CONNMARK_H_target
+ #define _XT_CONNMARK_H_target
+ 
+diff --git a/include/linux/netfilter/xt_CONNSECMARK.h b/include/linux/netfilter/xt_CONNSECMARK.h
+index b973ff8..ca078bb 100644
+--- a/include/linux/netfilter/xt_CONNSECMARK.h
++++ b/include/linux/netfilter/xt_CONNSECMARK.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_CONNSECMARK_H_target
+ #define _XT_CONNSECMARK_H_target
+ 
+diff --git a/include/linux/netfilter/xt_CT.h b/include/linux/netfilter/xt_CT.h
+index c3907db..868fa08 100644
+--- a/include/linux/netfilter/xt_CT.h
++++ b/include/linux/netfilter/xt_CT.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_CT_H
+ #define _XT_CT_H
+ 
+@@ -9,6 +10,10 @@ enum {
+ 	XT_CT_ZONE_DIR_ORIG	= 1 << 2,
+ 	XT_CT_ZONE_DIR_REPL	= 1 << 3,
+ 	XT_CT_ZONE_MARK		= 1 << 4,
++
++	XT_CT_MASK		= XT_CT_NOTRACK | XT_CT_NOTRACK_ALIAS |
++				  XT_CT_ZONE_DIR_ORIG | XT_CT_ZONE_DIR_REPL |
++				  XT_CT_ZONE_MARK,
+ };
+ 
+ struct xt_ct_target_info {
+diff --git a/include/linux/netfilter/xt_DSCP.h b/include/linux/netfilter/xt_DSCP.h
+index 648e0b3..223d635 100644
+--- a/include/linux/netfilter/xt_DSCP.h
++++ b/include/linux/netfilter/xt_DSCP.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ /* x_tables module for setting the IPv4/IPv6 DSCP field
+  *
+  * (C) 2002 Harald Welte <laforge@gnumonks.org>
+diff --git a/include/linux/netfilter/xt_HMARK.h b/include/linux/netfilter/xt_HMARK.h
+index 826fc58..2d4b751 100644
+--- a/include/linux/netfilter/xt_HMARK.h
++++ b/include/linux/netfilter/xt_HMARK.h
+@@ -1,7 +1,9 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef XT_HMARK_H_
+ #define XT_HMARK_H_
+ 
+ #include <linux/types.h>
++#include <linux/netfilter.h>
+ 
+ enum {
+ 	XT_HMARK_SADDR_MASK,
+diff --git a/include/linux/netfilter/xt_IDLETIMER.h b/include/linux/netfilter/xt_IDLETIMER.h
+index 49ddcdc..7bfb31a 100644
+--- a/include/linux/netfilter/xt_IDLETIMER.h
++++ b/include/linux/netfilter/xt_IDLETIMER.h
+@@ -1,6 +1,5 @@
++/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
+ /*
+- * linux/include/linux/netfilter/xt_IDLETIMER.h
+- *
+  * Header file for Xtables timer target module.
+  *
+  * Copyright (C) 2004, 2010 Nokia Corporation
+@@ -10,20 +9,6 @@
+  * by Luciano Coelho <luciano.coelho@nokia.com>
+  *
+  * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+- *
+- * This program is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * version 2 as published by the Free Software Foundation.
+- *
+- * This program is distributed in the hope that it will be useful, but
+- * WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+- * General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+- * 02110-1301 USA
+  */
+ 
+ #ifndef _XT_IDLETIMER_H
+diff --git a/include/linux/netfilter/xt_LED.h b/include/linux/netfilter/xt_LED.h
+index f5509e7..4fe0f13 100644
+--- a/include/linux/netfilter/xt_LED.h
++++ b/include/linux/netfilter/xt_LED.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_LED_H
+ #define _XT_LED_H
+ 
+diff --git a/include/linux/netfilter/xt_MARK.h b/include/linux/netfilter/xt_MARK.h
+index 41c456d..f1fe2b4 100644
+--- a/include/linux/netfilter/xt_MARK.h
++++ b/include/linux/netfilter/xt_MARK.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_MARK_H_target
+ #define _XT_MARK_H_target
+ 
+diff --git a/include/linux/netfilter/xt_NFLOG.h b/include/linux/netfilter/xt_NFLOG.h
+index f330707..5178097 100644
+--- a/include/linux/netfilter/xt_NFLOG.h
++++ b/include/linux/netfilter/xt_NFLOG.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_NFLOG_TARGET
+ #define _XT_NFLOG_TARGET
+ 
+diff --git a/include/linux/netfilter/xt_NFQUEUE.h b/include/linux/netfilter/xt_NFQUEUE.h
+index 8bb5fe6..bb767fd 100644
+--- a/include/linux/netfilter/xt_NFQUEUE.h
++++ b/include/linux/netfilter/xt_NFQUEUE.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ /* iptables module for using NFQUEUE mechanism
+  *
+  * (C) 2005 Harald Welte <laforge@netfilter.org>
+diff --git a/include/linux/netfilter/xt_RATEEST.h b/include/linux/netfilter/xt_RATEEST.h
+index 6605e20..2b87a71 100644
+--- a/include/linux/netfilter/xt_RATEEST.h
++++ b/include/linux/netfilter/xt_RATEEST.h
+@@ -1,7 +1,9 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_RATEEST_TARGET_H
+ #define _XT_RATEEST_TARGET_H
+ 
+ #include <linux/types.h>
++#include <linux/if.h>
+ 
+ struct xt_rateest_target_info {
+ 	char			name[IFNAMSIZ];
+diff --git a/include/linux/netfilter/xt_SECMARK.h b/include/linux/netfilter/xt_SECMARK.h
+index 31760a2..beb2cad 100644
+--- a/include/linux/netfilter/xt_SECMARK.h
++++ b/include/linux/netfilter/xt_SECMARK.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_SECMARK_H_target
+ #define _XT_SECMARK_H_target
+ 
+diff --git a/include/linux/netfilter/xt_SYNPROXY.h b/include/linux/netfilter/xt_SYNPROXY.h
+index 2d59fba..19c04ed 100644
+--- a/include/linux/netfilter/xt_SYNPROXY.h
++++ b/include/linux/netfilter/xt_SYNPROXY.h
+@@ -1,16 +1,15 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_SYNPROXY_H
+ #define _XT_SYNPROXY_H
+ 
+-#define XT_SYNPROXY_OPT_MSS		0x01
+-#define XT_SYNPROXY_OPT_WSCALE		0x02
+-#define XT_SYNPROXY_OPT_SACK_PERM	0x04
+-#define XT_SYNPROXY_OPT_TIMESTAMP	0x08
+-#define XT_SYNPROXY_OPT_ECN		0x10
++#include <linux/netfilter/nf_synproxy.h>
+ 
+-struct xt_synproxy_info {
+-	__u8	options;
+-	__u8	wscale;
+-	__u16	mss;
+-};
++#define XT_SYNPROXY_OPT_MSS		NF_SYNPROXY_OPT_MSS
++#define XT_SYNPROXY_OPT_WSCALE		NF_SYNPROXY_OPT_WSCALE
++#define XT_SYNPROXY_OPT_SACK_PERM	NF_SYNPROXY_OPT_SACK_PERM
++#define XT_SYNPROXY_OPT_TIMESTAMP	NF_SYNPROXY_OPT_TIMESTAMP
++#define XT_SYNPROXY_OPT_ECN		NF_SYNPROXY_OPT_ECN
++
++#define xt_synproxy_info		nf_synproxy_info
+ 
+ #endif /* _XT_SYNPROXY_H */
+diff --git a/include/linux/netfilter/xt_TCPMSS.h b/include/linux/netfilter/xt_TCPMSS.h
+index 9a6960a..65ea6c9 100644
+--- a/include/linux/netfilter/xt_TCPMSS.h
++++ b/include/linux/netfilter/xt_TCPMSS.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_TCPMSS_H
+ #define _XT_TCPMSS_H
+ 
+diff --git a/include/linux/netfilter/xt_TCPOPTSTRIP.h b/include/linux/netfilter/xt_TCPOPTSTRIP.h
+index 7157318..6bd51cd 100644
+--- a/include/linux/netfilter/xt_TCPOPTSTRIP.h
++++ b/include/linux/netfilter/xt_TCPOPTSTRIP.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_TCPOPTSTRIP_H
+ #define _XT_TCPOPTSTRIP_H
+ 
+diff --git a/include/linux/netfilter/xt_TEE.h b/include/linux/netfilter/xt_TEE.h
+index 5c21d5c..eb85491 100644
+--- a/include/linux/netfilter/xt_TEE.h
++++ b/include/linux/netfilter/xt_TEE.h
+@@ -1,6 +1,9 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_TEE_TARGET_H
+ #define _XT_TEE_TARGET_H
+ 
++#include <linux/netfilter.h>
++
+ struct xt_tee_tginfo {
+ 	union nf_inet_addr gw;
+ 	char oif[16];
+diff --git a/include/linux/netfilter/xt_TPROXY.h b/include/linux/netfilter/xt_TPROXY.h
+index 902043c..348957b 100644
+--- a/include/linux/netfilter/xt_TPROXY.h
++++ b/include/linux/netfilter/xt_TPROXY.h
+@@ -1,7 +1,9 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_TPROXY_H
+ #define _XT_TPROXY_H
+ 
+ #include <linux/types.h>
++#include <linux/netfilter.h>
+ 
+ /* TPROXY target is capable of marking the packet to perform
+  * redirection. We can get rid of that whenever we get support for
+diff --git a/include/linux/netfilter/xt_addrtype.h b/include/linux/netfilter/xt_addrtype.h
+index b156baa..2102dff 100644
+--- a/include/linux/netfilter/xt_addrtype.h
++++ b/include/linux/netfilter/xt_addrtype.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_ADDRTYPE_H
+ #define _XT_ADDRTYPE_H
+ 
+diff --git a/include/linux/netfilter/xt_bpf.h b/include/linux/netfilter/xt_bpf.h
+index b97725a..a05adda 100644
+--- a/include/linux/netfilter/xt_bpf.h
++++ b/include/linux/netfilter/xt_bpf.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_BPF_H
+ #define _XT_BPF_H
+ 
+@@ -23,6 +24,7 @@ enum xt_bpf_modes {
+ 	XT_BPF_MODE_FD_PINNED,
+ 	XT_BPF_MODE_FD_ELF,
+ };
++#define XT_BPF_MODE_PATH_PINNED XT_BPF_MODE_FD_PINNED
+ 
+ struct xt_bpf_info_v1 {
+ 	__u16 mode;
+diff --git a/include/linux/netfilter/xt_cgroup.h b/include/linux/netfilter/xt_cgroup.h
+index b74e370..9149843 100644
+--- a/include/linux/netfilter/xt_cgroup.h
++++ b/include/linux/netfilter/xt_cgroup.h
+@@ -1,6 +1,6 @@
+ /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+-#ifndef _UAPI_XT_CGROUP_H
+-#define _UAPI_XT_CGROUP_H
++#ifndef _XT_CGROUP_H
++#define _XT_CGROUP_H
+ 
+ #include <linux/types.h>
+ #include <linux/limits.h>
+@@ -38,4 +38,4 @@ struct xt_cgroup_info_v2 {
+ 	void		*priv __attribute__((aligned(8)));
+ };
+ 
+-#endif /* _UAPI_XT_CGROUP_H */
++#endif /* _XT_CGROUP_H */
+diff --git a/include/linux/netfilter/xt_cluster.h b/include/linux/netfilter/xt_cluster.h
+index 9b883c8..ed8e056 100644
+--- a/include/linux/netfilter/xt_cluster.h
++++ b/include/linux/netfilter/xt_cluster.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_CLUSTER_MATCH_H
+ #define _XT_CLUSTER_MATCH_H
+ 
+diff --git a/include/linux/netfilter/xt_comment.h b/include/linux/netfilter/xt_comment.h
+index 0ea5e79..85d2840 100644
+--- a/include/linux/netfilter/xt_comment.h
++++ b/include/linux/netfilter/xt_comment.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_COMMENT_H
+ #define _XT_COMMENT_H
+ 
+diff --git a/include/linux/netfilter/xt_connbytes.h b/include/linux/netfilter/xt_connbytes.h
+index f1d6c15..0bae507 100644
+--- a/include/linux/netfilter/xt_connbytes.h
++++ b/include/linux/netfilter/xt_connbytes.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_CONNBYTES_H
+ #define _XT_CONNBYTES_H
+ 
+diff --git a/include/linux/netfilter/xt_connlabel.h b/include/linux/netfilter/xt_connlabel.h
+index c4bc9ee..8077a25 100644
+--- a/include/linux/netfilter/xt_connlabel.h
++++ b/include/linux/netfilter/xt_connlabel.h
+@@ -1,3 +1,8 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
++
++#ifndef _XT_CONNLABEL_H
++#define _XT_CONNLABEL_H
++
+ #include <linux/types.h>
+ 
+ #define XT_CONNLABEL_MAXBIT 127
+@@ -10,3 +15,5 @@ struct xt_connlabel_mtinfo {
+ 	__u16 bit;
+ 	__u16 options;
+ };
++
++#endif /* _XT_CONNLABEL_H */
+diff --git a/include/linux/netfilter/xt_connlimit.h b/include/linux/netfilter/xt_connlimit.h
+index f9e8c67..d05614d 100644
+--- a/include/linux/netfilter/xt_connlimit.h
++++ b/include/linux/netfilter/xt_connlimit.h
+@@ -1,7 +1,9 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_CONNLIMIT_H
+ #define _XT_CONNLIMIT_H
+ 
+ #include <linux/types.h>
++#include <linux/netfilter.h>
+ 
+ struct xt_connlimit_data;
+ 
+@@ -19,16 +21,11 @@ struct xt_connlimit_info {
+ 		};
+ 	};
+ 	unsigned int limit;
+-	union {
+-		/* revision 0 */
+-		unsigned int inverse;
+-
+-		/* revision 1 */
+-		__u32 flags;
+-	};
++	/* revision 1 */
++	__u32 flags;
+ 
+ 	/* Used internally by the kernel */
+-	struct xt_connlimit_data *data __attribute__((aligned(8)));
++	struct nf_conncount_data *data __attribute__((aligned(8)));
+ };
+ 
+ #endif /* _XT_CONNLIMIT_H */
+diff --git a/include/linux/netfilter/xt_connmark.h b/include/linux/netfilter/xt_connmark.h
+index bbf2acc..41b578c 100644
+--- a/include/linux/netfilter/xt_connmark.h
++++ b/include/linux/netfilter/xt_connmark.h
+@@ -1,23 +1,24 @@
++/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
++/* Copyright (C) 2002,2004 MARA Systems AB <https://www.marasystems.com>
++ * by Henrik Nordstrom <hno@marasystems.com>
++ */
++
+ #ifndef _XT_CONNMARK_H
+ #define _XT_CONNMARK_H
+ 
+ #include <linux/types.h>
+ 
+-/* Copyright (C) 2002,2004 MARA Systems AB <http://www.marasystems.com>
+- * by Henrik Nordstrom <hno@marasystems.com>
+- *
+- * This program is free software; you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License as published by
+- * the Free Software Foundation; either version 2 of the License, or
+- * (at your option) any later version.
+- */
+-
+ enum {
+ 	XT_CONNMARK_SET = 0,
+ 	XT_CONNMARK_SAVE,
+ 	XT_CONNMARK_RESTORE
+ };
+ 
++enum {
++	D_SHIFT_LEFT = 0,
++	D_SHIFT_RIGHT,
++};
++
+ struct xt_connmark_tginfo1 {
+ 	__u32 ctmark, ctmask, nfmask;
+ 	__u8 mode;
+diff --git a/include/linux/netfilter/xt_conntrack.h b/include/linux/netfilter/xt_conntrack.h
+index e971501..cdd14a8 100644
+--- a/include/linux/netfilter/xt_conntrack.h
++++ b/include/linux/netfilter/xt_conntrack.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
+ /* Header file for kernel module to match connection tracking information.
+  * GPL (C) 2001  Marc Boucher (marc@mbsi.ca).
+  */
+@@ -6,6 +7,7 @@
+ #define _XT_CONNTRACK_H
+ 
+ #include <linux/types.h>
++#include <linux/netfilter.h>
+ #include <linux/netfilter/nf_conntrack_tuple_common.h>
+ 
+ #define XT_CONNTRACK_STATE_BIT(ctinfo) (1 << ((ctinfo)%IP_CT_IS_REPLY+1))
+diff --git a/include/linux/netfilter/xt_cpu.h b/include/linux/netfilter/xt_cpu.h
+index 93c7f11..b442e1f 100644
+--- a/include/linux/netfilter/xt_cpu.h
++++ b/include/linux/netfilter/xt_cpu.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_CPU_H
+ #define _XT_CPU_H
+ 
+diff --git a/include/linux/netfilter/xt_dccp.h b/include/linux/netfilter/xt_dccp.h
+index a579e1b..564e61c 100644
+--- a/include/linux/netfilter/xt_dccp.h
++++ b/include/linux/netfilter/xt_dccp.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_DCCP_H_
+ #define _XT_DCCP_H_
+ 
+diff --git a/include/linux/netfilter/xt_devgroup.h b/include/linux/netfilter/xt_devgroup.h
+index 1babde0..79ed351 100644
+--- a/include/linux/netfilter/xt_devgroup.h
++++ b/include/linux/netfilter/xt_devgroup.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_DEVGROUP_H
+ #define _XT_DEVGROUP_H
+ 
+diff --git a/include/linux/netfilter/xt_dscp.h b/include/linux/netfilter/xt_dscp.h
+index 15f8932..7594e4d 100644
+--- a/include/linux/netfilter/xt_dscp.h
++++ b/include/linux/netfilter/xt_dscp.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ /* x_tables module for matching the IPv4/IPv6 DSCP field
+  *
+  * (C) 2002 Harald Welte <laforge@gnumonks.org>
+diff --git a/include/linux/netfilter/xt_ecn.h b/include/linux/netfilter/xt_ecn.h
+index c21cc28..2c301c1 100644
+--- a/include/linux/netfilter/xt_ecn.h
++++ b/include/linux/netfilter/xt_ecn.h
+@@ -1,8 +1,11 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ /* iptables module for matching the ECN header in IPv4 and TCP header
+  *
+- * (C) 2002 Harald Welte <laforge@netfilter.org>
++ * (C) 2002 Harald Welte <laforge@gnumonks.org>
+  *
+  * This software is distributed under GNU GPL v2, 1991
++ * 
++ * ipt_ecn.h,v 1.4 2002/08/05 19:39:00 laforge Exp
+ */
+ #ifndef _XT_ECN_H
+ #define _XT_ECN_H
+diff --git a/include/linux/netfilter/xt_esp.h b/include/linux/netfilter/xt_esp.h
+index ee68824..fa57a20 100644
+--- a/include/linux/netfilter/xt_esp.h
++++ b/include/linux/netfilter/xt_esp.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_ESP_H
+ #define _XT_ESP_H
+ 
+diff --git a/include/linux/netfilter/xt_hashlimit.h b/include/linux/netfilter/xt_hashlimit.h
+index ade33f6..d0000e3 100644
+--- a/include/linux/netfilter/xt_hashlimit.h
++++ b/include/linux/netfilter/xt_hashlimit.h
+@@ -1,7 +1,10 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_HASHLIMIT_H
+ #define _XT_HASHLIMIT_H
+ 
+ #include <linux/types.h>
++#include <linux/limits.h>
++#include <linux/if.h>
+ 
+ /* timings are in milliseconds. */
+ #define XT_HASHLIMIT_SCALE 10000
+@@ -17,13 +20,13 @@
+ struct xt_hashlimit_htable;
+ 
+ enum {
+-	XT_HASHLIMIT_HASH_DIP	= 1 << 0,
+-	XT_HASHLIMIT_HASH_DPT	= 1 << 1,
+-	XT_HASHLIMIT_HASH_SIP	= 1 << 2,
+-	XT_HASHLIMIT_HASH_SPT	= 1 << 3,
+-	XT_HASHLIMIT_INVERT	= 1 << 4,
+-	XT_HASHLIMIT_BYTES	= 1 << 5,
+-	XT_HASHLIMIT_RATE_MATCH	= 1 << 6,
++	XT_HASHLIMIT_HASH_DIP		= 1 << 0,
++	XT_HASHLIMIT_HASH_DPT		= 1 << 1,
++	XT_HASHLIMIT_HASH_SIP		= 1 << 2,
++	XT_HASHLIMIT_HASH_SPT		= 1 << 3,
++	XT_HASHLIMIT_INVERT		= 1 << 4,
++	XT_HASHLIMIT_BYTES		= 1 << 5,
++	XT_HASHLIMIT_RATE_MATCH		= 1 << 6,
+ };
+ 
+ struct hashlimit_cfg {
+@@ -89,7 +92,7 @@ struct hashlimit_cfg3 {
+ 	__u32 gc_interval;	/* gc interval */
+ 	__u32 expire;		/* when do entries expire? */
+ 
+-	__u32 interval;		/* in seconds*/
++	__u32 interval;
+ 	__u8 srcmask, dstmask;
+ };
+ 
+@@ -117,4 +120,4 @@ struct xt_hashlimit_mtinfo3 {
+ 	struct xt_hashlimit_htable *hinfo __attribute__((aligned(8)));
+ };
+ 
+-#endif /*_XT_HASHLIMIT_H*/
++#endif /* _XT_HASHLIMIT_H */
+diff --git a/include/linux/netfilter/xt_helper.h b/include/linux/netfilter/xt_helper.h
+index 6b42763..53aa145 100644
+--- a/include/linux/netfilter/xt_helper.h
++++ b/include/linux/netfilter/xt_helper.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_HELPER_H
+ #define _XT_HELPER_H
+ 
+diff --git a/include/linux/netfilter/xt_ipcomp.h b/include/linux/netfilter/xt_ipcomp.h
+index 45c7e40..69b12e7 100644
+--- a/include/linux/netfilter/xt_ipcomp.h
++++ b/include/linux/netfilter/xt_ipcomp.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_IPCOMP_H
+ #define _XT_IPCOMP_H
+ 
+diff --git a/include/linux/netfilter/xt_iprange.h b/include/linux/netfilter/xt_iprange.h
+index c1f21a7..551bec7 100644
+--- a/include/linux/netfilter/xt_iprange.h
++++ b/include/linux/netfilter/xt_iprange.h
+@@ -1,7 +1,9 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _LINUX_NETFILTER_XT_IPRANGE_H
+ #define _LINUX_NETFILTER_XT_IPRANGE_H 1
+ 
+ #include <linux/types.h>
++#include <linux/netfilter.h>
+ 
+ enum {
+ 	IPRANGE_SRC     = 1 << 0,	/* match source IP address */
+diff --git a/include/linux/netfilter/xt_ipvs.h b/include/linux/netfilter/xt_ipvs.h
+index eff34ac..925c769 100644
+--- a/include/linux/netfilter/xt_ipvs.h
++++ b/include/linux/netfilter/xt_ipvs.h
+@@ -1,7 +1,9 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_IPVS_H
+ #define _XT_IPVS_H
+ 
+ #include <linux/types.h>
++#include <linux/netfilter.h>
+ 
+ enum {
+ 	XT_IPVS_IPVS_PROPERTY =	1 << 0, /* all other options imply this one */
+diff --git a/include/linux/netfilter/xt_length.h b/include/linux/netfilter/xt_length.h
+index b82ed7c..513f653 100644
+--- a/include/linux/netfilter/xt_length.h
++++ b/include/linux/netfilter/xt_length.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_LENGTH_H
+ #define _XT_LENGTH_H
+ 
+diff --git a/include/linux/netfilter/xt_limit.h b/include/linux/netfilter/xt_limit.h
+index bb47fc4..1d6e4ce 100644
+--- a/include/linux/netfilter/xt_limit.h
++++ b/include/linux/netfilter/xt_limit.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_RATE_H
+ #define _XT_RATE_H
+ 
+diff --git a/include/linux/netfilter/xt_mac.h b/include/linux/netfilter/xt_mac.h
+index b892cdc..c4dd518 100644
+--- a/include/linux/netfilter/xt_mac.h
++++ b/include/linux/netfilter/xt_mac.h
+@@ -1,6 +1,9 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_MAC_H
+ #define _XT_MAC_H
+ 
++#include <linux/if_ether.h>
++
+ struct xt_mac_info {
+     unsigned char srcaddr[ETH_ALEN];
+     int invert;
+diff --git a/include/linux/netfilter/xt_mark.h b/include/linux/netfilter/xt_mark.h
+index ecadc40..9d0526c 100644
+--- a/include/linux/netfilter/xt_mark.h
++++ b/include/linux/netfilter/xt_mark.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_MARK_H
+ #define _XT_MARK_H
+ 
+diff --git a/include/linux/netfilter/xt_multiport.h b/include/linux/netfilter/xt_multiport.h
+index 5b7e72d..ffecf69 100644
+--- a/include/linux/netfilter/xt_multiport.h
++++ b/include/linux/netfilter/xt_multiport.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_MULTIPORT_H
+ #define _XT_MULTIPORT_H
+ 
+diff --git a/include/linux/netfilter/xt_nfacct.h b/include/linux/netfilter/xt_nfacct.h
+index 04ec2b0..b5123ab 100644
+--- a/include/linux/netfilter/xt_nfacct.h
++++ b/include/linux/netfilter/xt_nfacct.h
+@@ -1,11 +1,8 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_NFACCT_MATCH_H
+ #define _XT_NFACCT_MATCH_H
+ 
+-#include <linux/types.h>
+-
+-#ifndef NFACCT_NAME_MAX
+-#define NFACCT_NAME_MAX 32
+-#endif
++#include <linux/netfilter/nfnetlink_acct.h>
+ 
+ struct nf_acct;
+ 
+diff --git a/include/linux/netfilter/xt_osf.h b/include/linux/netfilter/xt_osf.h
+index d0c4c76..f1f0978 100644
+--- a/include/linux/netfilter/xt_osf.h
++++ b/include/linux/netfilter/xt_osf.h
+@@ -1,135 +1,37 @@
++/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+ /*
+  * Copyright (c) 2003+ Evgeniy Polyakov <johnpol@2ka.mxt.ru>
+- *
+- *
+- * This program is free software; you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License as published by
+- * the Free Software Foundation; either version 2 of the License, or
+- * (at your option) any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+  */
+ 
+ #ifndef _XT_OSF_H
+ #define _XT_OSF_H
+ 
+ #include <linux/types.h>
++#include <linux/netfilter/nfnetlink_osf.h>
+ 
+-#define MAXGENRELEN		32
++#define XT_OSF_GENRE		NF_OSF_GENRE
++#define XT_OSF_INVERT		NF_OSF_INVERT
+ 
+-#define XT_OSF_GENRE		(1<<0)
+-#define	XT_OSF_TTL		(1<<1)
+-#define XT_OSF_LOG		(1<<2)
+-#define XT_OSF_INVERT		(1<<3)
++#define XT_OSF_TTL		NF_OSF_TTL
++#define XT_OSF_LOG		NF_OSF_LOG
+ 
+-#define XT_OSF_LOGLEVEL_ALL	0	/* log all matched fingerprints */
+-#define XT_OSF_LOGLEVEL_FIRST	1	/* log only the first matced fingerprint */
+-#define XT_OSF_LOGLEVEL_ALL_KNOWN	2 /* do not log unknown packets */
++#define XT_OSF_LOGLEVEL_ALL		NF_OSF_LOGLEVEL_ALL
++#define XT_OSF_LOGLEVEL_FIRST		NF_OSF_LOGLEVEL_FIRST
++#define XT_OSF_LOGLEVEL_ALL_KNOWN	NF_OSF_LOGLEVEL_ALL_KNOWN
+ 
+-#define XT_OSF_TTL_TRUE		0	/* True ip and fingerprint TTL comparison */
+-#define XT_OSF_TTL_LESS		1	/* Check if ip TTL is less than fingerprint one */
+-#define XT_OSF_TTL_NOCHECK	2	/* Do not compare ip and fingerprint TTL at all */
++#define XT_OSF_TTL_TRUE		NF_OSF_TTL_TRUE
++#define XT_OSF_TTL_NOCHECK	NF_OSF_TTL_NOCHECK
++#define XT_OSF_TTL_LESS		NF_OSF_TTL_LESS
+ 
+-struct xt_osf_info {
+-	char			genre[MAXGENRELEN];
+-	__u32			len;
+-	__u32			flags;
+-	__u32			loglevel;
+-	__u32			ttl;
+-};
++#define xt_osf_wc		nf_osf_wc
++#define xt_osf_opt		nf_osf_opt
++#define xt_osf_info		nf_osf_info
++#define xt_osf_user_finger	nf_osf_user_finger
++#define xt_osf_finger		nf_osf_finger
++#define xt_osf_nlmsg		nf_osf_nlmsg
+ 
+-/*
+- * Wildcard MSS (kind of).
+- * It is used to implement a state machine for the different wildcard values
+- * of the MSS and window sizes.
+- */
+-struct xt_osf_wc {
+-	__u32			wc;
+-	__u32			val;
+-};
+-
+-/*
+- * This struct represents IANA options
+- * http://www.iana.org/assignments/tcp-parameters
+- */
+-struct xt_osf_opt {
+-	__u16			kind, length;
+-	struct xt_osf_wc	wc;
+-};
+-
+-struct xt_osf_user_finger {
+-	struct xt_osf_wc	wss;
+-
+-	__u8			ttl, df;
+-	__u16			ss, mss;
+-	__u16			opt_num;
+-
+-	char			genre[MAXGENRELEN];
+-	char			version[MAXGENRELEN];
+-	char			subtype[MAXGENRELEN];
+-
+-	/* MAX_IPOPTLEN is maximum if all options are NOPs or EOLs */
+-	struct xt_osf_opt	opt[MAX_IPOPTLEN];
+-};
+-
+-struct xt_osf_nlmsg {
+-	struct xt_osf_user_finger	f;
+-	struct iphdr		ip;
+-	struct tcphdr		tcp;
+-};
+-
+-/* Defines for IANA option kinds */
+-
+-enum iana_options {
+-	OSFOPT_EOL = 0,		/* End of options */
+-	OSFOPT_NOP, 		/* NOP */
+-	OSFOPT_MSS, 		/* Maximum segment size */
+-	OSFOPT_WSO, 		/* Window scale option */
+-	OSFOPT_SACKP,		/* SACK permitted */
+-	OSFOPT_SACK,		/* SACK */
+-	OSFOPT_ECHO,
+-	OSFOPT_ECHOREPLY,
+-	OSFOPT_TS,		/* Timestamp option */
+-	OSFOPT_POCP,		/* Partial Order Connection Permitted */
+-	OSFOPT_POSP,		/* Partial Order Service Profile */
+-
+-	/* Others are not used in the current OSF */
+-	OSFOPT_EMPTY = 255,
+-};
+-
+-/*
+- * Initial window size option state machine: multiple of mss, mtu or
+- * plain numeric value. Can also be made as plain numeric value which
+- * is not a multiple of specified value.
+- */
+-enum xt_osf_window_size_options {
+-	OSF_WSS_PLAIN	= 0,
+-	OSF_WSS_MSS,
+-	OSF_WSS_MTU,
+-	OSF_WSS_MODULO,
+-	OSF_WSS_MAX,
+-};
+-
+-/*
+- * Add/remove fingerprint from the kernel.
+- */
+-enum xt_osf_msg_types {
+-	OSF_MSG_ADD,
+-	OSF_MSG_REMOVE,
+-	OSF_MSG_MAX,
+-};
+-
+-enum xt_osf_attr_type {
+-	OSF_ATTR_UNSPEC,
+-	OSF_ATTR_FINGER,
+-	OSF_ATTR_MAX,
+-};
++#define xt_osf_window_size_options	nf_osf_window_size_options
++#define xt_osf_attr_type	nf_osf_attr_type
++#define xt_osf_msg_types	nf_osf_msg_types
+ 
+ #endif				/* _XT_OSF_H */
+diff --git a/include/linux/netfilter/xt_owner.h b/include/linux/netfilter/xt_owner.h
+index e7731dc..5108df4 100644
+--- a/include/linux/netfilter/xt_owner.h
++++ b/include/linux/netfilter/xt_owner.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_OWNER_MATCH_H
+ #define _XT_OWNER_MATCH_H
+ 
+@@ -10,6 +11,11 @@ enum {
+ 	XT_OWNER_SUPPL_GROUPS = 1 << 3,
+ };
+ 
++#define XT_OWNER_MASK	(XT_OWNER_UID | 	\
++			 XT_OWNER_GID | 	\
++			 XT_OWNER_SOCKET |	\
++			 XT_OWNER_SUPPL_GROUPS)
++
+ struct xt_owner_match_info {
+ 	__u32 uid_min, uid_max;
+ 	__u32 gid_min, gid_max;
+diff --git a/include/linux/netfilter/xt_physdev.h b/include/linux/netfilter/xt_physdev.h
+index 7d53660..af21f67 100644
+--- a/include/linux/netfilter/xt_physdev.h
++++ b/include/linux/netfilter/xt_physdev.h
+@@ -1,8 +1,9 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_PHYSDEV_H
+ #define _XT_PHYSDEV_H
+ 
+ #include <linux/types.h>
+-
++#include <linux/if.h>
+ 
+ #define XT_PHYSDEV_OP_IN		0x01
+ #define XT_PHYSDEV_OP_OUT		0x02
+@@ -20,4 +21,4 @@ struct xt_physdev_info {
+ 	__u8 bitmask;
+ };
+ 
+-#endif /*_XT_PHYSDEV_H*/
++#endif /* _XT_PHYSDEV_H */
+diff --git a/include/linux/netfilter/xt_pkttype.h b/include/linux/netfilter/xt_pkttype.h
+index f265cf5..c31f29d 100644
+--- a/include/linux/netfilter/xt_pkttype.h
++++ b/include/linux/netfilter/xt_pkttype.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_PKTTYPE_H
+ #define _XT_PKTTYPE_H
+ 
+diff --git a/include/linux/netfilter/xt_policy.h b/include/linux/netfilter/xt_policy.h
+index d246eac..60ee7ce 100644
+--- a/include/linux/netfilter/xt_policy.h
++++ b/include/linux/netfilter/xt_policy.h
+@@ -1,7 +1,11 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_POLICY_H
+ #define _XT_POLICY_H
+ 
++#include <linux/netfilter.h>
+ #include <linux/types.h>
++#include <linux/in.h>
++#include <linux/in6.h>
+ 
+ #define XT_POLICY_MAX_ELEM	4
+ 
+diff --git a/include/linux/netfilter/xt_quota.h b/include/linux/netfilter/xt_quota.h
+index 9314723..f3ba5d9 100644
+--- a/include/linux/netfilter/xt_quota.h
++++ b/include/linux/netfilter/xt_quota.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_QUOTA_H
+ #define _XT_QUOTA_H
+ 
+diff --git a/include/linux/netfilter/xt_rateest.h b/include/linux/netfilter/xt_rateest.h
+index d40a619..52a37bd 100644
+--- a/include/linux/netfilter/xt_rateest.h
++++ b/include/linux/netfilter/xt_rateest.h
+@@ -1,7 +1,9 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_RATEEST_MATCH_H
+ #define _XT_RATEEST_MATCH_H
+ 
+ #include <linux/types.h>
++#include <linux/if.h>
+ 
+ enum xt_rateest_match_flags {
+ 	XT_RATEEST_MATCH_INVERT	= 1<<0,
+diff --git a/include/linux/netfilter/xt_realm.h b/include/linux/netfilter/xt_realm.h
+index d4a82ee..252aa9f 100644
+--- a/include/linux/netfilter/xt_realm.h
++++ b/include/linux/netfilter/xt_realm.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_REALM_H
+ #define _XT_REALM_H
+ 
+diff --git a/include/linux/netfilter/xt_recent.h b/include/linux/netfilter/xt_recent.h
+index 6ef36c1..e2c3399 100644
+--- a/include/linux/netfilter/xt_recent.h
++++ b/include/linux/netfilter/xt_recent.h
+@@ -1,7 +1,9 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _LINUX_NETFILTER_XT_RECENT_H
+ #define _LINUX_NETFILTER_XT_RECENT_H 1
+ 
+ #include <linux/types.h>
++#include <linux/netfilter.h>
+ 
+ enum {
+ 	XT_RECENT_CHECK    = 1 << 0,
+diff --git a/include/linux/netfilter/xt_rpfilter.h b/include/linux/netfilter/xt_rpfilter.h
+index 672b605..2fe2acb 100644
+--- a/include/linux/netfilter/xt_rpfilter.h
++++ b/include/linux/netfilter/xt_rpfilter.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_RPATH_H
+ #define _XT_RPATH_H
+ 
+diff --git a/include/linux/netfilter/xt_sctp.h b/include/linux/netfilter/xt_sctp.h
+index 5b28525..568414d 100644
+--- a/include/linux/netfilter/xt_sctp.h
++++ b/include/linux/netfilter/xt_sctp.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_SCTP_H_
+ #define _XT_SCTP_H_
+ 
+@@ -66,26 +67,26 @@ struct xt_sctp_info {
+ 
+ #define SCTP_CHUNKMAP_IS_CLEAR(chunkmap) \
+ 	__sctp_chunkmap_is_clear((chunkmap), ARRAY_SIZE(chunkmap))
+-static __inline__ bool
++static __inline__ _Bool
+ __sctp_chunkmap_is_clear(const __u32 *chunkmap, unsigned int n)
+ {
+ 	unsigned int i;
+ 	for (i = 0; i < n; ++i)
+ 		if (chunkmap[i])
+-			return false;
+-	return true;
++			return 0;
++	return 1;
+ }
+ 
+ #define SCTP_CHUNKMAP_IS_ALL_SET(chunkmap) \
+ 	__sctp_chunkmap_is_all_set((chunkmap), ARRAY_SIZE(chunkmap))
+-static __inline__ bool
++static __inline__ _Bool
+ __sctp_chunkmap_is_all_set(const __u32 *chunkmap, unsigned int n)
+ {
+ 	unsigned int i;
+ 	for (i = 0; i < n; ++i)
+ 		if (chunkmap[i] != ~0U)
+-			return false;
+-	return true;
++			return 0;
++	return 1;
+ }
+ 
+ #endif /* _XT_SCTP_H_ */
+diff --git a/include/linux/netfilter/xt_set.h b/include/linux/netfilter/xt_set.h
+index 4210c9b..8c1ca66 100644
+--- a/include/linux/netfilter/xt_set.h
++++ b/include/linux/netfilter/xt_set.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_SET_H
+ #define _XT_SET_H
+ 
+@@ -71,15 +72,6 @@ struct xt_set_info_match_v3 {
+ 	__u32 flags;
+ };
+ 
+-/* Revision 4 match */
+-
+-struct xt_set_info_match_v4 {
+-	struct xt_set_info match_set;
+-	struct ip_set_counter_match packets;
+-	struct ip_set_counter_match bytes;
+-	__u32 flags;
+-};
+-
+ /* Revision 3 target */
+ 
+ struct xt_set_info_target_v3 {
+@@ -90,4 +82,13 @@ struct xt_set_info_target_v3 {
+ 	__u32 timeout;
+ };
+ 
++/* Revision 4 match */
++
++struct xt_set_info_match_v4 {
++	struct xt_set_info match_set;
++	struct ip_set_counter_match packets;
++	struct ip_set_counter_match bytes;
++	__u32 flags;
++};
++
+ #endif /*_XT_SET_H*/
+diff --git a/include/linux/netfilter/xt_socket.h b/include/linux/netfilter/xt_socket.h
+index 87644f8..a7bdc9d 100644
+--- a/include/linux/netfilter/xt_socket.h
++++ b/include/linux/netfilter/xt_socket.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_SOCKET_H
+ #define _XT_SOCKET_H
+ 
+diff --git a/include/linux/netfilter/xt_state.h b/include/linux/netfilter/xt_state.h
+index 7b32de8..fe5670e 100644
+--- a/include/linux/netfilter/xt_state.h
++++ b/include/linux/netfilter/xt_state.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_STATE_H
+ #define _XT_STATE_H
+ 
+diff --git a/include/linux/netfilter/xt_statistic.h b/include/linux/netfilter/xt_statistic.h
+index 4e983ef..bbce6fc 100644
+--- a/include/linux/netfilter/xt_statistic.h
++++ b/include/linux/netfilter/xt_statistic.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_STATISTIC_H
+ #define _XT_STATISTIC_H
+ 
+diff --git a/include/linux/netfilter/xt_string.h b/include/linux/netfilter/xt_string.h
+index 235347c..bedb015 100644
+--- a/include/linux/netfilter/xt_string.h
++++ b/include/linux/netfilter/xt_string.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_STRING_H
+ #define _XT_STRING_H
+ 
+diff --git a/include/linux/netfilter/xt_tcpmss.h b/include/linux/netfilter/xt_tcpmss.h
+index fbac56b..2268f58 100644
+--- a/include/linux/netfilter/xt_tcpmss.h
++++ b/include/linux/netfilter/xt_tcpmss.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_TCPMSS_MATCH_H
+ #define _XT_TCPMSS_MATCH_H
+ 
+diff --git a/include/linux/netfilter/xt_tcpudp.h b/include/linux/netfilter/xt_tcpudp.h
+index 38aa7b3..658c169 100644
+--- a/include/linux/netfilter/xt_tcpudp.h
++++ b/include/linux/netfilter/xt_tcpudp.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_TCPUDP_H
+ #define _XT_TCPUDP_H
+ 
+diff --git a/include/linux/netfilter/xt_time.h b/include/linux/netfilter/xt_time.h
+index a21d5bf..7f707c7 100644
+--- a/include/linux/netfilter/xt_time.h
++++ b/include/linux/netfilter/xt_time.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_TIME_H
+ #define _XT_TIME_H 1
+ 
+@@ -16,6 +17,8 @@ struct xt_time_info {
+ enum {
+ 	/* Match against local time (instead of UTC) */
+ 	XT_TIME_LOCAL_TZ = 1 << 0,
++
++	/* treat timestart > timestop (e.g. 23:00-01:00) as single period */
+ 	XT_TIME_CONTIGUOUS = 1 << 1,
+ 
+ 	/* Shortcuts */
+@@ -25,4 +28,6 @@ enum {
+ 	XT_TIME_MAX_DAYTIME   = 24 * 60 * 60 - 1,
+ };
+ 
++#define XT_TIME_ALL_FLAGS (XT_TIME_LOCAL_TZ|XT_TIME_CONTIGUOUS)
++
+ #endif /* _XT_TIME_H */
+diff --git a/include/linux/netfilter/xt_u32.h b/include/linux/netfilter/xt_u32.h
+index 04d1bfe..a88505c 100644
+--- a/include/linux/netfilter/xt_u32.h
++++ b/include/linux/netfilter/xt_u32.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _XT_U32_H
+ #define _XT_U32_H 1
+ 
+diff --git a/include/linux/netfilter_arp.h b/include/linux/netfilter_arp.h
+index 92bc6dd..8f2a216 100644
+--- a/include/linux/netfilter_arp.h
++++ b/include/linux/netfilter_arp.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
+ #ifndef __LINUX_ARP_NETFILTER_H
+ #define __LINUX_ARP_NETFILTER_H
+ 
+@@ -14,6 +15,7 @@
+ #define NF_ARP_IN	0
+ #define NF_ARP_OUT	1
+ #define NF_ARP_FORWARD	2
++
+ #define NF_ARP_NUMHOOKS	3
+ 
+ #endif /* __LINUX_ARP_NETFILTER_H */
+diff --git a/include/linux/netfilter_arp/arp_tables.h b/include/linux/netfilter_arp/arp_tables.h
+index bb1ec64..2857a7c 100644
+--- a/include/linux/netfilter_arp/arp_tables.h
++++ b/include/linux/netfilter_arp/arp_tables.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ /*
+  * 	Format of an ARP firewall descriptor
+  *
+@@ -11,6 +12,7 @@
+ 
+ #include <linux/types.h>
+ 
++#include <linux/if.h>
+ #include <linux/netfilter_arp.h>
+ 
+ #include <linux/netfilter/x_tables.h>
+@@ -105,7 +107,7 @@ struct arpt_entry
+ 	struct xt_counters counters;
+ 
+ 	/* The matches (if any), then the target. */
+-	unsigned char elems[0];
++	unsigned char elems[];
+ };
+ 
+ /*
+@@ -177,7 +179,7 @@ struct arpt_replace {
+ 	struct xt_counters *counters;
+ 
+ 	/* The entries (hang off end: not really an array). */
+-	struct arpt_entry entries[0];
++	struct arpt_entry entries[];
+ };
+ 
+ /* The argument to ARPT_SO_GET_ENTRIES. */
+@@ -189,13 +191,13 @@ struct arpt_get_entries {
+ 	unsigned int size;
+ 
+ 	/* The entries. */
+-	struct arpt_entry entrytable[0];
++	struct arpt_entry entrytable[];
+ };
+ 
+ /* Helper functions */
+ static __inline__ struct xt_entry_target *arpt_get_target(struct arpt_entry *e)
+ {
+-	return (void *)e + e->target_offset;
++	return (struct xt_entry_target *)((char *)e + e->target_offset);
+ }
+ 
+ /*
+diff --git a/include/linux/netfilter_arp/arpt_mangle.h b/include/linux/netfilter_arp/arpt_mangle.h
+index 8c2b16a..60135d5 100644
+--- a/include/linux/netfilter_arp/arpt_mangle.h
++++ b/include/linux/netfilter_arp/arpt_mangle.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _ARPT_MANGLE_H
+ #define _ARPT_MANGLE_H
+ #include <linux/netfilter_arp/arp_tables.h>
+diff --git a/include/linux/netfilter_bridge.h b/include/linux/netfilter_bridge.h
+index 71e9299..5a2c790 100644
+--- a/include/linux/netfilter_bridge.h
++++ b/include/linux/netfilter_bridge.h
+@@ -1,9 +1,17 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef __LINUX_BRIDGE_NETFILTER_H
+ #define __LINUX_BRIDGE_NETFILTER_H
+ 
+ /* bridge-specific defines for netfilter. 
+  */
+-#include <limits.h>
++
++#include <linux/in.h>
++#include <linux/netfilter.h>
++#include <linux/if_ether.h>
++#include <linux/if_vlan.h>
++#include <linux/if_pppox.h>
++
++#include <limits.h> /* for INT_MIN, INT_MAX */
+ 
+ /* Bridge Hooks */
+ /* After promisc drops, checksum checks. */
+@@ -22,12 +30,13 @@
+ 
+ enum nf_br_hook_priorities {
+ 	NF_BR_PRI_FIRST = INT_MIN,
+-	NF_BR_PRI_FILTER_BRIDGED = -200,
+-	NF_BR_PRI_FILTER_OTHER = 200,
+ 	NF_BR_PRI_NAT_DST_BRIDGED = -300,
++	NF_BR_PRI_FILTER_BRIDGED = -200,
++	NF_BR_PRI_BRNF = 0,
+ 	NF_BR_PRI_NAT_DST_OTHER = 100,
++	NF_BR_PRI_FILTER_OTHER = 200,
+ 	NF_BR_PRI_NAT_SRC = 300,
+ 	NF_BR_PRI_LAST = INT_MAX,
+ };
+ 
+-#endif
++#endif /* __LINUX_BRIDGE_NETFILTER_H */
+diff --git a/include/linux/netfilter_bridge/ebt_802_3.h b/include/linux/netfilter_bridge/ebt_802_3.h
+index f37522a..ff913ef 100644
+--- a/include/linux/netfilter_bridge/ebt_802_3.h
++++ b/include/linux/netfilter_bridge/ebt_802_3.h
+@@ -1,5 +1,6 @@
+-#ifndef _UAPI__LINUX_BRIDGE_EBT_802_3_H
+-#define _UAPI__LINUX_BRIDGE_EBT_802_3_H
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
++#ifndef __LINUX_BRIDGE_EBT_802_3_H
++#define __LINUX_BRIDGE_EBT_802_3_H
+ 
+ #include <linux/types.h>
+ #include <linux/if_ether.h>
+@@ -60,4 +61,4 @@ struct ebt_802_3_info {
+ 	__u8  invflags;
+ };
+ 
+-#endif /* _UAPI__LINUX_BRIDGE_EBT_802_3_H */
++#endif /* __LINUX_BRIDGE_EBT_802_3_H */
+diff --git a/include/linux/netfilter_bridge/ebt_ip.h b/include/linux/netfilter_bridge/ebt_ip.h
+index ae5d4d1..46d6261 100644
+--- a/include/linux/netfilter_bridge/ebt_ip.h
++++ b/include/linux/netfilter_bridge/ebt_ip.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ /*
+  *  ebt_ip
+  *
+diff --git a/include/linux/netfilter_bridge/ebt_mark_m.h b/include/linux/netfilter_bridge/ebt_mark_m.h
+index 410f9e5..098ac78 100644
+--- a/include/linux/netfilter_bridge/ebt_mark_m.h
++++ b/include/linux/netfilter_bridge/ebt_mark_m.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef __LINUX_BRIDGE_EBT_MARK_M_H
+ #define __LINUX_BRIDGE_EBT_MARK_M_H
+ 
+diff --git a/include/linux/netfilter_bridge/ebt_mark_t.h b/include/linux/netfilter_bridge/ebt_mark_t.h
+index 7d5a268..8810f1c 100644
+--- a/include/linux/netfilter_bridge/ebt_mark_t.h
++++ b/include/linux/netfilter_bridge/ebt_mark_t.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef __LINUX_BRIDGE_EBT_MARK_T_H
+ #define __LINUX_BRIDGE_EBT_MARK_T_H
+ 
+diff --git a/include/linux/netfilter_ipv4.h b/include/linux/netfilter_ipv4.h
+index 4d7ba3e..96979e3 100644
+--- a/include/linux/netfilter_ipv4.h
++++ b/include/linux/netfilter_ipv4.h
+@@ -1,40 +1,16 @@
+-#ifndef __LINUX_IP_NETFILTER_H
+-#define __LINUX_IP_NETFILTER_H
+-
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ /* IPv4-specific defines for netfilter. 
+  * (C)1998 Rusty Russell -- This code is GPL.
+  */
++#ifndef __LINUX_IP_NETFILTER_H
++#define __LINUX_IP_NETFILTER_H
++
+ 
+ #include <linux/netfilter.h>
+ 
+ /* only for userspace compatibility */
+-/* IP Cache bits. */
+-/* Src IP address. */
+-#define NFC_IP_SRC		0x0001
+-/* Dest IP address. */
+-#define NFC_IP_DST		0x0002
+-/* Input device. */
+-#define NFC_IP_IF_IN		0x0004
+-/* Output device. */
+-#define NFC_IP_IF_OUT		0x0008
+-/* TOS. */
+-#define NFC_IP_TOS		0x0010
+-/* Protocol. */
+-#define NFC_IP_PROTO		0x0020
+-/* IP options. */
+-#define NFC_IP_OPTIONS		0x0040
+-/* Frag & flags. */
+-#define NFC_IP_FRAG		0x0080
+ 
+-/* Per-protocol information: only matters if proto match. */
+-/* TCP flags. */
+-#define NFC_IP_TCPFLAGS		0x0100
+-/* Source port. */
+-#define NFC_IP_SRC_PT		0x0200
+-/* Dest port. */
+-#define NFC_IP_DST_PT		0x0400
+-/* Something else about the proto */
+-#define NFC_IP_PROTO_UNKNOWN	0x2000
++#include <limits.h> /* for INT_MIN, INT_MAX */
+ 
+ /* IP Hooks */
+ /* After promisc drops, checksum checks. */
+@@ -51,6 +27,7 @@
+ 
+ enum nf_ip_hook_priorities {
+ 	NF_IP_PRI_FIRST = INT_MIN,
++	NF_IP_PRI_RAW_BEFORE_DEFRAG = -450,
+ 	NF_IP_PRI_CONNTRACK_DEFRAG = -400,
+ 	NF_IP_PRI_RAW = -300,
+ 	NF_IP_PRI_SELINUX_FIRST = -225,
+@@ -61,6 +38,7 @@ enum nf_ip_hook_priorities {
+ 	NF_IP_PRI_SECURITY = 50,
+ 	NF_IP_PRI_NAT_SRC = 100,
+ 	NF_IP_PRI_SELINUX_LAST = 225,
++	NF_IP_PRI_CONNTRACK_HELPER = 300,
+ 	NF_IP_PRI_CONNTRACK_CONFIRM = INT_MAX,
+ 	NF_IP_PRI_LAST = INT_MAX,
+ };
+@@ -72,4 +50,4 @@ enum nf_ip_hook_priorities {
+ #define SO_ORIGINAL_DST 80
+ 
+ 
+-#endif /*__LINUX_IP_NETFILTER_H*/
++#endif /* __LINUX_IP_NETFILTER_H */
+diff --git a/include/linux/netfilter_ipv4/ip_tables.h b/include/linux/netfilter_ipv4/ip_tables.h
+index 38542b4..52024cb 100644
+--- a/include/linux/netfilter_ipv4/ip_tables.h
++++ b/include/linux/netfilter_ipv4/ip_tables.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ /*
+  * 25-Jul-1998 Major changes to allow for ip chain table
+  *
+@@ -17,6 +18,7 @@
+ 
+ #include <linux/types.h>
+ 
++#include <linux/if.h>
+ #include <linux/netfilter_ipv4.h>
+ 
+ #include <linux/netfilter/x_tables.h>
+@@ -117,7 +119,7 @@ struct ipt_entry {
+ 	struct xt_counters counters;
+ 
+ 	/* The matches (if any), then the target. */
+-	unsigned char elems[0];
++	unsigned char elems[];
+ };
+ 
+ /*
+@@ -199,7 +201,7 @@ struct ipt_replace {
+ 	struct xt_counters *counters;
+ 
+ 	/* The entries (hang off end: not really an array). */
+-	struct ipt_entry entries[0];
++	struct ipt_entry entries[];
+ };
+ 
+ /* The argument to IPT_SO_GET_ENTRIES. */
+@@ -211,14 +213,14 @@ struct ipt_get_entries {
+ 	unsigned int size;
+ 
+ 	/* The entries. */
+-	struct ipt_entry entrytable[0];
++	struct ipt_entry entrytable[];
+ };
+ 
+ /* Helper functions */
+ static __inline__ struct xt_entry_target *
+ ipt_get_target(struct ipt_entry *e)
+ {
+-	return (void *)e + e->target_offset;
++	return (struct xt_entry_target *)((char *)e + e->target_offset);
+ }
+ 
+ /*
+diff --git a/include/linux/netfilter_ipv4/ipt_CLUSTERIP.h b/include/linux/netfilter_ipv4/ipt_CLUSTERIP.h
+index c6a204c..ff65994 100644
+--- a/include/linux/netfilter_ipv4/ipt_CLUSTERIP.h
++++ b/include/linux/netfilter_ipv4/ipt_CLUSTERIP.h
+@@ -1,7 +1,9 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _IPT_CLUSTERIP_H_target
+ #define _IPT_CLUSTERIP_H_target
+ 
+ #include <linux/types.h>
++#include <linux/if_ether.h>
+ 
+ enum clusterip_hashmode {
+     CLUSTERIP_HASHMODE_SIP = 0,
+@@ -22,7 +24,7 @@ struct ipt_clusterip_tgt_info {
+ 	__u32 flags;
+ 
+ 	/* only relevant for new ones */
+-	__u8 clustermac[6];
++	__u8 clustermac[ETH_ALEN];
+ 	__u16 num_total_nodes;
+ 	__u16 num_local_nodes;
+ 	__u16 local_nodes[CLUSTERIP_MAX_NODES];
+diff --git a/include/linux/netfilter_ipv4/ipt_ECN.h b/include/linux/netfilter_ipv4/ipt_ECN.h
+index bb88d53..e3630fd 100644
+--- a/include/linux/netfilter_ipv4/ipt_ECN.h
++++ b/include/linux/netfilter_ipv4/ipt_ECN.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ /* Header file for iptables ipt_ECN target
+  *
+  * (C) 2002 by Harald Welte <laforge@gnumonks.org>
+diff --git a/include/linux/netfilter_ipv4/ipt_LOG.h b/include/linux/netfilter_ipv4/ipt_LOG.h
+index dcdbadf..b7cf2c6 100644
+--- a/include/linux/netfilter_ipv4/ipt_LOG.h
++++ b/include/linux/netfilter_ipv4/ipt_LOG.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _IPT_LOG_H
+ #define _IPT_LOG_H
+ 
+diff --git a/include/linux/netfilter_ipv4/ipt_REJECT.h b/include/linux/netfilter_ipv4/ipt_REJECT.h
+index 4293a1a..ae61ddd 100644
+--- a/include/linux/netfilter_ipv4/ipt_REJECT.h
++++ b/include/linux/netfilter_ipv4/ipt_REJECT.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _IPT_REJECT_H
+ #define _IPT_REJECT_H
+ 
+diff --git a/include/linux/netfilter_ipv4/ipt_TTL.h b/include/linux/netfilter_ipv4/ipt_TTL.h
+index f6ac169..57d2fc6 100644
+--- a/include/linux/netfilter_ipv4/ipt_TTL.h
++++ b/include/linux/netfilter_ipv4/ipt_TTL.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ /* TTL modification module for IP tables
+  * (C) 2000 by Harald Welte <laforge@netfilter.org> */
+ 
+diff --git a/include/linux/netfilter_ipv4/ipt_ah.h b/include/linux/netfilter_ipv4/ipt_ah.h
+index 4e02bb0..606ce90 100644
+--- a/include/linux/netfilter_ipv4/ipt_ah.h
++++ b/include/linux/netfilter_ipv4/ipt_ah.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _IPT_AH_H
+ #define _IPT_AH_H
+ 
+diff --git a/include/linux/netfilter_ipv4/ipt_ttl.h b/include/linux/netfilter_ipv4/ipt_ttl.h
+index 37bee44..ad0226a 100644
+--- a/include/linux/netfilter_ipv4/ipt_ttl.h
++++ b/include/linux/netfilter_ipv4/ipt_ttl.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ /* IP tables module for matching the value of the TTL
+  * (C) 2000 by Harald Welte <laforge@gnumonks.org> */
+ 
+diff --git a/include/linux/netfilter_ipv6.h b/include/linux/netfilter_ipv6.h
+index f155b9d..eedf7a2 100644
+--- a/include/linux/netfilter_ipv6.h
++++ b/include/linux/netfilter_ipv6.h
+@@ -1,44 +1,19 @@
+-#ifndef __LINUX_IP6_NETFILTER_H
+-#define __LINUX_IP6_NETFILTER_H
+-
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ /* IPv6-specific defines for netfilter. 
+  * (C)1998 Rusty Russell -- This code is GPL.
+  * (C)1999 David Jeffery
+  *   this header was blatantly ripped from netfilter_ipv4.h 
+  *   it's amazing what adding a bunch of 6s can do =8^)
+  */
++#ifndef __LINUX_IP6_NETFILTER_H
++#define __LINUX_IP6_NETFILTER_H
++
+ 
+ #include <linux/netfilter.h>
+ 
+ /* only for userspace compatibility */
+-/* IP Cache bits. */
+-/* Src IP address. */
+-#define NFC_IP6_SRC              0x0001
+-/* Dest IP address. */
+-#define NFC_IP6_DST              0x0002
+-/* Input device. */
+-#define NFC_IP6_IF_IN            0x0004
+-/* Output device. */
+-#define NFC_IP6_IF_OUT           0x0008
+-/* TOS. */
+-#define NFC_IP6_TOS              0x0010
+-/* Protocol. */
+-#define NFC_IP6_PROTO            0x0020
+-/* IP options. */
+-#define NFC_IP6_OPTIONS          0x0040
+-/* Frag & flags. */
+-#define NFC_IP6_FRAG             0x0080
+-
+ 
+-/* Per-protocol information: only matters if proto match. */
+-/* TCP flags. */
+-#define NFC_IP6_TCPFLAGS         0x0100
+-/* Source port. */
+-#define NFC_IP6_SRC_PT           0x0200
+-/* Dest port. */
+-#define NFC_IP6_DST_PT           0x0400
+-/* Something else about the proto */
+-#define NFC_IP6_PROTO_UNKNOWN    0x2000
++#include <limits.h> /* for INT_MIN, INT_MAX */
+ 
+ /* IP6 Hooks */
+ /* After promisc drops, checksum checks. */
+@@ -56,6 +31,7 @@
+ 
+ enum nf_ip6_hook_priorities {
+ 	NF_IP6_PRI_FIRST = INT_MIN,
++	NF_IP6_PRI_RAW_BEFORE_DEFRAG = -450,
+ 	NF_IP6_PRI_CONNTRACK_DEFRAG = -400,
+ 	NF_IP6_PRI_RAW = -300,
+ 	NF_IP6_PRI_SELINUX_FIRST = -225,
+@@ -66,8 +42,9 @@ enum nf_ip6_hook_priorities {
+ 	NF_IP6_PRI_SECURITY = 50,
+ 	NF_IP6_PRI_NAT_SRC = 100,
+ 	NF_IP6_PRI_SELINUX_LAST = 225,
++	NF_IP6_PRI_CONNTRACK_HELPER = 300,
+ 	NF_IP6_PRI_LAST = INT_MAX,
+ };
+ 
+ 
+-#endif /*__LINUX_IP6_NETFILTER_H*/
++#endif /* __LINUX_IP6_NETFILTER_H */
+diff --git a/include/linux/netfilter_ipv6/ip6_tables.h b/include/linux/netfilter_ipv6/ip6_tables.h
+index 640a1d0..68109ec 100644
+--- a/include/linux/netfilter_ipv6/ip6_tables.h
++++ b/include/linux/netfilter_ipv6/ip6_tables.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ /*
+  * 25-Jul-1998 Major changes to allow for ip chain table
+  *
+@@ -17,6 +18,7 @@
+ 
+ #include <linux/types.h>
+ 
++#include <linux/if.h>
+ #include <linux/netfilter_ipv6.h>
+ 
+ #include <linux/netfilter/x_tables.h>
+@@ -239,7 +241,7 @@ struct ip6t_replace {
+ 	struct xt_counters *counters;
+ 
+ 	/* The entries (hang off end: not really an array). */
+-	struct ip6t_entry entries[0];
++	struct ip6t_entry entries[];
+ };
+ 
+ /* The argument to IP6T_SO_GET_ENTRIES. */
+@@ -251,14 +253,14 @@ struct ip6t_get_entries {
+ 	unsigned int size;
+ 
+ 	/* The entries. */
+-	struct ip6t_entry entrytable[0];
++	struct ip6t_entry entrytable[];
+ };
+ 
+ /* Helper functions */
+ static __inline__ struct xt_entry_target *
+ ip6t_get_target(struct ip6t_entry *e)
+ {
+-	return (void *)e + e->target_offset;
++	return (struct xt_entry_target *)((char *)e + e->target_offset);
+ }
+ 
+ /*
+diff --git a/include/linux/netfilter_ipv6/ip6t_HL.h b/include/linux/netfilter_ipv6/ip6t_HL.h
+index ebd8ead..eaed56a 100644
+--- a/include/linux/netfilter_ipv6/ip6t_HL.h
++++ b/include/linux/netfilter_ipv6/ip6t_HL.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ /* Hop Limit modification module for ip6tables
+  * Maciej Soltysiak <solt@dns.toxicfilms.tv>
+  * Based on HW's TTL module */
+diff --git a/include/linux/netfilter_ipv6/ip6t_LOG.h b/include/linux/netfilter_ipv6/ip6t_LOG.h
+index 9dd5579..0b7b16d 100644
+--- a/include/linux/netfilter_ipv6/ip6t_LOG.h
++++ b/include/linux/netfilter_ipv6/ip6t_LOG.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _IP6T_LOG_H
+ #define _IP6T_LOG_H
+ 
+@@ -16,4 +17,4 @@ struct ip6t_log_info {
+ 	char prefix[30];
+ };
+ 
+-#endif /*_IPT_LOG_H*/
++#endif /* _IP6T_LOG_H */
+diff --git a/include/linux/netfilter_ipv6/ip6t_NPT.h b/include/linux/netfilter_ipv6/ip6t_NPT.h
+index f763355..422aef0 100644
+--- a/include/linux/netfilter_ipv6/ip6t_NPT.h
++++ b/include/linux/netfilter_ipv6/ip6t_NPT.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef __NETFILTER_IP6T_NPT
+ #define __NETFILTER_IP6T_NPT
+ 
+diff --git a/include/linux/netfilter_ipv6/ip6t_REJECT.h b/include/linux/netfilter_ipv6/ip6t_REJECT.h
+index cd2e940..158ffa5 100644
+--- a/include/linux/netfilter_ipv6/ip6t_REJECT.h
++++ b/include/linux/netfilter_ipv6/ip6t_REJECT.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _IP6T_REJECT_H
+ #define _IP6T_REJECT_H
+ 
+diff --git a/include/linux/netfilter_ipv6/ip6t_ah.h b/include/linux/netfilter_ipv6/ip6t_ah.h
+index 5da2b65..9a4174e 100644
+--- a/include/linux/netfilter_ipv6/ip6t_ah.h
++++ b/include/linux/netfilter_ipv6/ip6t_ah.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _IP6T_AH_H
+ #define _IP6T_AH_H
+ 
+diff --git a/include/linux/netfilter_ipv6/ip6t_frag.h b/include/linux/netfilter_ipv6/ip6t_frag.h
+index b47f61b..9acac81 100644
+--- a/include/linux/netfilter_ipv6/ip6t_frag.h
++++ b/include/linux/netfilter_ipv6/ip6t_frag.h
+@@ -1,12 +1,13 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _IP6T_FRAG_H
+ #define _IP6T_FRAG_H
+ 
+ #include <linux/types.h>
+ 
+ struct ip6t_frag {
+-	__u32 ids[2];			/* Security Parameter Index */
++	__u32 ids[2];			/* Identification range */
+ 	__u32 hdrlen;			/* Header Length */
+-	__u8  flags;			/*  */
++	__u8  flags;			/* Flags */
+ 	__u8  invflags;			/* Inverse flags */
+ };
+ 
+diff --git a/include/linux/netfilter_ipv6/ip6t_hl.h b/include/linux/netfilter_ipv6/ip6t_hl.h
+index 6e76dbc..6b62f94 100644
+--- a/include/linux/netfilter_ipv6/ip6t_hl.h
++++ b/include/linux/netfilter_ipv6/ip6t_hl.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ /* ip6tables module for matching the Hop Limit value
+  * Maciej Soltysiak <solt@dns.toxicfilms.tv>
+  * Based on HW's ttl module */
+diff --git a/include/linux/netfilter_ipv6/ip6t_ipv6header.h b/include/linux/netfilter_ipv6/ip6t_ipv6header.h
+index efae3a2..5a51969 100644
+--- a/include/linux/netfilter_ipv6/ip6t_ipv6header.h
++++ b/include/linux/netfilter_ipv6/ip6t_ipv6header.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ /* ipv6header match - matches IPv6 packets based
+ on whether they contain certain headers */
+ 
+diff --git a/include/linux/netfilter_ipv6/ip6t_mh.h b/include/linux/netfilter_ipv6/ip6t_mh.h
+index a7729a5..9061962 100644
+--- a/include/linux/netfilter_ipv6/ip6t_mh.h
++++ b/include/linux/netfilter_ipv6/ip6t_mh.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _IP6T_MH_H
+ #define _IP6T_MH_H
+ 
+diff --git a/include/linux/netfilter_ipv6/ip6t_opts.h b/include/linux/netfilter_ipv6/ip6t_opts.h
+index 17d419a..79f9a47 100644
+--- a/include/linux/netfilter_ipv6/ip6t_opts.h
++++ b/include/linux/netfilter_ipv6/ip6t_opts.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _IP6T_OPTS_H
+ #define _IP6T_OPTS_H
+ 
+diff --git a/include/linux/netfilter_ipv6/ip6t_rt.h b/include/linux/netfilter_ipv6/ip6t_rt.h
+index 7605a5f..9c23e8a 100644
+--- a/include/linux/netfilter_ipv6/ip6t_rt.h
++++ b/include/linux/netfilter_ipv6/ip6t_rt.h
+@@ -1,8 +1,9 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _IP6T_RT_H
+ #define _IP6T_RT_H
+ 
+ #include <linux/types.h>
+-/*#include <linux/in6.h>*/
++#include <linux/in6.h>
+ 
+ #define IP6T_RT_HOPS 16
+ 
+diff --git a/include/linux/netfilter_ipv6/ip6t_srh.h b/include/linux/netfilter_ipv6/ip6t_srh.h
+index 3bfe411..54ed833 100644
+--- a/include/linux/netfilter_ipv6/ip6t_srh.h
++++ b/include/linux/netfilter_ipv6/ip6t_srh.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _IP6T_SRH_H
+ #define _IP6T_SRH_H
+ 
+diff --git a/include/linux/types.h b/include/linux/types.h
+index 630cd3b..8777590 100644
+--- a/include/linux/types.h
++++ b/include/linux/types.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+ #ifndef _LINUX_TYPES_H
+ #define _LINUX_TYPES_H
+ 
+@@ -7,23 +8,26 @@
+ 
+ #include <linux/posix_types.h>
+ 
++#ifdef __SIZEOF_INT128__
++typedef __signed__ __int128 __s128 __attribute__((aligned(16)));
++typedef unsigned __int128 __u128 __attribute__((aligned(16)));
++#endif
+ 
+ /*
+  * Below are truly Linux-specific types that should never collide with
+  * any application/library that wants linux/types.h.
+  */
+ 
++/* sparse defines __CHECKER__; see Documentation/dev-tools/sparse.rst */
+ #ifdef __CHECKER__
+-#define __bitwise__ __attribute__((bitwise))
+-#else
+-#define __bitwise__
+-#endif
+-#ifdef __CHECK_ENDIAN__
+-#define __bitwise __bitwise__
++#define __bitwise	__attribute__((bitwise))
+ #else
+ #define __bitwise
+ #endif
+ 
++/* The kernel doesn't use this legacy form, but user space does */
++#define __bitwise__ __bitwise
++
+ typedef __u16 __bitwise __le16;
+ typedef __u16 __bitwise __be16;
+ typedef __u32 __bitwise __le32;
+@@ -38,7 +42,7 @@ typedef __u32 __bitwise __wsum;
+  * aligned_u64 should be used in defining kernel<->userspace ABIs to avoid
+  * common 32/64-bit compat problems.
+  * 64-bit values align to 4-byte boundaries on x86_32 (and possibly other
+- * architectures) and to 8-byte boundaries on 64-bit architetures.  The new
++ * architectures) and to 8-byte boundaries on 64-bit architectures.  The new
+  * aligned_64 type enforces 8-byte alignment so that structs containing
+  * aligned_64 values have the same alignment on 32-bit and 64-bit architectures.
+  * No conversions are necessary between 32-bit user-space and a 64-bit kernel.
+@@ -47,5 +51,15 @@ typedef __u32 __bitwise __wsum;
+ #define __aligned_be64 __be64 __attribute__((aligned(8)))
+ #define __aligned_le64 __le64 __attribute__((aligned(8)))
+ 
++#ifdef __CHERI_PURE_CAPABILITY__
++typedef __uintcap_t	__kernel_uintptr_t;
++typedef __uintcap_t	__kernel_aligned_uintptr_t;
++#else
++typedef __u64		__kernel_uintptr_t;
++typedef __aligned_u64	__kernel_aligned_uintptr_t;
++#endif
++
++typedef unsigned __bitwise __poll_t;
++
+ #endif /*  __ASSEMBLY__ */
+ #endif /* _LINUX_TYPES_H */
+-- 
+2.43.5
+
