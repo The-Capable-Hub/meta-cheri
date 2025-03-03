@@ -1,0 +1,47 @@
+From 0ebfaf23f0105f2af94d1d6391a1a0741d7b69b9 Mon Sep 17 00:00:00 2001
+From: Christian Ehrhardt <christian.ehrhardt@codasip.com>
+Date: Fri, 28 Feb 2025 10:52:41 +0100
+Subject: [PATCH] cheri: Fix CHERI faults
+
+- Avoid an out of bounds access when typing a backslash
+  followed by two returns.
+- Force larger alignment for opaque data when using CHERI
+  to allow pointers in the data.
+---
+ bashhist.c    | 3 ++-
+ unwind_prot.c | 3 +++
+ 2 files changed, 5 insertions(+), 1 deletion(-)
+
+Upstream-Status: Inappropriate [ CHERI specific ]
+
+diff --git a/bashhist.c b/bashhist.c
+index 90cd8c3..9161630 100644
+--- a/bashhist.c
++++ b/bashhist.c
+@@ -913,7 +913,8 @@ bash_add_history (line)
+ 	     newline, since that is what happens when the line is parsed. */
+ 	  curlen = strlen (current->line);
+ 
+-	  if (dstack.delimiter_depth == 0 && current->line[curlen - 1] == '\\' &&
++	  if (dstack.delimiter_depth == 0 && curlen >= 2 &&
++              current->line[curlen - 1] == '\\' &&
+ 	      current->line[curlen - 2] != '\\')
+ 	    {
+ 	      current->line[curlen - 1] = '\0';
+diff --git a/unwind_prot.c b/unwind_prot.c
+index ec82393..b2b0745 100644
+--- a/unwind_prot.c
++++ b/unwind_prot.c
+@@ -56,6 +56,9 @@
+ typedef struct {
+   char *variable;
+   int size;
++#ifdef __CHERI_PURE_CAPABILITY__
++  _Alignas(max_align_t)
++#endif
+   char desired_setting[1]; /* actual size is `size' */
+ } SAVED_VAR;
+ 
+-- 
+2.43.5
+
