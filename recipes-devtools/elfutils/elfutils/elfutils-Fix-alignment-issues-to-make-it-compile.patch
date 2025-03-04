@@ -1,0 +1,65 @@
+From 81bbfcabb0831fffac739aabf9d3acb36891cd23 Mon Sep 17 00:00:00 2001
+From: Christian Ehrhardt <christian.ehrhardt@codasip.com>
+Date: Mon, 3 Mar 2025 17:37:38 +0100
+Subject: elfutils: Fix alignment issues to make it compile
+
+- Remove some "packed" statements that don't work with CHERI
+- Annotate an intentionally underaligned struct.
+
+Upstream-Status: Inappropriate [CHERI specific]
+
+diff --git a/libcpu/memory-access.h b/libcpu/memory-access.h
+index 6e92fc5..2d148f8 100644
+--- a/libcpu/memory-access.h
++++ b/libcpu/memory-access.h
+@@ -89,7 +89,7 @@ union unaligned
+     int16_t s2;
+     int32_t s4;
+     int64_t s8;
+-  } attribute_packed;
++  } attribute_packed __attribute__((annotate("underaligned_capability")));
+ 
+ static inline uint16_t
+ read_2ubyte_unaligned (const void *p)
+diff --git a/libdw/dwarf_getfuncs.c b/libdw/dwarf_getfuncs.c
+index b95f06f..ce546e4 100644
+--- a/libdw/dwarf_getfuncs.c
++++ b/libdw/dwarf_getfuncs.c
+@@ -106,7 +106,7 @@ dwarf_getfuncs (Dwarf_Die *cudie, int (*callback) (Dwarf_Die *, void *),
+ 	       || lang == DW_LANG_C99
+ 	       || lang == DW_LANG_C11);
+ 
+-  struct visitor_info v = { callback, arg, (void *) offset, NULL, c_cu };
++  struct visitor_info v = { callback, arg, (void *) (uintptr_t)offset, NULL, c_cu };
+   struct Dwarf_Die_Chain chain = { .die = CUDIE (cudie->cu),
+ 				   .parent = NULL };
+   int res = __libdw_visit_scopes (0, &chain, NULL, &tree_visitor, NULL, &v);
+diff --git a/libdw/libdwP.h b/libdw/libdwP.h
+index 5cbdc27..51a06b8 100644
+--- a/libdw/libdwP.h
++++ b/libdw/libdwP.h
+@@ -270,7 +270,7 @@ struct Dwarf_Abbrev
+   bool has_children : 1;  /* Whether or not the DIE has children. */
+   unsigned int code : 31; /* The (unique) abbrev code.  */
+   unsigned int tag;	  /* The tag of the DIE. */
+-} attribute_packed;
++};
+ 
+ #include "dwarf_abbrev_hash.h"
+ 
+diff --git a/libdw/memory-access.h b/libdw/memory-access.h
+index 6d79343..b21ee72 100644
+--- a/libdw/memory-access.h
++++ b/libdw/memory-access.h
+@@ -244,7 +244,7 @@ union unaligned
+     int16_t s2;
+     int32_t s4;
+     int64_t s8;
+-  } attribute_packed;
++  } attribute_packed __attribute__((annotate("underaligned_capability")));
+ 
+ # define read_2ubyte_unaligned(Dbg, Addr) \
+   read_2ubyte_unaligned_1 ((Dbg)->other_byte_order, (Addr))
+-- 
+2.43.5
+
