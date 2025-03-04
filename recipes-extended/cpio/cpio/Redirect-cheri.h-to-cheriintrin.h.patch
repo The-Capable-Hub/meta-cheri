@@ -1,0 +1,23 @@
+From a9faee66d50b5207a3a6eda2db0782877abbbf7e Mon Sep 17 00:00:00 2001
+From: Christian Ehrhardt <christian.ehrhardt@codasip.com>
+Date: Tue, 4 Mar 2025 08:55:37 +0100
+Subject: Redirect cheri.h to cheriintrin.h
+
+The upstream version of cpio pulls in a CHERI aware version
+of gnulib. However, that version expects a header named cheri.h
+and our compiler runtime only provides cheriintrin.h
+
+Add a dummy include file that redirects the include accordingly.
+
+Upstream-Status: Inappropriate [ CHERI specific ]
+
+diff --git a/gnu/cheri.h b/gnu/cheri.h
+new file mode 100644
+index 0000000..99f4ef5
+--- /dev/null
++++ b/gnu/cheri.h
+@@ -0,0 +1 @@
++#include <cheriintrin.h>
+-- 
+2.43.5
+
