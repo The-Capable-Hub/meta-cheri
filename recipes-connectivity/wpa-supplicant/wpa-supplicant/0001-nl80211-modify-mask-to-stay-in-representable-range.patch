@@ -1,0 +1,60 @@
+From 3b57316bbb1e2193b34c686d350ed413c7200d56 Mon Sep 17 00:00:00 2001
+From: Martin Kaiser <martin.kaiser@codasip.com>
+Date: Mon, 10 Mar 2025 10:57:19 +0100
+Subject: [PATCH] nl80211: modify mask to stay in representable range
+
+nl80211 XORs some pointers with ELOOP_SOCKET_INVALID to make them
+temporarily unusable. In some cases, the mask is applied again to
+recover the original pointer which is then dereferenced.
+
+This triggers a cheri tag violation. The mask is so large that applying
+it moves the capability's address out of the representable ranges.
+
+Change the mask to fix this issue. The mask should be smaller than the
+smallest possible representable range. Explain why we can still
+distinguish between masked and unmasked pointers.
+---
+
+Upstream-Status: Inappropriate [cheri specific]
+
+ src/drivers/driver_nl80211.c | 24 ++++++++++++++++++------
+ 1 file changed, 18 insertions(+), 6 deletions(-)
+
+diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
+index aec179a..67b7d66 100644
+--- a/src/drivers/driver_nl80211.c
++++ b/src/drivers/driver_nl80211.c
+@@ -105,12 +105,24 @@ static void nl_destroy_handles(struct nl_sock **handle)
+ 	*handle = NULL;
+ }
+ 
+-
+-#if __WORDSIZE == 64
+-#define ELOOP_SOCKET_INVALID	(intptr_t) 0x8888888888888889ULL
+-#else
+-#define ELOOP_SOCKET_INVALID	(intptr_t) 0x88888889ULL
+-#endif
++/*
++ * The code marks some pointers to struct nl_sock as "temporarily invalid" by
++ * XORing them with ELOOP_SOCKET_INVALID. There are places where the mask is
++ * applied again to recover the original pointer.
++ *
++ * The upstream code sets ELOOP_SOCKET_INVALID close to INTPTR_MASK. On a
++ * cheri system, XORing with such a large value moves the capability's
++ * address out of the representable range and clears the tag.
++ *
++ * Use a smaller mask to remain within the representable range. Generally, the
++ * size of the representable range is 2^(E+MW) with MW==10 for RV32, 14 for
++ * RV64. If our mask is < 2^10, we should be on the safe side.
++ *
++ * If the LSB of the mask is 1, we are still able to distinguish between
++ * masked and non-masked pointers. struct nl_sock starts with an unsigned
++ * short and is always aligned to at least 2 bytes.
++ */
++#define ELOOP_SOCKET_INVALID  (intptr_t) 0x89ULL
+ 
+ static void nl80211_register_eloop_read(struct nl_sock **handle,
+ 					eloop_sock_handler handler,
+-- 
+2.43.5
+
