@@ -40,4 +40,4 @@ RDEPENDS:packagegroup-core-standalone-sdk-target:remove = "libstdc++-dev"
 #    inherit ... python3targetconfig
 # will be evaluated using the current value of PACKAGECONFIG not the
 # final one.
-PACKAGECONFIG:remove:pn-libxml2:cheri = "python"
+PACKAGECONFIG:remove:pn-libxml2:class-target:cheri = "python"
