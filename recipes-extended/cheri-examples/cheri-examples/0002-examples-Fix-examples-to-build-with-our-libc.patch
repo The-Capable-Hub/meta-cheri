@@ -1,0 +1,333 @@
+From 913f46aa7d25dc5c37513dc6398bef0588486399 Mon Sep 17 00:00:00 2001
+From: Chris Hofer <christian.hofer@codasip.com>
+Date: Fri, 16 May 2025 14:44:59 +0200
+Subject: [PATCH] examples: Fix examples to build with our libc
+
+We mostly fix cheri-related libc calls that are called differently, e.g.
+'cheri_gettag' is called in our musl-libc 'cheri_tag_get'. Other than
+that, we replace a few printfs with puts due to stdout buffering.
+
+The following examples are not yet supported:
+ * mmap: we miss support for 'cheri_flags_set'
+ * seal: uses the non-Linux syscall 'sysctlbyname'
+ * sentry: uses 'cheri_sealentry' and 'cheri_flags_set'
+---
+ allocate.c       |  2 +-
+ bounds.c         |  2 +-
+ function.c       |  4 ++--
+ general_bounds.c | 14 ++++++++------
+ include/common.h | 14 ++++++++++++++
+ set_bounds.c     | 13 ++++++-------
+ setjmp.c         | 11 +++++------
+ stackscan.c      | 17 ++++++++---------
+ xor_pointers.c   | 13 +++++++------
+ 9 files changed, 52 insertions(+), 38 deletions(-)
+
+diff --git a/allocate.c b/allocate.c
+index 9782872..4146c93 100644
+--- a/allocate.c
++++ b/allocate.c
+@@ -10,7 +10,7 @@ int main()
+ {
+     size_t size = 31;
+ 
+-    printf("Size: ");
++    puts("Input to be allocated size");
+     if (0 == scanf("%lu", &size))
+     {
+         error("Extraneous input");
+diff --git a/bounds.c b/bounds.c
+index 1b9a517..d2ca815 100644
+--- a/bounds.c
++++ b/bounds.c
+@@ -13,7 +13,7 @@
+ int main()
+ {
+     int32_t array[16] = {0};
+-    int32_t *typed_array = &array;
++    int32_t *typed_array = &(array[0]);
+ 
+     uint64_t length = cheri_length_get(typed_array);
+     for (uint32_t counter = 0; counter <= (length / sizeof(int32_t)) + 15; counter++)
+diff --git a/function.c b/function.c
+index 407a375..1e97214 100644
+--- a/function.c
++++ b/function.c
+@@ -34,14 +34,14 @@ int main()
+ 
+     int a, b = 0;
+ 
+-    printf("Enter first number:");
++    puts("Enter first number:");
+     if (0 == scanf("%d", &a))
+     {
+         error("Extraneous input");
+         return -1;
+     }
+ 
+-    printf("Enter second number:");
++    puts("Enter second number:");
+     if (0 == scanf("%d", &b))
+     {
+         error("Extraneous input");
+diff --git a/general_bounds.c b/general_bounds.c
+index 955c2d9..f735652 100644
+--- a/general_bounds.c
++++ b/general_bounds.c
+@@ -9,7 +9,6 @@
+  ***/
+ 
+ #include "include/common.h"
+-#include <cheri/cheric.h>
+ #include <stdint.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -17,8 +16,8 @@
+ int main(int argc, char *argv[])
+ {
+     int32_t array[12] = {0};
+-    int32_t *typed_array = &array;
+-    u_int32_t bounds = 48;
++    int32_t *typed_array = &(array[0]);
++    uint32_t bounds = 48;
+ 
+ #if defined(__aarch64__) && __ARM_ARCH == 8
+     // Do a dereference
+@@ -57,9 +56,12 @@ int main(int argc, char *argv[])
+         exit(0);
+     }
+ 
+-    printf("Explicitly setting the bounds outside the range causes the following exception: ");
+-    fflush(stdout);
+-    int32_t *custom_bounds_array = cheri_setbounds(array, bounds);
++    puts("Explicitly setting the bounds outside the range");
++    int32_t *custom_bounds_array = cheri_bounds_set(array, bounds);
++    pp_cap(custom_bounds_array);
++
++    puts("Accessing invalid capability will cause a CHERI exception");
++    *custom_bounds_array = 1;
+ #else
+ #error Platform not currently supported.
+ #endif
+diff --git a/include/common.h b/include/common.h
+index 4dfb588..f3fc647 100644
+--- a/include/common.h
++++ b/include/common.h
+@@ -7,6 +7,20 @@
+  * Print information about a capability
+  */
+ 
++/* TODO: to be implemented */
++uint64_t cheri_flags_get(void *__capability ptr)
++{
++    return 0xdeadbeef;
++}
++
++/* helper functions */
++int cheri_is_address_inbounds (void *__capability ptr, uint64_t addr)
++{
++    uint64_t base = cheri_base_get(ptr);
++    uint32_t len = cheri_length_get(ptr);
++    return (base <= addr) && (addr < (base + len));
++}
++
+ void pp_cap(void *__capability ptr)
+ {
+     uint64_t length = cheri_length_get(ptr);
+diff --git a/set_bounds.c b/set_bounds.c
+index 390c7dd..2f28308 100644
+--- a/set_bounds.c
++++ b/set_bounds.c
+@@ -1,12 +1,10 @@
+ /***
+- * The point of this program is to demonstrate the failing of a program
+- * that tries to extend the bounderies of a capable pointer.
+- * Compared to the simpler 'bounds.c', here we try to modify the bounds
+- * explicitly.
++ * The point of this program is to demonstrate clearing of the valid tag if the
++ * boundaries of a capablility are extended. Compared to the simpler 'bounds.c',
++ * here we try to modify the bounds explicitly.
+  ***/
+ 
+ #include "include/common.h"
+-#include <cheri/cheric.h>
+ #include <stdint.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -35,6 +33,7 @@ int main(int argc, char *argv[])
+         // This will cause the test to fail for a value lower than 64
+         exit(0);
+     }
+-    // Trying to extend the bounds generates an exception.
+-    int32_t *custom_bounds_array = cheri_setbounds(array, bounds);
++    // Extending bounds will clear the valid tag.
++    int32_t *custom_bounds_array = cheri_bounds_set(array, bounds);
++    pp_cap(custom_bounds_array);
+ }
+diff --git a/setjmp.c b/setjmp.c
+index 4902a54..75ea478 100644
+--- a/setjmp.c
++++ b/setjmp.c
+@@ -1,5 +1,4 @@
+ #include "include/common.h"
+-#include <cheri/cheric.h>
+ #include <setjmp.h>
+ #include <stdint.h>
+ #include <stdio.h>
+@@ -9,23 +8,23 @@ int main()
+     jmp_buf buffer;
+     int res = setjmp(buffer);
+ 
+-    uint32_t length = cheri_getlength(buffer);
++    uint32_t length = cheri_length_get(buffer);
+ 
+     // buffer[0] == _JB_MAGIC_SETJMP == 0xbe87fd8a2910af01
+     // buffer[1] == $csp
+     // buffer[2] == $cfp
+     // buffer[3..13] == $cs1..11
+     // buffer[14..31] = ???
+-    for (uint32_t idx; idx < (length / 16); idx++)
++    for (uint32_t idx = 0; idx < (length / 16); idx++)
+     {
+-        if (cheri_gettag(((void **) buffer)[idx]))
++        if (cheri_tag_get(((void **) buffer)[idx]))
+         {
+             void *csp = cheri_getcsp();
+-            uint64_t address = cheri_getaddress(((void **) buffer)[idx]);
++            uint64_t address = cheri_address_get(((void **) buffer)[idx]);
+ 
+             if (cheri_is_address_inbounds(csp, address))
+             {
+-                printf("[STACK POINTER] ");
++                puts("[STACK POINTER] ");
+             }
+             pp_cap(((void **) buffer)[idx]);
+         }
+diff --git a/stackscan.c b/stackscan.c
+index 8c42e32..d9f4463 100644
+--- a/stackscan.c
++++ b/stackscan.c
+@@ -1,5 +1,4 @@
+ #include "include/common.h"
+-#include <cheri/cheric.h>
+ #include <setjmp.h>
+ #include <stdint.h>
+ #include <stdio.h>
+@@ -10,14 +9,14 @@ void *stack_top;
+ 
+ void inspect_stack(void *stack)
+ {
+-    printf("offset: %lu\n", cheri_getlength(stack) - cheri_getoffset(stack));
++    printf("offset: %lu\n", cheri_length_get(stack) - cheri_offset_get(stack));
+ }
+ 
+ bool is_stack_pointer(void *ptr)
+ {
+-    if (cheri_gettag(ptr))
++    if (cheri_tag_get(ptr))
+     {
+-        uint64_t address = cheri_getaddress(ptr);
++        uint64_t address = cheri_address_get(ptr);
+ 
+         if (cheri_is_address_inbounds(stack_top, address))
+         {
+@@ -29,7 +28,7 @@ bool is_stack_pointer(void *ptr)
+ 
+ bool is_pointer(void *ptr)
+ {
+-    if (cheri_gettag(ptr))
++    if (cheri_tag_get(ptr))
+     {
+         return true;
+     }
+@@ -38,7 +37,7 @@ bool is_pointer(void *ptr)
+ 
+ bool is_exec(void *ptr)
+ {
+-    if (((cheri_getperm(ptr) & 0b10) >> 1) == 1)
++    if (((cheri_perms_get(ptr) & 0b10) >> 1) == 1)
+     {
+         return true;
+     }
+@@ -54,7 +53,7 @@ void scan_range(void *start, void *end)
+     pp_cap(end);
+     puts("\n");
+ 
+-    while (location > end)
++    while (((void *)location) > end)
+     {
+         if (is_pointer(*location))
+         {
+@@ -131,8 +130,8 @@ int main()
+ {
+     stack_top = __builtin_frame_address(0);
+ 
+-    uint64_t base = cheri_getbase(csp);
+-    uint64_t length = cheri_getlength(csp);
++    uint64_t base = cheri_base_get(csp);
++    uint64_t length = cheri_length_get(csp);
+ 
+     uint32_t *values = test();
+ 
+diff --git a/xor_pointers.c b/xor_pointers.c
+index 959a0b4..f8ce383 100644
+--- a/xor_pointers.c
++++ b/xor_pointers.c
+@@ -21,6 +21,7 @@
+        See Section 3.9.1 XOR-linked lists (p56)
+  */
+ 
++#include <stdint.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+ 
+@@ -35,7 +36,7 @@
+ typedef struct cell
+ {
+     WORD data;
+-    WORD ptr;
++    uintptr_t ptr;
+ } cell_t;
+ 
+ cell_t *alloc_cell(WORD payload, cell_t *tail)
+@@ -44,12 +45,12 @@ cell_t *alloc_cell(WORD payload, cell_t *tail)
+     cell->data = payload;
+     /* xor this cell's address into the tail's ptr field */
+     if (tail != NULL)
+-        tail->ptr ^= (WORD) cell;
++        tail->ptr ^= (uintptr_t) cell;
+     /* store tail address in this cell's ptr field
+      * NOTE most recently allocated cell (i.e. head)
+      * only stores a single ptr, not an XOR'd pair
+      */
+-    cell->ptr = (WORD) tail;
++    cell->ptr = (uintptr_t) tail;
+     return cell;
+ }
+ 
+@@ -74,7 +75,7 @@ int main()
+     {
+         printf("%ld\n", curr->data);
+         // chase tail
+-        next = (cell_t *) ((curr->ptr) ^ (WORD) prev);
++        next = (cell_t *) ((curr->ptr) ^ (uintptr_t) prev);
+         // move along one
+         prev = curr;
+         curr = next;
+@@ -83,14 +84,14 @@ int main()
+     /* let's traverse back to the start of the list */
+     next = curr;
+     curr = prev;
+-    prev = (cell_t *) ((curr->ptr) ^ (WORD) next);
++    prev = (cell_t *) ((curr->ptr) ^ (uintptr_t) next);
+     while (curr != head)
+     {
+         printf("%ld\n", curr->data);
+         // chase reverse tail
+         next = curr;
+         curr = prev;
+-        prev = (cell_t *) ((curr->ptr) ^ (WORD) next);
++        prev = (cell_t *) ((curr->ptr) ^ (uintptr_t) next);
+     }
+     printf("%ld\n", head->data);
+ 

@@ -1,0 +1,35 @@
+From 7531bed32aa7330d4c97dec0ecda6c29c63f6545 Mon Sep 17 00:00:00 2001
+From: Chris Hofer <christian.hofer@codasip.com>
+Date: Fri, 16 May 2025 14:31:24 +0200
+Subject: [PATCH] build: Allow configurability of compiler and compiled
+ examples
+
+Remove hard-coded definitions of CC and CFILES to allow make-based
+configurability.
+---
+ build/Makefile.vars.common          | 1 -
+ build/Makefile.vars.riscv64-purecap | 1 -
+ 2 files changed, 2 deletions(-)
+
+diff --git a/build/Makefile.vars.common b/build/Makefile.vars.common
+index fe91d03..1021803 100644
+--- a/build/Makefile.vars.common
++++ b/build/Makefile.vars.common
+@@ -14,7 +14,6 @@ ifndef PLATFORM
+ $(error PLATFORM is not set)
+ endif
+ 
+-CC := $(SDKBASE)/bin/clang
+ CFORMAT := $(SDKBASE)/bin/clang-format
+ BINDIR := bin/$(PLATFORM)
+ 
+diff --git a/build/Makefile.vars.riscv64-purecap b/build/Makefile.vars.riscv64-purecap
+index 8e3b0b4..76716a7 100644
+--- a/build/Makefile.vars.riscv64-purecap
++++ b/build/Makefile.vars.riscv64-purecap
+@@ -6,5 +6,4 @@
+ 
+ CHERIBASE ?= $(HOME)/cheri
+ SDKBASE ?= $(CHERIBASE)/output/sdk
+-CFLAGS := --config cheribsd-riscv64-purecap.cfg $(CFLAGS)
+ PLATFORM := riscv64-purecap
