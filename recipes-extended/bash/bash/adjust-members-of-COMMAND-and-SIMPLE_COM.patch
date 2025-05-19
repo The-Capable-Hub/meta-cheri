@@ -1,0 +1,66 @@
+From 95c7cde1e90d5003bdea665fb2462b8a1934a2d6 Mon Sep 17 00:00:00 2001
+From: Florian Schmaus <florian.schmaus@codasip.com>
+Date: Mon, 19 May 2025 10:32:56 +0200
+Subject: [PATCH] Adjust members of COMMAND and SIMPLE_COM
+
+Bash casts SIMPLE_COM* to COMMAND* in certain places and afterward
+accesses the 'redirects' field (which is declared by both
+structs). However, the 'redirects' field is only at the same offset
+assuming that enum, int, and pointers are equal sized. This assumption
+does not hold for architectures with fat pointers, like CHERI RISC-V,
+resulting in invalid loads or stores on 'redirects.'
+
+For example, an invalid access can be triggered by the |& operator
+using CheriBSD:
+
+root@cheribsd-morello-purecap:~ # bash -c 'echo foo |& tee bar'
+In-address space security exception (core dumped)
+
+Here, bash casts SIMPLE_COM* to COMMAND* in the BAR_AND case handling
+at parse.y:1480 and then will dereference the 'redirects' pointer on
+the wrong offset. The resulting load does not yield a valid pointer,
+triggering a CHERI fault.
+
+Fix this by aligning the declaration order of the shared members of
+the two structs, enabling reliable access to the shared members.
+
+Based on the crash analysis of Martin Kaiser. Thanks!
+
+Upstream-Status: Pending
+
+---
+ command.h | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/command.h b/command.h
+index 189b00def13c..e1202996e7c3 100644
+--- a/command.h
++++ b/command.h
+@@ -195,10 +195,12 @@ typedef struct element {
+ 
+ /* What a command looks like. */
+ typedef struct command {
+-  enum command_type type;	/* FOR CASE WHILE IF CONNECTION or SIMPLE. */
++  /* Keep the first three fields identical to SIMPLE_COM */
+   int flags;			/* Flags controlling execution environment. */
+   int line;			/* line number the command starts on */
+   REDIRECT *redirects;		/* Special redirects for FOR CASE, etc. */
++
++  enum command_type type;	/* FOR CASE WHILE IF CONNECTION or SIMPLE. */
+   union {
+     struct for_com *For;
+     struct case_com *Case;
+@@ -337,9 +339,9 @@ typedef struct cond_com {
+ typedef struct simple_com {
+   int flags;			/* See description of CMD flags. */
+   int line;			/* line number the command starts on */
++  REDIRECT *redirects;		/* Redirections to perform. */
+   WORD_LIST *words;		/* The program name, the arguments,
+ 				   variable assignments, etc. */
+-  REDIRECT *redirects;		/* Redirections to perform. */
+ } SIMPLE_COM;
+ 
+ /* The "function definition" command. */
+-- 
+2.49.0
+
