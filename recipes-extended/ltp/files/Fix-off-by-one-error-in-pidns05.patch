@@ -1,0 +1,71 @@
+From d104d656cc8111cec09a6bbb4546e8363c008f70 Mon Sep 17 00:00:00 2001
+From: Andrea Cervesato <andrea.cervesato@suse.com>
+Date: Wed, 15 Nov 2023 14:03:40 +0100
+Subject: [PATCH] Fix off-by-one error in pidns05
+
+Since we count nested processes from zero, we need to check that nested
+level value is not bigger than MAX_DEPTH - 1. This patch also remove
+shared pointer which counts number of levels and replace it with a
+regular scalar value.
+
+Signed-off-by: Andrea Cervesato <andrea.cervesato@suse.com>
+Reviewed-by: Richard Palethorpe <rpalethorpe@suse.com>
+Reported-by: Martin Doucha <mdoucha@suse.cz>
+Reported-by: Petr Cervinka <pcervinka@suse.com>
+Reported-by: Wei Gao <wegao@suse.com>
+
+Upstream-Status: Backport 20240129
+---
+ testcases/kernel/containers/pidns/pidns05.c | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)
+
+diff --git a/testcases/kernel/containers/pidns/pidns05.c b/testcases/kernel/containers/pidns/pidns05.c
+index 0e7739aaaaf2..7843fe7a97b1 100644
+--- a/testcases/kernel/containers/pidns/pidns05.c
++++ b/testcases/kernel/containers/pidns/pidns05.c
+@@ -24,7 +24,7 @@ static struct tst_clone_args clone_args = {
+ };
+ static pid_t pid_max;
+ 
+-static void child_func(int *level)
++static void child_func(const int level)
+ {
+ 	pid_t cpid, ppid;
+ 
+@@ -34,15 +34,13 @@ static void child_func(int *level)
+ 	TST_EXP_EQ_LI(cpid, 1);
+ 	TST_EXP_EQ_LI(ppid, 0);
+ 
+-	if (*level >= MAX_DEPTH) {
++	if (level >= MAX_DEPTH - 1) {
+ 		TST_CHECKPOINT_WAKE(0);
+ 		return;
+ 	}
+ 
+-	(*level)++;
+-
+ 	if (!SAFE_CLONE(&clone_args)) {
+-		child_func(level);
++		child_func(level + 1);
+ 		return;
+ 	}
+ 
+@@ -81,14 +79,13 @@ static void setup(void)
+ static void run(void)
+ {
+ 	int i, status, children;
+-	int level = 0;
+ 	pid_t pids_new[MAX_DEPTH];
+ 	pid_t pids[MAX_DEPTH];
+ 	pid_t pid;
+ 
+ 	pid = SAFE_CLONE(&clone_args);
+ 	if (!pid) {
+-		child_func(&level);
++		child_func(0);
+ 		return;
+ 	}
+ 
+-- 
+2.49.0
+

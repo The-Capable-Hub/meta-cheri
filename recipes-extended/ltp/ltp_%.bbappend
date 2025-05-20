@@ -9,6 +9,7 @@ SRC_URI = " \
     file://0003-Test-fixes.patch \
     file://cheri-Allow-SIGILL-instead-of-SIGSEGV.patch \
     file://cheri-Fix-some-tests.patch \
+    file://Fix-off-by-one-error-in-pidns05.patch \
 "
 
 SRC_URI:append:qemu-tweaks = " \

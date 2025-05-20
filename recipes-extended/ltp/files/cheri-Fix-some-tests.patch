@@ -3,8 +3,6 @@ From: Christian Ehrhardt <christian.ehrhardt@codasip.com>
 Date: Tue, 4 Mar 2025 09:42:21 +0100
 Subject: cheri: Fix some tests
 
-- The level calculation in pidns05.c is wrong and results in
-  an actual array overrun.
 - In openfile.c the stack allocation is too large and the stack
   capability will go out of bounds.
 - In select03.c there is a tests where an invalid pointer is given
@@ -14,26 +12,6 @@ Subject: cheri: Fix some tests
 
 Upstream-Status: Inappropriate [ CHERI Specific ]
 
-diff --git a/testcases/kernel/containers/pidns/pidns05.c b/testcases/kernel/containers/pidns/pidns05.c
-index 0e7739aaa..ef6416bf6 100644
---- a/testcases/kernel/containers/pidns/pidns05.c
-+++ b/testcases/kernel/containers/pidns/pidns05.c
-@@ -34,13 +34,13 @@ static void child_func(int *level)
- 	TST_EXP_EQ_LI(cpid, 1);
- 	TST_EXP_EQ_LI(ppid, 0);
- 
-+	(*level)++;
-+
- 	if (*level >= MAX_DEPTH) {
- 		TST_CHECKPOINT_WAKE(0);
- 		return;
- 	}
- 
--	(*level)++;
--
- 	if (!SAFE_CLONE(&clone_args)) {
- 		child_func(level);
- 		return;
 diff --git a/testcases/kernel/fs/openfile/openfile.c b/testcases/kernel/fs/openfile/openfile.c
 index ce87d15c2..dcdc5c69f 100644
 --- a/testcases/kernel/fs/openfile/openfile.c
