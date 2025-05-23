@@ -1,0 +1,41 @@
+commit 36422cfa92118a1f8b7ca4f971b5119b93d825a9
+Author: Christian Ehrhardt <christian.ehrhardt@codasip.com>
+Date:   Fri May 23 11:48:08 2025 +0200
+
+    cheri: Fix type confusion for syscall arguments
+    
+    System call arguments must be capabilities (uintptr_t) and
+    not plain addresses (unsigned long) on CHERI.
+    
+    This also removes a non-working R_RISCV_RELATIVE relocation from
+    the strace binary.
+    
+Upstream-Status: Inappropriate (at the moment) as Cheri specific
+
+diff --git a/src/ptrace_syscall_info.c b/src/ptrace_syscall_info.c
+index 4b9d52d..4526752 100644
+--- a/src/ptrace_syscall_info.c
++++ b/src/ptrace_syscall_info.c
+@@ -50,11 +50,11 @@ test_ptrace_get_syscall_info(void)
+ 	 * leave the default unchanged.
+ 	 */
+ #ifdef HAVE_FORK
+-	static const unsigned long args[][7] = {
++	static const uintptr_t args[][7] = {
+ 		/* a sequence of architecture-agnostic syscalls */
+ 		{
+ 			__NR_chdir,
+-			(unsigned long) "",
++			(uintptr_t) "",
+ 			0xbad1fed1,
+ 			0xbad2fed2,
+ 			0xbad3fed3,
+@@ -80,7 +80,7 @@ test_ptrace_get_syscall_info(void)
+ 			0xfac5c0d5
+ 		}
+ 	};
+-	const unsigned long *exp_args;
++	const uintptr_t *exp_args;
+ 
+ # if SIZEOF_KERNEL_LONG_T > SIZEOF_LONG
+ #  define CAST (unsigned long)

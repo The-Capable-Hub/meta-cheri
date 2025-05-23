@@ -10,4 +10,5 @@ SRC_URI:append:cheri = " \
 	file://cheri_tcp_compile_fix.patch \
 	file://cheri_iovec_decode_fix.patch \
 	file://cheri_print_array.patch \
+	file://syscall_info.patch \
 "
