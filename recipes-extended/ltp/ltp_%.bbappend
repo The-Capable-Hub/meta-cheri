@@ -10,6 +10,8 @@ SRC_URI = " \
     file://cheri-Allow-SIGILL-instead-of-SIGSEGV.patch \
     file://cheri-Fix-some-tests.patch \
     file://Fix-off-by-one-error-in-pidns05.patch \
+    file://clone3-fix-size-of-stack-member-in-tcase-struct \
+    file://sbrk-disable-test-as-brk-is-not-supported-on-cheri \
 "
 
 SRC_URI:append:qemu-tweaks = " \

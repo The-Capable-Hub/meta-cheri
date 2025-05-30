@@ -1,0 +1,46 @@
+commit d04ba6b7ca330d2663c560e12d1e08b9d0d5673c
+Author: Chris Hofer <christian.hofer@codasip.com>
+Date:   Fri May 30 11:59:58 2025 +0200
+
+    clone3: Fix size of stack member in tcase struct
+    
+    Clone3 passes an argument struct containing a (void *) to the child's
+    stack. In the ltp test, an (unsigned long) was used for the stack
+    address. However, as this is a capability, a (uintptr_t) shall be used.
+    
+    This problem caused the linker to use a R_RISCV_RELATIVE for the tcase
+    struct, which should have be a R_RISCV_CHERI_RELATIVE.
+
+    Upstream-Status: Inactive-Upstream [need a new release]
+
+diff --git a/testcases/kernel/syscalls/clone3/clone302.c b/testcases/kernel/syscalls/clone3/clone302.c
+index 4564f06d3..fc6b71b8d 100644
+--- a/testcases/kernel/syscalls/clone3/clone302.c
++++ b/testcases/kernel/syscalls/clone3/clone302.c
+@@ -19,7 +19,7 @@
+ #include "lapi/sched.h"
+ 
+ static struct clone_args *valid_args, *invalid_args;
+-unsigned long stack;
++uintptr_t stack;
+ static int *invalid_address;
+ 
+ static struct tcase {
+@@ -29,7 +29,7 @@ static struct tcase {
+ 	uint64_t flags;
+ 	int **pidfd;
+ 	int exit_signal;
+-	unsigned long stack;
++	uintptr_t stack;
+ 	unsigned long stack_size;
+ 	unsigned long tls;
+ 	int exp_errno;
+@@ -43,7 +43,7 @@ static struct tcase {
+ 	{"fs-newns", &valid_args, sizeof(*valid_args), CLONE_FS | CLONE_NEWNS, NULL, SIGCHLD, 0, 0, 0, EINVAL},
+ 	{"invalid pidfd", &valid_args, sizeof(*valid_args), CLONE_PIDFD, &invalid_address, SIGCHLD, 0, 0, 0, EFAULT},
+ 	{"invalid signal", &valid_args, sizeof(*valid_args), 0, NULL, CSIGNAL + 1, 0, 0, 0, EINVAL},
+-	{"zero-stack-size", &valid_args, sizeof(*valid_args), 0, NULL, SIGCHLD, (unsigned long)&stack, 0, 0, EINVAL},
++	{"zero-stack-size", &valid_args, sizeof(*valid_args), 0, NULL, SIGCHLD, (uintptr_t)&stack, 0, 0, EINVAL},
+ 	{"invalid-stack", &valid_args, sizeof(*valid_args), 0, NULL, SIGCHLD, 0, 4, 0, EINVAL},
+ 	/*
+ 	 * Don't test CLONE_CHILD_SETTID and CLONE_PARENT_SETTID:
