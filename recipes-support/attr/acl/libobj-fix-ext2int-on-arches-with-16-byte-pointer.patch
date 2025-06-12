@@ -1,0 +1,56 @@
+From ea8f9811594bbc44d8a06745c67919f9d587edfc Mon Sep 17 00:00:00 2001
+From: Florian Schmaus <florian.schmaus@codasip.com>
+Date: Thu, 12 Jun 2025 15:35:03 +0200
+Subject: [PATCH] libobj: Fix ext2int on arches with 16-byte pointer alignment
+
+The library is using
+
+    obj_prefix *obj_p = ((obj_prefix *)ext_p)-1;
+
+to transform an external pointer (ext_p) to an internal pointer (obj_p).
+Essentially, this did subtract 8 (=sizeof(obj_prefix)) from ext_pt to
+derive obj_p.
+
+However, this idiom is broken on architectures where pointers are
+16-byte aligned (e.g., CHERI RISC-V). For example, "struct
+acl_obj_tag" has obj_prefix as first member and "struct __acl_ext" as
+second member, which itself has a pointer as first member. On arches
+with 16-byte pointer alignment, "struct acl_obj_tag" will be at offset
+16. Consequently obj_prefix will start 16 bytes before the external
+pointer (and not 8 bytes).
+
+Fix this by adding an alignment constraint of __BIGGEST_ALIGNMENT__ to
+obj_prefix to ensure that the size of obj_prefix is always multiples
+of __BIGGEST_ALIGNMENT__. If obj_prefix is used as a member this
+ensures that the offset to the subsequent member is always the same,
+independent of potential alignment requirements of this subsequent
+member.
+
+Thanks to Stuart Menefy for suggesting this solution.
+
+Finally, one may think that a container_of()-like approach would be
+better. However, using container_of() requires type information about
+the pointer, which is only available at the ext2int() macro but not at
+acl_free(). Therefore, it is unfortunately infeasible.
+
+Signed-off-by: Florian Schmaus <florian.schmaus@codasip.com>
+Upstream-Status: Pending
+---
+ libacl/libobj.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libacl/libobj.h b/libacl/libobj.h
+index c41d5f9d002b..1b1a9d44fc9f 100644
+--- a/libacl/libobj.h
++++ b/libacl/libobj.h
+@@ -55,7 +55,7 @@
+ typedef struct {
+ 	unsigned long		p_magic:16;
+ 	unsigned long		p_flags:16;
+-} obj_prefix;
++} __attribute__((aligned(__BIGGEST_ALIGNMENT__))) obj_prefix;
+ 
+ #define pmagic o_prefix.p_magic
+ #define pflags o_prefix.p_flags
+-- 
+2.49.0
