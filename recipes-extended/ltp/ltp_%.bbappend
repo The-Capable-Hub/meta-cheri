@@ -17,4 +17,8 @@ do_install:append () {
     install -Dm0755 ${WORKDIR}/run_ltp_tests.sh ${D}/usr/bin/run_ltp_tests
 }
 
+# Overwrite "remove_broken_musl_sources" patch function of Poky recipe as we
+# fixed the compilation and either run or intentionally skip these tests.
+do_patch[postfuncs] = ""
+
 FILES:${PN} += "/home/root/ltp /usr/bin/run_ltp_tests"
