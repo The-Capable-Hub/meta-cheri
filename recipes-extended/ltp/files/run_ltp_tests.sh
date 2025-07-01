@@ -18,7 +18,7 @@ run_ltp_suite_tests() {
 
     if [[ ! -d "/lib/modules/$(uname -r)" ]]; then
         >&2 echo "ERROR: Module information not present in /lib/modules/$(uname -r)"
-        exit 1
+        return 1
     fi
 
     : "${suite:?}"
@@ -41,4 +41,5 @@ run_ltp_suite_tests() {
     rm -rf "${test_tmp}"
 }
 
-suite="syscalls" run_ltp_suite_tests
+: "${suite:="syscalls"}"
+suite="${suite}" run_ltp_suite_tests
