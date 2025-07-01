@@ -8,7 +8,7 @@ tstamp=$(date +"%Y-%m-%dT%H%M%S")
 : "${LTP_TIMEOUT_MUL:=10}"
 
 # skip lists
-skipl="musl,qemu,riscv"
+skipl="musl,qemu,riscv,incompatible"
 
 # by default, test files are created in /tmp. Some tests require a non-tempfs
 # filesystem for their test files though. Move it to block dev mounted at "/".
