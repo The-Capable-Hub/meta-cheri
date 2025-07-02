@@ -1,0 +1,90 @@
+From 9f5706b5d2c9bef45d29e5aa3604accf1322a054 Mon Sep 17 00:00:00 2001
+From: Chris Hofer <christian.hofer@codasip.com>
+Date: Wed, 2 Jul 2025 18:14:07 +0200
+Subject: [PATCH] e4crypt: Fix keyctl syscall wrapper
+
+The keyctl syscall wrapper in e4crypt received via variable arguments a
+wild mix of integers and pointers, unwrapped them into unsigned longs
+and passed them as syscall arguments to the kernel. This fails on CHERI
+as a capability/pointer does not fit into an unsigned long.
+
+Fix the number of arguments as well as their type to uintptr_t. This
+avoids the necessity to cast non-pointer arguments for correct
+unwrapping by va_args.
+
+Upstream-Status: Inappropriate [CHERI specific]
+Signed-off-by: Chris Hofer <christian.hofer@codasip.com>
+---
+ misc/e4crypt.c | 23 +++++++----------------
+ 1 file changed, 7 insertions(+), 16 deletions(-)
+
+diff --git a/misc/e4crypt.c b/misc/e4crypt.c
+index 67d25d88..e474575e 100644
+--- a/misc/e4crypt.c
++++ b/misc/e4crypt.c
+@@ -78,17 +78,8 @@ typedef __s32 key_serial_t;
+ int options;
+ 
+ #ifndef HAVE_KEYCTL
+-static long keyctl(int cmd, ...)
++static long keyctl(int cmd, uintptr_t arg2, uintptr_t arg3, uintptr_t arg4, uintptr_t arg5)
+ {
+-	va_list va;
+-	unsigned long arg2, arg3, arg4, arg5;
+-
+-	va_start(va, cmd);
+-	arg2 = va_arg(va, unsigned long);
+-	arg3 = va_arg(va, unsigned long);
+-	arg4 = va_arg(va, unsigned long);
+-	arg5 = va_arg(va, unsigned long);
+-	va_end(va);
+ 	return syscall(__NR_keyctl, cmd, arg2, arg3, arg4, arg5);
+ }
+ #endif
+@@ -521,7 +512,7 @@ static int get_keyring_id(const char *keyring)
+ 	}
+ 	x = strtoul(keyring, &end, 10);
+ 	if (*end == '\0') {
+-		if (keyctl(KEYCTL_DESCRIBE, x, NULL, 0) < 0)
++		if (keyctl(KEYCTL_DESCRIBE, x, 0, 0, 0) < 0)
+ 			return 0;
+ 		return x;
+ 	}
+@@ -558,8 +549,8 @@ static void insert_key_into_keyring(const char *keyring, struct salt *salt)
+ 	}
+ 	sprintf(key_ref_full, "%s%s", EXT2FS_KEY_DESC_PREFIX,
+ 		salt->key_ref_str);
+-	rc = keyctl(KEYCTL_SEARCH, keyring_id, EXT2FS_KEY_TYPE_LOGON,
+-		    key_ref_full, 0);
++	rc = keyctl(KEYCTL_SEARCH, keyring_id, (uintptr_t) EXT2FS_KEY_TYPE_LOGON,
++		    (uintptr_t) key_ref_full, 0);
+ 	if (rc != -1) {
+ 		if ((options & OPT_QUIET) == 0)
+ 			printf("Key with descriptor [%s] already exists\n",
+@@ -588,7 +579,7 @@ static void insert_key_into_keyring(const char *keyring, struct salt *salt)
+ 	 * confusing, but so it goes...
+ 	 */
+ 	if (keyring_id == KEY_SPEC_SESSION_KEYRING) {
+-		keyring_id = keyctl(KEYCTL_GET_KEYRING_ID, keyring_id, 0);
++		keyring_id = keyctl(KEYCTL_GET_KEYRING_ID, keyring_id, 0, 0, 0);
+ 		if (keyring_id < 0) {
+ 			printf("Error getting session keyring ID: %s\n",
+ 			       strerror(errno));
+@@ -817,12 +808,12 @@ static void do_new_session(int argc, char **argv EXT2FS_ATTR((unused)),
+ 		fputs(cmd->cmd_help, stderr);
+ 		exit(1);
+ 	}
+-	keyid = keyctl(KEYCTL_JOIN_SESSION_KEYRING, NULL);
++	keyid = keyctl(KEYCTL_JOIN_SESSION_KEYRING, 0, 0, 0, 0);
+ 	if (keyid < 0) {
+ 		perror("KEYCTL_JOIN_SESSION_KEYRING");
+ 		exit(1);
+ 	}
+-	ret = keyctl(KEYCTL_SESSION_TO_PARENT, NULL);
++	ret = keyctl(KEYCTL_SESSION_TO_PARENT, 0, 0, 0, 0);
+ 	if (ret < 0) {
+ 		perror("KEYCTL_SESSION_TO_PARENT");
+ 		exit(1);
+-- 
+2.43.5
+
