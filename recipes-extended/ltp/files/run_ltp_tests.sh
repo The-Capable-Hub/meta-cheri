@@ -48,7 +48,7 @@ run_ltp_suite_tests() {
     : "${suite:?}"
 
     if ! check_suite_prerequisites "${suite}"; then
-        return 1
+        [[ ${ignore_checks} ]] || return 1
     fi
 
     test_tmp="${test_files_dir}_${suite}"
