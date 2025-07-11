@@ -51,6 +51,11 @@ run_ltp_suite_tests() {
         [[ ${ignore_checks} ]] || return 1
     fi
 
+    # Check if we run on top of Qemu
+    if (( $(find /sys/devices -iname "*virtio*" | wc -l) )); then
+        LTP_VIRT_OVERRIDE="other"
+    fi
+
     test_tmp="${test_files_dir}_${suite}"
     [[ -d "${test_tmp}" ]] && rm -rf "${test_tmp}"
 
@@ -58,6 +63,7 @@ run_ltp_suite_tests() {
     mkdir -m777 "${test_tmp}"
 
     LTP_TIMEOUT_MUL="${LTP_TIMEOUT_MUL}" \
+    LTP_VIRT_OVERRIDE="${LTP_VIRT_OVERRIDE}" \
     "${ltp}"/runltp \
         -p \
         -f "${suite}" \
