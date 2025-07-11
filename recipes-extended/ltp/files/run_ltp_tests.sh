@@ -14,14 +14,33 @@ skipl="musl,qemu,riscv,incompatible"
 # filesystem for their test files though. Move it to block dev mounted at "/".
 test_files_dir="/ltptmp"
 
-run_ltp_suite_tests() {
-
+syscall_suite_checks() {
+    local ret=0
     if [[ ! -d "/lib/modules/$(uname -r)" ]]; then
         >&2 echo "ERROR: Module information not present in /lib/modules/$(uname -r)"
+        ret=1
+    fi
+
+    return ${ret}
+}
+
+check_suite_prerequisites() {
+    if [[ $1 == "syscalls" ]]; then
+        syscall_suite_checks
+        return
+    fi
+
+    return 0
+}
+
+run_ltp_suite_tests() {
+
+    : "${suite:?}"
+
+    if ! check_suite_prerequisites "${suite}"; then
         return 1
     fi
 
-    : "${suite:?}"
     test_tmp="${test_files_dir}_${suite}"
     [[ -d "${test_tmp}" ]] && rm -rf "${test_tmp}"
 
