@@ -21,6 +21,16 @@ syscall_suite_checks() {
         ret=1
     fi
 
+    if (( $(nproc) < 2 )); then
+        >&2 echo "ERROR: Some syscall tests require SMP"
+        ret=1
+    fi
+
+    if [[ ! -d "/dev/shm" ]]; then
+        >&2 echo "ERROR: Some syscall tests require /dev/shm"
+        ret=1
+    fi
+
     return ${ret}
 }
 
