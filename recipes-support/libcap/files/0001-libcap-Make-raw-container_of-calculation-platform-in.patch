@@ -1,4 +1,4 @@
-From d2758a0e6fb61cc232a7262cd3c97165c2800caf Mon Sep 17 00:00:00 2001
+From 5006d37447b181be85852526bc27bc25ae9686e8 Mon Sep 17 00:00:00 2001
 From: Chris Hofer <christian.hofer@codasip.com>
 Date: Thu, 26 Jun 2025 13:47:44 +0200
 Subject: [PATCH] libcap: Make raw container_of calculation platform
@@ -32,12 +32,12 @@ This solution was suggested by Stuart Menefy and Florian Schmaus.
 Upstream-Status: Pending
 Signed-off-by: Chris Hofer <christian.hofer@codasip.com>
 ---
- libcap/cap_alloc.c | 6 +++++-
+ libcap/cap_alloc.c | 7 ++++++-
  libcap/libcap.h    | 5 ++++-
- 2 files changed, 9 insertions(+), 2 deletions(-)
+ 2 files changed, 10 insertions(+), 2 deletions(-)
 
 diff --git a/libcap/cap_alloc.c b/libcap/cap_alloc.c
-index 504abd2..7802aaa 100644
+index 504abd2..5be881d 100644
 --- a/libcap/cap_alloc.c
 +++ b/libcap/cap_alloc.c
 @@ -5,6 +5,8 @@
@@ -49,16 +49,17 @@ index 504abd2..7802aaa 100644
  #include "libcap.h"
  
  /*
-@@ -48,6 +50,8 @@ struct _cap_alloc_s {
+@@ -48,6 +50,9 @@ struct _cap_alloc_s {
  	struct cap_launch_s launcher;
      } u;
  };
 +const __u32 offset_magic = offsetof(struct _cap_alloc_s, u);
-+static_assert((offsetof(struct _cap_alloc_s, u) % sizeof(__u32)) == 0);
++static_assert((offsetof(struct _cap_alloc_s, u) % sizeof(__u32)) == 0,
++              "Member 'u' has an unexpected offset in _cap_alloc_s");
  
  /*
   * Obtain a blank set of capabilities
-@@ -266,7 +270,7 @@ int cap_free(void *data_p)
+@@ -266,7 +271,7 @@ int cap_free(void *data_p)
  	return -1;
      }
  
