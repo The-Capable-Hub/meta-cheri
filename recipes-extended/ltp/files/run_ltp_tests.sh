@@ -31,6 +31,10 @@ syscall_suite_checks() {
         ret=1
     fi
 
+    if [[ ! ${ignore_checks} && $ret -eq 1 ]]; then
+        >&2 echo "Some prerequisite checks failed, use 'ignore_checks=1 run_ltp_tests' to ignore"
+    fi
+
     return ${ret}
 }
 
