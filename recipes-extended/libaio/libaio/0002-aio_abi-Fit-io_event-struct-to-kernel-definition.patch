@@ -1,0 +1,44 @@
+From 33252981ff9fcd2f088ffe4461b34b0a7363df41 Mon Sep 17 00:00:00 2001
+From: Chris Hofer <christian.hofer@codasip.com>
+Date: Thu, 24 Jul 2025 13:02:07 +0200
+Subject: [PATCH 2/2] aio_abi: Fit io_event struct to kernel definition
+
+The io_event struct definition of the kernel (in $KERNEL/include/uapi/
+linux/aio_abi.h) adds for the CHERI case a padding to the struct to
+make sure that its size is a power of two, namely 32 resp. 64 bytes.
+This ensures that an exact integer number of events fits one 4KB page.
+Add this padding also to the libaio side to unify the ABI definition.
+
+Upstream-Status: Inappropriate [CHERI-specific]
+Signed-off-by: Chris Hofer <christian.hofer@codasip.com>
+---
+ src/libaio.h | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/libaio.h b/src/libaio.h
+index 24b4b8a..d6b6161 100644
+--- a/src/libaio.h
++++ b/src/libaio.h
+@@ -140,10 +140,15 @@ struct iocb {
+ };
+ 
+ struct io_event {
+-	PADDEDptr(void *data, __pad1);
+-	PADDEDptr(struct iocb *obj,  __pad2);
+-	PADDEDul(res,  __pad3);
+-	PADDEDul(res2, __pad4);
++	union {
++		struct {
++			PADDEDptr(void *data, __pad1);
++			PADDEDptr(struct iocb *obj,  __pad2);
++			PADDEDul(res,  __pad3);
++			PADDEDul(res2, __pad4);
++		};
++		PADDEDptr(void *__pad, __pad5)[4];
++	};
+ };
+ 
+ #undef PADDED
+-- 
+2.47.1
+
