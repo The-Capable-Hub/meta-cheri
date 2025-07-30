@@ -1,0 +1,33 @@
+From ad1ef687393a59658c92e72c57125b22c9190c90 Mon Sep 17 00:00:00 2001
+From: Chris Hofer <christian.hofer@codasip.com>
+Date: Tue, 29 Jul 2025 16:47:46 +0200
+Subject: [PATCH 1/6] tests/8.t: Replace pwrite64 with pwrite
+
+The syscall pwrite became pwrite64 with kernel 2.6. However, some
+c libraries such as Musl do not implement a wrapper for pwrite64
+and force users to just go with pwrite. The libraries internally take
+care of providing a 64-bit offset to the kernel. Same goes for pread64
+and pread. So just use pwrite.
+
+Upstream-Status: Pending
+Signed-off-by: Chris Hofer <christian.hofer@codasip.com>
+---
+ harness/cases/8.t | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/harness/cases/8.t b/harness/cases/8.t
+index dbcf044..a63292f 100644
+--- a/harness/cases/8.t
++++ b/harness/cases/8.t
+@@ -12,7 +12,7 @@ long long get_fs_limit(int fd)
+ 	int ret;
+ 
+ 	while (max - min > 1) {
+-		if (pwrite64(fd, &c, 1, (min + max) / 2) == -1)
++		if (pwrite(fd, &c, 1, (min + max) / 2) == -1)
+ 			max = (min + max) / 2;
+ 		else {
+ 			ret = ftruncate(fd, 0);
+-- 
+2.47.1
+

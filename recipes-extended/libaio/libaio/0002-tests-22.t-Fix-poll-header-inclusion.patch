@@ -1,0 +1,30 @@
+From 63c31a2da609537019f720808ddd42327fd1f8f2 Mon Sep 17 00:00:00 2001
+From: Chris Hofer <christian.hofer@codasip.com>
+Date: Tue, 29 Jul 2025 16:51:37 +0200
+Subject: [PATCH 2/6] tests/22.t: Fix poll header inclusion
+
+The test 22 uses macros defined in the system header file poll.h, which
+should be included directly and not included with sys. Fix this.
+
+Upstream-Status: Pending
+Signed-off-by: Chris Hofer <christian.hofer@codasip.com>
+---
+ harness/cases/22.t | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/harness/cases/22.t b/harness/cases/22.t
+index d6a8986..deb87b9 100644
+--- a/harness/cases/22.t
++++ b/harness/cases/22.t
+@@ -11,7 +11,7 @@
+ #include <signal.h>
+ #include <stdio.h>
+ #include <unistd.h>
+-#include <sys/poll.h>
++#include <poll.h>
+ #include <sys/wait.h>
+ #include <stdlib.h>
+ 
+-- 
+2.47.1
+

@@ -1,0 +1,54 @@
+From 500b61e858d9e9609eca25a7e404f38508b87121 Mon Sep 17 00:00:00 2001
+From: Chris Hofer <christian.hofer@codasip.com>
+Date: Wed, 30 Jul 2025 16:54:36 +0200
+Subject: [PATCH 5/6] tests/Makefile: Refactor testing targets
+
+We move the test 20.t to a make target 'stress' as it takes several
+hours to complete. Furthermore, we split the exisiting target
+'extracheck' into two targets as this allows us in the ptest run-script
+to simply check the return value of each target to identify failures.
+The 'check' target still runs all tests.
+
+Upstream-Status: Inappropriate [CHERI-specific]
+Signed-off-by: Chris Hofer <christian.hofer@codasip.com>
+---
+ harness/Makefile | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/harness/Makefile b/harness/Makefile
+index 4f225d3..03fd339 100644
+--- a/harness/Makefile
++++ b/harness/Makefile
+@@ -1,8 +1,9 @@
+ # foo.
+ TEST_SRCS:=$(shell find cases/ -name \*.t | sort -n -t/ -k2)
+ EXTRAPROGS:=cases/8.p cases/10.p
+-PARTPROGS:=$(filter-out $(EXTRAPROGS), $(patsubst %.t,%.p,$(TEST_SRCS)))
+-PROGS:=$(PARTPROGS) $(EXTRAPROGS)
++STRESSPROGS:=cases/20.p
++PARTPROGS:=$(filter-out $(EXTRAPROGS) $(STRESSPROGS), $(patsubst %.t,%.p,$(TEST_SRCS)))
++PROGS:=$(PARTPROGS) $(EXTRAPROGS) $(STRESSPROGS)
+ HARNESS_SRCS:=main.c
+ # io_queue.c
+ 
+@@ -56,10 +57,15 @@ ext2.img:
+ 	dd if=/dev/zero bs=1M count=10 of=$@
+ 	mke2fs -F -b 4096 $@
+ 
+-extracheck: $(EXTRAPROGS) root testdir.ext2 testdir.enospc ext2.img
++extracheck-nospc: cases/10.p root testdir.ext2 testdir.enospc
+ 	mount -o loop -t ext2 ext2-enospc.img testdir.enospc
+ 	./runtests.sh cases/10.p; ret=$$?; umount testdir.enospc; exit $$ret
++
++extracheck-ext2: cases/8.p root testdir.ext2 ext2.img
+ 	mount -o loop -t ext2 ext2.img testdir.ext2
+ 	./runtests.sh cases/8.p; ret=$$?; umount testdir.ext2; exit $$ret
+ 
+-check: partcheck extracheck 
++stress: $(STRESSPROGS)
++	./runtests.sh $(STRESSPROGS)
++
++check: partcheck extracheck-nospc extracheck-ext2 stress
+-- 
+2.47.1
+

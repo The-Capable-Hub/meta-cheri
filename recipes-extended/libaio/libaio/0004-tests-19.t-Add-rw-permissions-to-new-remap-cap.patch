@@ -1,0 +1,46 @@
+From c2200c847129f56348805e27c6fb6dd84edf6973 Mon Sep 17 00:00:00 2001
+From: Chris Hofer <christian.hofer@codasip.com>
+Date: Tue, 29 Jul 2025 17:07:03 +0200
+Subject: [PATCH 4/6] tests/19.t: Add rw permissions to new remap cap
+
+Test 19 remaps the io_event ring buffer of an established IO context and
+tries to read io_events from it.
+
+For this, a new memory region is reserved with mmap which returns an
+owning capability for the new region. Then, the io_event ring is moved
+to the new region by using mremap with the new capability together
+with the flags MREMAP_FIXED|MREMAP_MAYMOVE.
+
+If the capability for the new region lacks read/write permissions
+(allocated with PROT_NONE), the capability returned by mremap does not
+have read/write permissions neither (according to [1], see "mapping must
+be moved" and "Rational" of [2], "second mode"). Without read/write
+permissions, the capability will be rejected by the kernel when e.g
+reading from it with 'get_user'. So add r/w permissions to the
+reservation.
+
+[1] https://git.morello-project.org/morello/kernel/linux/-/wikis/Morello-pure-capability-kernel-user-Linux-ABI-specification#mremap
+[2] https://git.morello-project.org/morello/kernel/linux/-/wikis/Morello-pure-capability-kernel-user-Linux-ABI-specification#mmap
+
+Upstream-Status: Inappropriate [CHERI-specifc]
+Signed-off-by: Chris Hofer <christian.hofer@codasip.com>
+---
+ harness/cases/19.t | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/harness/cases/19.t b/harness/cases/19.t
+index 09d32ff..429070f 100644
+--- a/harness/cases/19.t
++++ b/harness/cases/19.t
+@@ -72,7 +72,7 @@ open_temp_file(void)
+ void *
+ find_unused_va(size_t len)
+ {
+-	return mmap(0, len, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
++	return mmap(0, len, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+ }
+ 
+ void
+-- 
+2.47.1
+
