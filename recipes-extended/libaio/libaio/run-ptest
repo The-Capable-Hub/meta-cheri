@@ -1,0 +1,14 @@
+#!/bin/bash
+
+fails=0
+
+tests=(partcheck extracheck-nospc extracheck-ext2)
+for t in "${tests[@]}"
+do
+    make -C harness "${t}"
+    fails=$((fails + $?))
+done
+
+[[ ${fails} -le 0 ]] || >&2 echo "There are some failures"
+
+exit "${fails}"
