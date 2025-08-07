@@ -1,0 +1,175 @@
+Upstream-Status: Inappropriate [CHERI specific]
+
+--- a/cnf/configure_pfmt.sh
++++ b/cnf/configure_pfmt.sh
+@@ -39,18 +39,32 @@ define gidformat '"lu"'
+ # 32 on 32, or 64 on 64, must get regular %ld.
+ # This matters for use64bitint builds.
+ 
+-if [ "$ivsize" -gt "$longsize" ]; then
+-	define ivdformat '"Ld"'
+-	define uvoformat '"Lo"'
+-	define uvuformat '"Lu"'
+-	define uvxformat '"Lx"'
+-	define uvXUformat '"LX"'
++if [ "$ivintsize" -gt "$longsize" ]; then
++	define ivintdformat '"Ld"'
++	define uvintoformat '"Lo"'
++	define uvintuformat '"Lu"'
++	define uvintxformat '"Lx"'
++	define uvintXUformat '"LX"'
+ else
+-	define ivdformat '"ld"'
+-	define uvoformat '"lo"'
+-	define uvuformat '"lu"'
+-	define uvxformat '"lx"'
+-	define uvXUformat '"lX"'
++	define ivintdformat '"ld"'
++	define uvintoformat '"lo"'
++	define uvintuformat '"lu"'
++	define uvintxformat '"lx"'
++	define uvintXUformat '"lX"'
++fi
++
++if [ "$usecheri" = "define" ]; then
++	define ivdformat '"Pd"'
++	define uvuformat '"Pu"'
++	define uvoformat '"Po"'
++	define uvxformat '"Px"'
++	define uvXUformat '"PX"'
++else
++	define ivdformat "$ivintdformat"
++	define uvuformat "$uvintuformat"
++	define uvoformat "$uvintoformat"
++	define uvxformat "$uvintxformat"
++	define uvXUformat "$uvintXUformat"
+ fi
+ 
+ define i32dformat 'PRId32'
+--- a/cnf/configure_type.sh
++++ b/cnf/configure_type.sh
+@@ -99,6 +99,7 @@ checksize intsize 'int'
+ checksize longsize 'long'
+ checksize doublesize 'double'
+ checksize ptrsize 'void*'
++checksize ptraddrsize 'unsigned long'
+ test "$d_longdbl" = 'define'  && checksize longdblsize 'long double'
+ test "$d_longlong" = 'define' && checksize longlongsize 'long long'
+ 
+--- a/cnf/configure_type_sel.sh
++++ b/cnf/configure_type_sel.sh
+@@ -4,18 +4,30 @@
+ msg "Choosing C types to be used for perl internal types"
+ case "$use64bitint:$d_quad:$quadtype" in
+ 	define:define:?*)
+-		define ivtype "$quadtype"
+-		define uvtype "$uquadtype"
+-		define ivsize '8'
+-		define uvsize '8'
++		define ivinttype "$quadtype"
++		define uvinttype "$uquadtype"
++		define ivintsize '8'
++		define uvintsize '8'
+ 		;;
+-	*)	define ivtype "long"
+-		define uvtype "unsigned long"
+-		define ivsize $longsize
+-		define uvsize $longsize
++	*)	define ivinttype "long"
++		define uvinttype "unsigned long"
++		define ivintsize $longsize
++		define uvintsize $longsize
+ 		;;
+ esac
+ 
++if [ "$usecheri" = "define" ]; then
++    define ivtype "intptr_t"
++    define uvtype "uintptr_t"
++    define ivsize "$ptrsize"
++    define uvsize "$ptrsize"
++else
++    define ivtype "$ivinttype"
++    define uvtype "$uvinttype"
++    define ivsize "$ivintsize"
++    define uvsize "$uvintsize"
++fi
++
+ case "$uselongdouble:$d_longdbl" in
+ 	define:define)
+ 		define nvtype 'long double'
+@@ -27,6 +39,8 @@ case "$uselongdouble:$d_longdbl" in
+ esac
+ msg "	IV will be "$ivtype", $ivsize bytes"
+ msg "	UV will be "$uvtype", $uvsize bytes"
++msg "	IVINT will be "$ivinttype", $ivintsize bytes"
++msg "	UVINT will be "$uvinttype", $uvintsize bytes"
+ msg "	NV will be "$nvtype", $nvsize bytes"
+ 
+ # The following code may be wrong, but there is no way to tell that
+@@ -35,18 +49,18 @@ msg "	NV will be "$nvtype", $nvsize bytes"
+ #
+ # Note that there's really not that much choice here, since nvtype
+ # is almost invariably IEEE 754 double (8 bytes) or long double
+-# (10 bytes), while uvtype is either 4-byte of 8-byte unsigned integer.
++# (10 bytes), while uvinttype is either 4-byte of 8-byte unsigned integer.
+ #
+-# Quite surprisingly, perl seems to be content with nv_preserves_uv_bits=0
++# Quite surprisingly, perl seems to be content with nv_preserves_uvint_bits=0
+ # in all cases. However, given the floating-point type selection above,
+ # it seems safe to assume preserved bits match IEEE 754 definitions.
+ #
+-# Signedness of uvtype does not generally matter, except when it's long double
+-# vs 64bit int. However, uvtype should always be unsigned, and the code above
++# Signedness of uvinttype does not generally matter, except when it's long double
++# vs 64bit int. However, uvinttype should always be unsigned, and the code above
+ # makes sure it is.
+ mstart "Guessing nv_preserves_uv_bits value"
+ if not hinted "nv_preserves_uv_bits"; then
+-	case "$nvsize:$uvsize" in
++	case "$nvsize:$uvintsize" in
+ 		4:*)
+ 			define nv_preserves_uv_bits 16
+ 			result "$nv_preserves_uv_bits"
+@@ -71,8 +85,10 @@ if not hinted "nv_preserves_uv_bits"; then
+ fi
+ 
+ mstart "Deciding whether nv preserves full uv"
+-if not hinted "d_nv_preserves_uv"; then
+-	test $((8*uvsize)) = $nv_preserves_uv_bits
++if [ "$usecheri" = "define" ]; then
++	define d_nv_preserves_uv 'undef'
++elif not hinted "d_nv_preserves_uv"; then
++	test $((8*uvintsize)) = $nv_preserves_uv_bits
+ 	resdef d_nv_preserves_uv "yes" "no"
+ fi
+ 
+@@ -96,21 +112,21 @@ if not hinted "nv_overflows_integers_at"; then
+ 	esac
+ fi
+ 
+-# Target byte order check. Must be done after choosing $uvtype.
++# Target byte order check. Must be done after choosing $uvinttype.
+ mstart "Guessing byte order"
+ if not hinted 'byteorder'; then
+ 	try_start
+ 	try_includes "stdint.h" "sys/types.h"
+-	if [ "$uvsize" = 8 ]; then
+-		try_add "$uvtype foo = 0x8877665544332211;"
+-	elif [ "$uvsize" = 4 ]; then
+-		try_add "$uvtype foo = 0x44332211;"
+-	elif [ -n "$uvsize" ]; then
++	if [ "$uvintsize" = 8 ]; then
++		try_add "$uvinttype foo = 0x8877665544332211;"
++	elif [ "$uvintsize" = 4 ]; then
++		try_add "$uvinttype foo = 0x44332211;"
++	elif [ -n "$uvintsize" ]; then
+ 		result "unknown"
+-		die "Cannot check byte order with uvsize=$uvsize"
++		die "Cannot check byte order with uvintsize=$uvintsize"
+ 	else
+ 		result "unknown"
+-		die "Cannot check byte order without known uvsize"
++		die "Cannot check byte order without known uvintsize"
+ 	fi
+ 
+ 	# Most targets use .data but PowerPC has .sdata instead
