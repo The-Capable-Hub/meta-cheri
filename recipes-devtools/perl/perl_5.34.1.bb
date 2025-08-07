@@ -25,6 +25,11 @@ SRC_URI:append:class-target = " \
            file://encodefix.patch \
 "
 
+SRC_URI:prepend:class-target:cheri = " \
+           file://cheribsd.patch;striplevel=0 \
+           file://0001-cherilinux.patch \
+"
+
 SRC_URI[perl.sha256sum] = "357951a491b0ba1ce3611263922feec78ccd581dddc24a446b033e25acf242a1"
 
 B = "${WORKDIR}/perl-${PV}-build"
@@ -39,9 +44,11 @@ PERL_LIB_VER = "${@'.'.join(d.getVar('PV').split('.')[0:2])}.0"
 
 PACKAGECONFIG ??= "gdbm"
 PACKAGECONFIG:append:libc-musl = " anylocale"
+PACKAGECONFIG:append:class-target:cheri = " cheri"
 PACKAGECONFIG[bdb] = ",-Ui_db,db"
 PACKAGECONFIG[gdbm] = ",-Ui_gdbm,gdbm"
 PACKAGECONFIG[anylocale] = "-Dd_setlocale_accepts_any_locale_name=define,,"
+PACKAGECONFIG[cheri] = "-Dusecheri -Dd_strtod=undef"
 
 # Don't generate comments in enc2xs output files. They are not reproducible
 export ENC2XS_NO_COMMENTS = "1"

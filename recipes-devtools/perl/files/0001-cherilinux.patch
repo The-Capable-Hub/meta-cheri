@@ -1,0 +1,200 @@
+diff --git a/ext/XS-APItest/t/grok.t b/ext/XS-APItest/t/grok.t
+index b6ad905b60..3e17d15390 100644
+--- a/ext/XS-APItest/t/grok.t
++++ b/ext/XS-APItest/t/grok.t
+@@ -30,10 +30,11 @@ foreach my $leader ('', ' ', '  ') {
+ 
+ 	{
+ 	    my (@UV, @NV);
+-	    if ($Config{ivsize} == 4) {
++        
++	    if (($Config{ivsize} == 4) || ($Config{usecheri} && $Config{ivsize} == 8)) {
+ 		@UV = qw(429496729  4294967290 4294967294 4294967295);
+ 		@NV = qw(4294967296 4294967297 4294967300 4294967304);
+-	    } elsif ($Config{ivsize} == 8) {
++	    } elsif (($Config{ivsize} == 8) || ($Config{usecheri} && $Config{ivsize} == 16)) {
+ 		@UV = qw(1844674407370955161  18446744073709551610
+ 			 18446744073709551614 18446744073709551615);
+ 		@NV = qw(18446744073709551616 18446744073709551617
+@@ -161,7 +162,7 @@ my @atous =
+   );
+ 
+ # Values near overflow point.
+-if ($Config{uvsize} == 8) {
++if ($Config{uvsize} == 8  || ($Config{usecheri} && $Config{uvsize} == 16)) {
+     push @atous,
+       (
+        # 32-bit values no problem for 64-bit.
+@@ -181,7 +182,7 @@ if ($Config{uvsize} == 8) {
+        [ "18446744073709551616", undef, $ATOU_MAX, 0, ],
+        [ "18446744073709551617", undef, $ATOU_MAX, 0, ],
+       );
+-} elsif ($Config{uvsize} == 4) {
++} elsif ($Config{uvsize} == 4 || ($Config{usecheri} && $Config{uvsize} == 8)) {
+     push @atous,
+       (
+        # Values valid up to 32-bit, failing beyond.
+diff --git a/lib/integer.t b/lib/integer.t
+index c1bb4d04cf..d1fc263586 100644
+--- a/lib/integer.t
++++ b/lib/integer.t
+@@ -39,12 +39,16 @@ is(++$x, 5.5, "++ still floating point");
+  
+ SKIP: {
+     my $ivsize = $Config{ivsize};
+-    skip "ivsize == $ivsize", 2 unless $ivsize == 4 || $ivsize == 8;
++    skip "ivsize == $ivsize", 2 unless (
++        $ivsize == 4 || 
++        $ivsize == 8 || 
++        ($Config{usecheri} && $ivsize == 16)
++    );
+ 
+-    if ($ivsize == 4) {
++    if ($ivsize == 4 || ($Config{usecheri} && $ivsize == 8)) {
+ 	$z = 2**31 - 1;
+ 	is($z + 1, -2147483648, "left shift");
+-    } elsif ($ivsize == 8) {
++    } elsif ($ivsize == 8 || ($Config{usecheri} && $ivsize == 16)) {
+ 	$z = 2**63 - 1;
+ 	is($z + 1, -9223372036854775808, "left shift");
+     }
+@@ -55,9 +59,18 @@ is(~0, -1, "signed instead of unsigned");
+ # [perl #38485] use integer; 0x80000000/-1;
+ SKIP: {
+     my $ivsize = $Config{ivsize};
+-    skip "ivsize == $ivsize", 4 unless $ivsize == 4 || $ivsize == 8;
+-
+-    my $iv_min = $ivsize == 4 ? -2147483648 : -9223372036854775808;
++    skip "ivsize == $ivsize", 2 unless (
++        $ivsize == 4 || 
++        $ivsize == 8 || 
++        ($Config{usecheri} && $ivsize == 16)
++    );
++
++    my $iv_min;
++    if ($Config{usecheri}) {
++    $iv_min = $ivsize == 8 ? -2147483648 : -9223372036854775808;
++    } else {
++    $iv_min = $ivsize == 4 ? -2147483648 : -9223372036854775808;
++    }
+     my $biff;
+     eval { $biff = $iv_min / -1 };
+     is($@, '', 'IV_MIN / -1 succeeds');
+diff --git a/mg.c b/mg.c
+index 3355df1b4b..e7f24026f9 100644
+--- a/mg.c
++++ b/mg.c
+@@ -2842,7 +2842,7 @@ S_set_dollarzero(pTHX_ SV *sv)
+             PL_origargv[i] = 0;
+ #ifdef HAS_PRCTL_SET_NAME
+         /* Set the legacy process name in addition to the POSIX name on Linux */
+-        if (prctl(PR_SET_NAME, (unsigned long)s, 0, 0, 0) != 0) {
++        if (prctl(PR_SET_NAME, (uintptr_t)s, 0, 0, 0) != 0) {
+             /* diag_listed_as: SKIPME */
+             Perl_croak(aTHX_ "Can't set $0 with prctl(): %s", Strerror(errno));
+         }
+diff --git a/perl.c b/perl.c
+index e19d54db07..bb70f437ce 100644
+--- a/perl.c
++++ b/perl.c
+@@ -1817,6 +1817,10 @@ perl_parse(pTHXx_ XSINIT_t xsinit, int argc, char **argv, char **env)
+ #endif /* !defined(PERL_USE_SAFE_PUTENV) */
+ 
+ 	 PL_origalen = s ? s - PL_origargv[0] + 1 : 0;
++
++#if defined(__CHERI_PURE_CAPABILITY__)
++	 PL_origalen = MIN(PL_origalen, cheri_length_get(PL_origargv[0]));
++#endif
+     }
+ 
+     if (PL_do_undump) {
+diff --git a/perl.h b/perl.h
+index 2f97a0b980..f3de83eec7 100644
+--- a/perl.h
++++ b/perl.h
+@@ -28,6 +28,10 @@
+ #   include "config.h"
+ #endif
+ 
++#if defined(__CHERI_PURE_CAPABILITY__)
++#   include <cheri.h>
++#endif
++
+ /* this is used for functions which take a depth trailing
+  * argument under debugging */
+ #ifdef DEBUGGING
+@@ -2061,10 +2065,10 @@ typedef UVINTTYPE UVINT;
+ #    endif
+ #    define UV_MIN ((UV)UINT64_MIN)
+ #  else
+-#    define IV_MAX PERL_QUAD_MAX
+-#    define IV_MIN PERL_QUAD_MIN
+-#    define UV_MAX PERL_UQUAD_MAX
+-#    define UV_MIN PERL_UQUAD_MIN
++#    define IV_MAX ((IV)PERL_QUAD_MAX)
++#    define IV_MIN ((IV)PERL_QUAD_MIN)
++#    define UV_MAX ((UV)PERL_UQUAD_MAX)
++#    define UV_MIN ((UV)PERL_UQUAD_MIN)
+ #  endif
+ #  define IV_IS_QUAD
+ #  define UV_IS_QUAD
+diff --git a/pp.c b/pp.c
+index 1a14a9f376..d492552ec8 100644
+--- a/pp.c
++++ b/pp.c
+@@ -1824,8 +1824,8 @@ PP(pp_subtract)
+             il = SvIVX(svl);
+             ir = SvIVX(svr);
+           do_iv:
+-            topl = ((UV)il) >> (UVSIZE * 8 - 2);
+-            topr = ((UV)ir) >> (UVSIZE * 8 - 2);
++            topl = ((UV)il) >> (UVINTSIZE * 8 - 2);
++            topr = ((UV)ir) >> (UVINTSIZE * 8 - 2);
+ 
+             /* if both are in a range that can't under/overflow, do a
+              * simple integer subtract: if the top of both numbers
+diff --git a/t/thread_it.pl b/t/thread_it.pl
+index f38a580eb8..d011d0c2b4 100644
+--- a/t/thread_it.pl
++++ b/t/thread_it.pl
+@@ -1,6 +1,7 @@
+ #!perl
+ use strict;
+ use warnings;
++use Config;
+ 
+ # As perlfunc.pod says:
+ # Note that the file will not be included twice under the same specified name.
+@@ -36,7 +37,9 @@ my $curr = threads->create({
+                             stack_size => $^O eq 'hpux'   ? 524288 :
+                                           $^O eq 'darwin' ? 2000000:
+                                           $^O eq 'VMS'    ? 150000 :
+-                                          $^O eq 'aix'    ? 1500000 : 0,
++                                          $^O eq 'aix'    ? 1500000 : 
++                                          ($^O eq 'linux' && $Config{usecheri}) ? 262144 : 
++                                          0,
+                            }, sub {
+ 			       run_tests();
+ 			       return defined &curr_test ? curr_test() : ()
+diff --git a/toke.c b/toke.c
+index 0480b2003a..d9ac7f845a 100644
+--- a/toke.c
++++ b/toke.c
+@@ -3275,7 +3275,7 @@ S_scan_const(pTHX_ char *start)
+                         Perl_croak(aTHX_
+                            "Invalid range \"\\N{U+%04" UVXf "}-\\N{U+%04"
+                            UVXf "}\" in transliteration operator",
+-                           range_min, range_max);
++                           (UV)range_min, (UV)range_max);
+                     }
+ #endif
+                     else {
+@@ -3283,7 +3283,7 @@ S_scan_const(pTHX_ char *start)
+                         Perl_croak(aTHX_
+                            "Invalid range \"\\x{%04" UVXf "}-\\x{%04" UVXf "}\""
+                            " in transliteration operator",
+-                           range_min, range_max);
++                           (UV)range_min, (UV)range_max);
+                     }
+                 }
+ 
