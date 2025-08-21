@@ -1,0 +1,37 @@
+From 8935f95653e449a82e26aac6ae15f3d28e7f9764 Mon Sep 17 00:00:00 2001
+From: Martin Kaiser <martin.kaiser@codasip.com>
+Date: Thu, 21 Aug 2025 11:25:19 +0200
+Subject: [PATCH] cheri: fix cast that creates an invalid pointer
+
+Fix a cast in ZSTD_cwksp_initialAllocStart that creates an invalid
+pointer on a cheri system. Cast to uintptr_t instead of size_t to
+preserve tag and metadata while clearing some bits.
+
+This allocation function is fundamental. The crash from the invalid cast
+can be triggered easily:
+
+root@hobgoblin-x730:~# echo -n "aaaaaaaa" | zstd -o /dev/null
+Read:     0   B  ==>  0%
+[ 2129.981029] ===== CHERI exception: 0x00007fff9b0da27c[V:0000:C:r.xCal.e:1:.:0x00007fff9b02c000-0x00007fff9b0fa000] 0x7fff9b0da27c
+[ 2129.981708] ===== CHERI exception: addr=0x7fff9843f720 xtval2=0x10000 (tag violation, data fault due to load store or AMO)
+[ 2129.982313] CPU: 0 UID: 0 PID: 2411 Comm: zstd Not tainted 6.16.0-00944-gade557914d85-dirty #2087 NONE
+[ 2129.982925] Hardware name: riscv-virtio,qemu (DT)
+
+Upstream-Status: Pending
+---
+ lib/compress/zstd_cwksp.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/compress/zstd_cwksp.h b/lib/compress/zstd_cwksp.h
+index cc7fb1c7..4380c398 100644
+--- a/lib/compress/zstd_cwksp.h
++++ b/lib/compress/zstd_cwksp.h
+@@ -271,7 +271,7 @@ MEM_STATIC size_t ZSTD_cwksp_bytes_to_align_ptr(void* ptr, const size_t alignByt
+  * which we can allocate from the end of the workspace.
+  */
+ MEM_STATIC void*  ZSTD_cwksp_initialAllocStart(ZSTD_cwksp* ws) {
+-    return (void*)((size_t)ws->workspaceEnd & ~(ZSTD_CWKSP_ALIGNMENT_BYTES-1));
++    return (void*)((uintptr_t)ws->workspaceEnd & ~(ZSTD_CWKSP_ALIGNMENT_BYTES-1));
+ }
+ 
+ /**

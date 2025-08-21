@@ -1,0 +1,77 @@
+From 111c54d7eb7fd8fc95513a183d99cf16cadd2c8f Mon Sep 17 00:00:00 2001
+From: Martin Kaiser <martin.kaiser@codasip.com>
+Date: Thu, 21 Aug 2025 11:29:39 +0200
+Subject: [PATCH] Don't cast a pointer to size_t
+
+Fix some more places where a pointer is cast to a size_t.
+
+According to the C99 standard, a size_t is unsigned and large enough to
+store the size of any object (at least 16 bits). There's no guarantee
+that it can hold an address.
+
+Cast the pointers to uintptr_t before doing numeric calculations,
+comparisons or bit manipulation.
+
+Upstream-Status: Pending
+---
+ lib/compress/zstd_cwksp.h | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/lib/compress/zstd_cwksp.h b/lib/compress/zstd_cwksp.h
+index 4380c398..f5777baf 100644
+--- a/lib/compress/zstd_cwksp.h
++++ b/lib/compress/zstd_cwksp.h
+@@ -260,7 +260,7 @@ MEM_STATIC size_t ZSTD_cwksp_slack_space_required(void) {
+  */
+ MEM_STATIC size_t ZSTD_cwksp_bytes_to_align_ptr(void* ptr, const size_t alignBytes) {
+     size_t const alignBytesMask = alignBytes - 1;
+-    size_t const bytes = (alignBytes - ((size_t)ptr & (alignBytesMask))) & alignBytesMask;
++    size_t const bytes = (alignBytes - ((uintptr_t)ptr & (alignBytesMask))) & alignBytesMask;
+     assert((alignBytes & alignBytesMask) == 0);
+     assert(bytes < alignBytes);
+     return bytes;
+@@ -403,7 +403,7 @@ MEM_STATIC void* ZSTD_cwksp_reserve_aligned_init_once(ZSTD_cwksp* ws, size_t byt
+ {
+     size_t const alignedBytes = ZSTD_cwksp_align(bytes, ZSTD_CWKSP_ALIGNMENT_BYTES);
+     void* ptr = ZSTD_cwksp_reserve_internal(ws, alignedBytes, ZSTD_cwksp_alloc_aligned_init_once);
+-    assert(((size_t)ptr & (ZSTD_CWKSP_ALIGNMENT_BYTES-1))== 0);
++    assert(((uintptr_t)ptr & (ZSTD_CWKSP_ALIGNMENT_BYTES-1))== 0);
+     if(ptr && ptr < ws->initOnceStart) {
+         /* We assume the memory following the current allocation is either:
+          * 1. Not usable as initOnce memory (end of workspace)
+@@ -427,7 +427,7 @@ MEM_STATIC void* ZSTD_cwksp_reserve_aligned(ZSTD_cwksp* ws, size_t bytes)
+ {
+     void* ptr = ZSTD_cwksp_reserve_internal(ws, ZSTD_cwksp_align(bytes, ZSTD_CWKSP_ALIGNMENT_BYTES),
+                                             ZSTD_cwksp_alloc_aligned);
+-    assert(((size_t)ptr & (ZSTD_CWKSP_ALIGNMENT_BYTES-1))== 0);
++    assert(((uintptr_t)ptr & (ZSTD_CWKSP_ALIGNMENT_BYTES-1))== 0);
+     return ptr;
+ }
+ 
+@@ -473,7 +473,7 @@ MEM_STATIC void* ZSTD_cwksp_reserve_table(ZSTD_cwksp* ws, size_t bytes)
+ #endif
+ 
+     assert((bytes & (ZSTD_CWKSP_ALIGNMENT_BYTES-1)) == 0);
+-    assert(((size_t)alloc & (ZSTD_CWKSP_ALIGNMENT_BYTES-1))== 0);
++    assert(((uintptr_t)alloc & (ZSTD_CWKSP_ALIGNMENT_BYTES-1))== 0);
+     return alloc;
+ }
+ 
+@@ -495,7 +495,7 @@ MEM_STATIC void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes)
+     DEBUGLOG(4,
+         "cwksp: reserving %p object %zd bytes (rounded to %zd), %zd bytes remaining",
+         alloc, bytes, roundedBytes, ZSTD_cwksp_available_space(ws) - roundedBytes);
+-    assert((size_t)alloc % ZSTD_ALIGNOF(void*) == 0);
++    assert((uintptr_t)alloc % ZSTD_ALIGNOF(void*) == 0);
+     assert(bytes % ZSTD_ALIGNOF(void*) == 0);
+     ZSTD_cwksp_assert_internal_consistency(ws);
+     /* we must be in the first phase, no advance is possible */
+@@ -642,7 +642,7 @@ MEM_STATIC void ZSTD_cwksp_clear(ZSTD_cwksp* ws) {
+  */
+ MEM_STATIC void ZSTD_cwksp_init(ZSTD_cwksp* ws, void* start, size_t size, ZSTD_cwksp_static_alloc_e isStatic) {
+     DEBUGLOG(4, "cwksp: init'ing workspace with %zd bytes", size);
+-    assert(((size_t)start & (sizeof(void*)-1)) == 0); /* ensure correct alignment */
++    assert(((uintptr_t)start & (sizeof(void*)-1)) == 0); /* ensure correct alignment */
+     ws->workspace = start;
+     ws->workspaceEnd = (BYTE*)start + size;
+     ws->objectEnd = ws->workspace;
