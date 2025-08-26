@@ -1,0 +1,69 @@
+From 9bd281555bb8e2ee0dada3c36c9f6898a22916de Mon Sep 17 00:00:00 2001
+From: Martin Kaiser <martin.kaiser@codasip.com>
+Date: Fri, 22 Aug 2025 17:43:17 +0200
+Subject: [PATCH] libtraceevent: fix binary search for function name
+
+libtraceevent calls bsearch to find the function name for a given
+address. It's matching against a range rather than a specific address.
+
+bsearch's comparison function receives the key and a list element. To
+match against a range in a sorted list, the comparison function needs
+access to two adjacent list entries. The upstream code simply increments
+the list element pointer. This doesn't work for cheri where element
+pointers are restricted to one element.
+
+Work around this restriction and fabricate a capability for the element
+after the one that's passed to the comparison function.
+
+Upstream-Status: Inappropriate [Cheri-Specific]
+
+---
+ src/event-parse.c | 23 +++++++++++++++++++++--
+ 1 file changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/event-parse.c b/src/event-parse.c
+index b4191eb..42ba84d 100644
+--- a/src/event-parse.c
++++ b/src/event-parse.c
+@@ -475,13 +475,25 @@ static int func_cmp(const void *a, const void *b)
+  */
+ static int func_bcmp(const void *a, const void *b)
+ {
+-	const struct func_map *fa = a;
++	const struct func_map *fa = a; /* the key */
+ 	const struct func_map *fb = b;
++	const struct func_map *fb_next;
++#ifdef __CHERI__
++	/*
++	 * fa->mod contains a capability that grants access to the whole func_map
++	 * array. Use this to fabricate a capability for the element after b.
++	 */
++	const struct func_map *tep = (const struct func_map *)fa->mod;
++	fb_next = __builtin_cheri_address_set(tep, (ptraddr_t)(fb+1));
++	fb_next = __builtin_cheri_bounds_set(fb_next, sizeof(struct func_map));
++#else
++	fb_next = fb+1;
++#endif
+ 
+ 	if ((fa->addr == fb->addr) ||
+ 
+ 	    (fa->addr > fb->addr &&
+-	     fa->addr < (fb+1)->addr))
++	     fa->addr < fb_next->addr))
+ 		return 0;
+ 
+ 	if (fa->addr < fb->addr)
+@@ -539,6 +551,13 @@ __find_func(struct tep_handle *tep, unsigned long long addr)
+ 		func_map_init(tep);
+ 
+ 	key.addr = addr;
++#ifdef __CHERI__
++	/*
++	 * Abuse the unused mod pointer to pass a capability for the whole func_map
++	 * array to the comparison function.
++	 */
++	key.mod = (char *)tep->func_map;
++#endif
+ 
+ 	func = bsearch(&key, tep->func_map, tep->func_count,
+ 		       sizeof(*tep->func_map), func_bcmp);

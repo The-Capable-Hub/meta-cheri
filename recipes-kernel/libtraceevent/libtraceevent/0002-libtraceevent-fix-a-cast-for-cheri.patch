@@ -1,0 +1,26 @@
+From 72271ec7d85a1e228035a355f228e627c1a7ca48 Mon Sep 17 00:00:00 2001
+From: Martin Kaiser <martin.kaiser@codasip.com>
+Date: Tue, 26 Aug 2025 11:30:19 +0200
+Subject: [PATCH] libtraceevent: fix a cast for cheri
+
+Cast a pointer to uintptr_t instead of unsigned long to preserve
+capability metadata.
+
+Upstream-Status: Inappropriate [Cheri-Specific]
+---
+ src/event-parse.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/event-parse.c b/src/event-parse.c
+index 7209f9e..133115d 100644
+--- a/src/event-parse.c
++++ b/src/event-parse.c
+@@ -5266,7 +5266,7 @@ static struct tep_print_arg *make_bprint_args(char *fmt, void *data, int size, s
+ 					vsize = 4;
+ 
+ 				/* the pointers are always 4 bytes aligned */
+-				bptr = (void *)(((unsigned long)bptr + 3) &
++				bptr = (void *)(((uintptr_t)bptr + 3) &
+ 						~3);
+ 				val = tep_read_number(tep, bptr, vsize);
+ 				bptr += vsize;
