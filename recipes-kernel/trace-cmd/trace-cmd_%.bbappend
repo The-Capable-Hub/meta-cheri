@@ -1,4 +1,10 @@
 
+FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
+
+SRC_URI:append = " \
+  file://0001-trace-cmd-fix-container_of-to-work-with-cheri.patch \
+"
+
 # libzstd uses weird pointer arithmetic that's not easy to fix for cheri
 DEPENDS:remove = "zstd"
 
