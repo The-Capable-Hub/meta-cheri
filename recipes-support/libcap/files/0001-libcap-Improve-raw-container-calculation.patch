@@ -1,0 +1,158 @@
+From 2d744fbaa440c59572893c2b63f717c6e4662d5f Mon Sep 17 00:00:00 2001
+From: Chris Hofer <christian.hofer@codasip.com>
+Date: Thu, 26 Jun 2025 13:47:44 +0200
+Subject: [PATCH] libcap: Improve raw container calculation
+
+On architectures with pointer alignment constraints larger than 8
+bytes, e.g. CHERI RISC-V, a raw container calculation in libcap
+results in invalid read accesses to members or memory corruption.
+Fix this by taking the alignment constraints into account as well
+as asserting the memory layout of the container struct.
+
+For capability allocation, libcap uses the struct:
+	struct _cap_alloc_s {
+	    __u32 magic;
+	    __u32 size;
+	    union {
+		...
+    	    } u;
+	};
+
+where the union abstracts several capability types that can be
+identified by _cap_alloc_s' magic member. To obtain a pointer to the
+allocation struct from a pointer to the union, the following
+expression is used:
+	struct _cap_alloc_s *p = (void *) (-2 + (__u32 *) union_ptr);
+
+This calculation relies on the assumption that the union is placed at an
+offset of 8 bytes in the allocation struct. However, some struct types
+that are in the union may have pionters and thus, these structs may have
+larger alignment constraints on architectures with fat pointers, e.g.
+16-byte alignment on CHERI RISC-V. In these cases, the offset may be
+larger than 8 bytes and the raw container calculation results in an
+invalid pointer that is dereferenced.
+
+Fix the caluculation by using the alignment constraint of the union if
+it exceeds the size of the two preceeding 32-bit uints magic and size.
+Statically assert that the so calculated offset matches the actual
+offset of u in _cap_alloc_s.
+
+Signed-off-by: Chris Hofer <christian.hofer@codasip.com>
+
+Added compilation fix for -std=c99 compilation, and suppressed
+newly introduced warnings from clang.
+
+Resolves:
+
+  https://bugzilla.kernel.org/show_bug.cgi?id=220415
+
+Signed-off-by: Andrew G. Morgan <morgan@kernel.org>
+---
+ libcap/cap_alloc.c | 12 +++++++++---
+ libcap/libcap.h    | 27 ++++++++++++++++++++++-----
+ 2 files changed, 31 insertions(+), 8 deletions(-)
+
+diff --git a/libcap/cap_alloc.c b/libcap/cap_alloc.c
+index 504abd2..98841b9 100644
+--- a/libcap/cap_alloc.c
++++ b/libcap/cap_alloc.c
+@@ -5,6 +5,8 @@
+  * capability sets as specified by POSIX.1e (formerlly, POSIX 6).
+  */
+ 
++#include <stddef.h>
++
+ #include "libcap.h"
+ 
+ /*
+@@ -48,6 +50,10 @@ struct _cap_alloc_s {
+ 	struct cap_launch_s launcher;
+     } u;
+ };
++#define CAP_ALLOC_OFF_U offsetof(struct _cap_alloc_s, u)
++
++libcap_static_assert(CAP_ALLOC_OFF_U == _CAP_ALLOC_OFF_TO_MAGIC,
++  Member_u_has_an_unexpected_offset_in_cap_alloc_s);
+ 
+ /*
+  * Obtain a blank set of capabilities
+@@ -113,7 +119,7 @@ __attribute__((visibility ("hidden"))) char *_libcap_strdup(const char *old)
+ 	errno = EINVAL;
+ 	return NULL;
+     }
+-    len += 1 + 2*sizeof(__u32);
++    len += 1 + CAP_ALLOC_OFF_U;
+     if (len < sizeof(struct _cap_alloc_s)) {
+ 	len = sizeof(struct _cap_alloc_s);
+     }
+@@ -127,7 +133,7 @@ __attribute__((visibility ("hidden"))) char *_libcap_strdup(const char *old)
+     header->magic = CAP_S_MAGIC;
+     header->size = (__u32) len;
+ 
+-    raw_data += 2*sizeof(__u32);
++    raw_data += CAP_ALLOC_OFF_U;
+     strcpy(raw_data, old);
+     return raw_data;
+ }
+@@ -266,7 +272,7 @@ int cap_free(void *data_p)
+ 	return -1;
+     }
+ 
+-    void *base = (void *) (-2 + (__u32 *) data_p);
++    void *base = (void *) ((char *) data_p - CAP_ALLOC_OFF_U);
+     struct _cap_alloc_s *data = base;
+     switch (data->magic) {
+     case CAP_T_MAGIC:
+diff --git a/libcap/libcap.h b/libcap/libcap.h
+index d9aa5a7..829886b 100644
+--- a/libcap/libcap.h
++++ b/libcap/libcap.h
+@@ -8,6 +8,7 @@
+ #ifndef LIBCAP_H
+ #define LIBCAP_H
+ 
++#include <assert.h>
+ #include <errno.h>
+ #include <sched.h>
+ #include <stdio.h>
+@@ -153,11 +154,6 @@ struct _cap_struct {
+ /* launcher magic for cap_free */
+ #define CAP_LAUNCH_MAGIC 0xCA91AC
+ 
+-#define magic_of(x)           ((x) ? *(-2 + (const __u32 *) x) : 0)
+-#define good_cap_t(x)         (CAP_T_MAGIC   == magic_of(x))
+-#define good_cap_iab_t(x)     (CAP_IAB_MAGIC == magic_of(x))
+-#define good_cap_launch_t(x)  (CAP_LAUNCH_MAGIC == magic_of(x))
+-
+ /*
+  * kernel API cap set abstraction
+  */
+@@ -328,4 +324,25 @@ struct cap_launch_s {
+     const char *const *envp;
+ };
+ 
++#define _CAP_STRUCTS_ALIGN \
++        __alignof__(union {struct _cap_struct s; struct cap_iab_s i; struct cap_launch_s l;})
++
++#define _CAP_ALLOC_OFF_TO_MAGIC (_CAP_STRUCTS_ALIGN > 2*sizeof(__u32) ? \
++                                (_CAP_STRUCTS_ALIGN) : (2*sizeof(__u32)))
++
++#define magic_of(x)           ((x) ? \
++			       *(((const __u32 *) x) - _CAP_ALLOC_OFF_TO_MAGIC/sizeof(__u32)) : \
++			       0)
++#define good_cap_t(x)         (CAP_T_MAGIC   == magic_of(x))
++#define good_cap_iab_t(x)     (CAP_IAB_MAGIC == magic_of(x))
++#define good_cap_launch_t(x)  (CAP_LAUNCH_MAGIC == magic_of(x))
++
++#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
++#define libcap_static_assert(cond, text) \
++    static_assert(cond, #text)
++#else
++#define libcap_static_assert(cond, text) \
++    typedef char _compilation_time_static_assert_##text [cond ? 1:-1]
++#endif
++
+ #endif /* LIBCAP_H */
+-- 
+2.47.1
+
