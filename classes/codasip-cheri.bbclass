@@ -41,3 +41,7 @@ RDEPENDS:packagegroup-core-standalone-sdk-target:remove = "libstdc++-dev"
 # will be evaluated using the current value of PACKAGECONFIG not the
 # final one.
 PACKAGECONFIG:remove:pn-libxml2:class-target:cheri = "python"
+
+# libzstd's pointer arithmetics produces unrepresentable addresses
+# there's no simple way to fix this
+SKIP_RECIPE[zstd] = "libzstd has not been adapted for cheri yet"
