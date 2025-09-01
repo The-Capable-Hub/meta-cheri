@@ -33,6 +33,8 @@ do_compile:prepend() {
     echo $p
     c=$p/cheri_init_globals_bw.h
     [ -f "$c" ] && cp "$c" ${S}/include
+    c=$p/cheri_init_globals.h
+    [ -f "$c" ] && cp "$c" ${S}/include
   done
 }
 
