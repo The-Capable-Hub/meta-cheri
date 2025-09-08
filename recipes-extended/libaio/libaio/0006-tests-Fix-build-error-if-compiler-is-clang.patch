@@ -1,4 +1,4 @@
-From 83d61d9e3a2acbfd8e2aa6cd29e3181eb2f29ff9 Mon Sep 17 00:00:00 2001
+From 6b88627987cb95159b6a0b6db1015c79bb96cf78 Mon Sep 17 00:00:00 2001
 From: Chenxi Mao <chenxi.mao@suse.com>
 Date: Wed, 5 Apr 2023 19:39:22 +0800
 Subject: [PATCH 6/6] tests: Fix build error if compiler is clang
@@ -21,8 +21,10 @@ Commit message:
 			 struct timespec ts = { tv_sec: 30, tv_nsec: 0 };
 							   ^~~~~~~~
                                                    .tv_nsec =
-Upstream-Status Pending
-Signed-off-by: Chenxi Mao <chenxi.mao@suse.com>
+	Signed-off-by: Chenxi Mao <chenxi.mao@suse.com>
+
+Upstream-Status: Pending
+Signed-off-by: Chris Hofer <christian.hofer@codasip.com>
 ---
  harness/Makefile   | 2 ++
  harness/cases/13.t | 2 +-
