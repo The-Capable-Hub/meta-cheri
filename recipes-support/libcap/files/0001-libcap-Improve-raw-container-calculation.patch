@@ -1,4 +1,4 @@
-From 2d744fbaa440c59572893c2b63f717c6e4662d5f Mon Sep 17 00:00:00 2001
+From 11470e97982073820b6d6dceafb1d7785a935447 Mon Sep 17 00:00:00 2001
 From: Chris Hofer <christian.hofer@codasip.com>
 Date: Thu, 26 Jun 2025 13:47:44 +0200
 Subject: [PATCH] libcap: Improve raw container calculation
@@ -47,6 +47,8 @@ Resolves:
   https://bugzilla.kernel.org/show_bug.cgi?id=220415
 
 Signed-off-by: Andrew G. Morgan <morgan@kernel.org>
+
+Upstream-Status: Backport [https://git.kernel.org/pub/scm/libs/libcap/libcap.git/commit/?id=2d744fbaa440c59572893c2b63f717c6e4662d5f]
 ---
  libcap/cap_alloc.c | 12 +++++++++---
  libcap/libcap.h    | 27 ++++++++++++++++++++++-----
@@ -104,7 +106,7 @@ index 504abd2..98841b9 100644
      switch (data->magic) {
      case CAP_T_MAGIC:
 diff --git a/libcap/libcap.h b/libcap/libcap.h
-index d9aa5a7..829886b 100644
+index f4a72fe..ddf36e4 100644
 --- a/libcap/libcap.h
 +++ b/libcap/libcap.h
 @@ -8,6 +8,7 @@
@@ -127,7 +129,7 @@ index d9aa5a7..829886b 100644
  /*
   * kernel API cap set abstraction
   */
-@@ -328,4 +324,25 @@ struct cap_launch_s {
+@@ -316,4 +312,25 @@ struct cap_launch_s {
      const char *const *envp;
  };
  
