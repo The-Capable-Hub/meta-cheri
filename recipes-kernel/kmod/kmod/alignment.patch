@@ -1,0 +1,27 @@
+commit fdd7bafeb48747c73829aa6a71c46734d41d1cc3
+Author: Christian Ehrhardt <christian.ehrhardt@codasip.com>
+Date:   Mon Sep 8 14:59:21 2025 +0200
+
+    cheri: Fix alignment calculation
+    
+    The children_padding is there to make sure that the values
+    are pointer aligned. However, the calculation for the alignment
+    is wrong. This is not an issue in non-cheri code as a pointer
+    is at most 8 byte and the value that is being aligned is always
+    at least 4-byte aligned.
+
+Upstream-Status: Inappropriate [CHERI specific]
+
+diff --git a/libkmod/libkmod-index.c b/libkmod/libkmod-index.c
+index 6a34c8d..e3229d2 100644
+--- a/libkmod/libkmod-index.c
++++ b/libkmod/libkmod-index.c
+@@ -699,6 +699,8 @@ static struct index_mm_node *index_mm_read_node(struct index_mm *idx,
+ 
+ 	children_padding = (sizeof(struct index_mm_node) +
+ 			    (sizeof(uint32_t) * child_count)) % sizeof(void *);
++	if (children_padding)
++		children_padding = sizeof(void *) - children_padding;
+ 
+ 	if (offset & INDEX_NODE_VALUES)
+ 		value_count = read_long_mm(&p);
