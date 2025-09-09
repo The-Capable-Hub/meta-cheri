@@ -1,6 +1,4 @@
-From 0070511301187d4b2d9d9b75e0ead6621b457c08 Mon Sep 17 00:00:00 2001
 From: Christian Ehrhardt <christian.ehrhardt@codasip.com>
-Date: Fri, 28 Feb 2025 08:16:15 +0100
 Subject: Update linux kernel headers to out UAPI and fix compile
 
 The iptables sources come with their own version of the linux
@@ -2547,7 +2545,7 @@ index 3bfe411..54ed833 100644
  #define _IP6T_SRH_H
  
 diff --git a/include/linux/types.h b/include/linux/types.h
-index 630cd3b..8777590 100644
+index 630cd3b..0b1426e 100644
 --- a/include/linux/types.h
 +++ b/include/linux/types.h
 @@ -1,3 +1,4 @@
@@ -2597,7 +2595,7 @@ index 630cd3b..8777590 100644
   * aligned_64 type enforces 8-byte alignment so that structs containing
   * aligned_64 values have the same alignment on 32-bit and 64-bit architectures.
   * No conversions are necessary between 32-bit user-space and a 64-bit kernel.
-@@ -47,5 +51,15 @@ typedef __u32 __bitwise __wsum;
+@@ -47,5 +51,18 @@ typedef __u32 __bitwise __wsum;
  #define __aligned_be64 __be64 __attribute__((aligned(8)))
  #define __aligned_le64 __le64 __attribute__((aligned(8)))
  
@@ -2609,10 +2607,10 @@ index 630cd3b..8777590 100644
 +typedef __aligned_u64	__kernel_aligned_uintptr_t;
 +#endif
 +
++#define __u64ptr __kernel_uintptr_t
++#define __aligned_u64ptr __kernel_aligned_uintptr_t
++
 +typedef unsigned __bitwise __poll_t;
 +
  #endif /*  __ASSEMBLY__ */
  #endif /* _LINUX_TYPES_H */
--- 
-2.43.5
-
