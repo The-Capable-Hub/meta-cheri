@@ -1,7 +1,7 @@
-From 913f46aa7d25dc5c37513dc6398bef0588486399 Mon Sep 17 00:00:00 2001
+From 7762e93aba71699dbc59d295ce67bffc26c36d2c Mon Sep 17 00:00:00 2001
 From: Chris Hofer <christian.hofer@codasip.com>
 Date: Fri, 16 May 2025 14:44:59 +0200
-Subject: [PATCH] examples: Fix examples to build with our libc
+Subject: [PATCH 2/2] examples: Fix examples to build with our libc
 
 We mostly fix cheri-related libc calls that are called differently, e.g.
 'cheri_gettag' is called in our musl-libc 'cheri_tag_get'. Other than
@@ -11,6 +11,9 @@ The following examples are not yet supported:
  * mmap: we miss support for 'cheri_flags_set'
  * seal: uses the non-Linux syscall 'sysctlbyname'
  * sentry: uses 'cheri_sealentry' and 'cheri_flags_set'
+
+Upstream-Status: Inappropriate [CHERI specific]
+Signed-off-by: Chris Hofer <christian.hofer@codasip.com>
 ---
  allocate.c       |  2 +-
  bounds.c         |  2 +-
@@ -331,3 +334,6 @@ index 959a0b4..f8ce383 100644
      }
      printf("%ld\n", head->data);
  
+-- 
+2.47.1
+

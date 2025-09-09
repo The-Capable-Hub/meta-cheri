@@ -1,11 +1,14 @@
-From 7531bed32aa7330d4c97dec0ecda6c29c63f6545 Mon Sep 17 00:00:00 2001
+From 0f88678d75c9e11f49daf3ed58e9df4fb83cffc8 Mon Sep 17 00:00:00 2001
 From: Chris Hofer <christian.hofer@codasip.com>
 Date: Fri, 16 May 2025 14:31:24 +0200
-Subject: [PATCH] build: Allow configurability of compiler and compiled
+Subject: [PATCH 1/2] build: Allow configurability of compiler and compiled
  examples
 
 Remove hard-coded definitions of CC and CFILES to allow make-based
 configurability.
+
+Upstream-Status: Pending
+Signed-off-by: Chris Hofer <christian.hofer@codasip.com>
 ---
  build/Makefile.vars.common          | 1 -
  build/Makefile.vars.riscv64-purecap | 1 -
@@ -33,3 +36,6 @@ index 8e3b0b4..76716a7 100644
  SDKBASE ?= $(CHERIBASE)/output/sdk
 -CFLAGS := --config cheribsd-riscv64-purecap.cfg $(CFLAGS)
  PLATFORM := riscv64-purecap
+-- 
+2.47.1
+
