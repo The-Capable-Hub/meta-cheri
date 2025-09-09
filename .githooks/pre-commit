@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# make sure patches have a proper upstream status
+states="(Pending|Submitted|Backport|Denied|Inactive-Upstream|Inappropriate)"
+while IFS= read -r -d '' patch
+do
+	if ! grep -q -E "Upstream-Status: ${states}" "${patch}"; then
+		echo "Error: Patch '${patch}' does not contain a proper upstream status"
+		exit 1
+	fi
+done <   <(find . -type f -name "*.patch" -print0)
+
+exit 0
