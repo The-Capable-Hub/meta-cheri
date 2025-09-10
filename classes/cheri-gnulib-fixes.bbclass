@@ -19,17 +19,13 @@ do_fixup_gnulib() {
 	fi
     done
 
-    # Patch rawmemchr not to use uintptr_t to store arbitrary bytes.
-    for f in `find ${S} -type f -name rawmemchr.c` ; do
-	if grep -q "typedef uintptr_t longword" ${f} ; then
-	    echo "Replacing ${f}"
-	    if grep -q "verify (UINTPTR_WIDTH " ${f} ; then
-		patch -s ${f} ${CODASIP_CHERI_FILES_DIR}/extrapatch-cheribsd-rawmemchr-v1.patch
-	    else
-		patch -s ${f} ${CODASIP_CHERI_FILES_DIR}/extrapatch-cheribsd-rawmemchr-v2.patch
-	    fi
-	fi
-    done
+	for SRC_GNULIB_PATH in "${CODASIP_CHERI_FILES_DIR}"/gnulib/*; do
+		SRC_GNULIB_FILE="$(basename "${SRC_GNULIB_PATH}")"
+		for DEST_GNULIB_PATH in $(find "${S}" -type f -name "${SRC_GNULIB_FILE}"); do
+			echo "Replacing ${DEST_GNULIB_PATH} with ${SRC_GNULIB_PATH}"
+			cp "${SRC_GNULIB_PATH}" "${DEST_GNULIB_PATH}"
+		done
+	done
 }
 
 addtask fixup_gnulib after do_patch before do_configure
