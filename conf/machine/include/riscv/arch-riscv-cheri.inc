@@ -1,7 +1,5 @@
 # RISC-V Architecture with CHERI extension definition
 
-DEFAULTTUNE:cheri = "riscv64cheri"
-
 TUNE_CCARGS:append = " ${@ \
   { \
     '' : '', \
