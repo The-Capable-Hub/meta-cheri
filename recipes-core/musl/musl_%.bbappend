@@ -55,7 +55,9 @@ do_install:append() {
   # compiler provided ones are incomplete and would rely on picking up the
   # system provided ones using #include_next, but this doesn't work because
   # the include path ordering is wrong.
-  rm ${D}${includedir}/{float,iso646,stdalign,stdarg,stdbool,stddef,stdint,stdnoreturn,tgmath}.h
+  for h in float iso646 stdalign stdarg stdbool stddef stdint stdnoreturn tgmath ; do
+    rm ${D}${includedir}/$h.h
+  done
 
   rm ${D}/usr/share/revisions.txt
   rmdir ${D}/usr/share/
