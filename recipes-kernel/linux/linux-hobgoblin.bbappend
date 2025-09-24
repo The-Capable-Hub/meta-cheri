@@ -3,7 +3,7 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 CODASIP_GIT_LINUX_HOBGOBLIN_CHERI_BRANCH ?= "bakewell-morello"
 CODASIP_GIT_LINUX_HOBGOBLIN_BRANCH = "${CODASIP_GIT_LINUX_HOBGOBLIN_CHERI_BRANCH}"
 
-KBUILD_DEFCONFIG:cheri = "qemu_riscv64cheripc_defconfig"
+KBUILD_DEFCONFIG:cheri = "codasip-x730-hobgoblin2_defconfig"
 
 # When building Linux 6.10 for cheri, binutils 2.41.0 objcopy fails when
 # building the vdso with the error:
