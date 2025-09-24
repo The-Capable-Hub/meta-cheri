@@ -10,6 +10,3 @@ CODASIP_GIT_U_BOOT_HOBGOBLIN_CHERI_BRANCH ?=  "hobgoblin-cheri-v0.9.0"
 CODASIP_GIT_U_BOOT_HOBGOBLIN_BRANCH = "${CODASIP_GIT_U_BOOT_HOBGOBLIN_CHERI_BRANCH}"
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
-SRC_URI:append = " \
-    file://kconfig-preprocess-strip-spaces.patch \
-"
