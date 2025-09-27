@@ -1,0 +1,31 @@
+When dumping the ring buffer, the code checks to see if the previous
+character was a newline, and if so starts a new line with a datestamp.
+However this didn't take into account the buffer wrapping, and so when
+the current position is the start of the buffer it would attempt to read
+the character before the buffer, not the last character.
+
+Upstream-Status: Inappropriate [CHERI specific]
+
+--- a/src/Makefile	2025-08-11 19:23:12.652047297 +0100
++++ b/src/Makefile	2025-08-11 19:23:40.821590892 +0100
+@@ -10,7 +10,7 @@
+ 
+ CPPFLAGS =
+ CFLAGS  ?= -O2
+-override CFLAGS += -ansi -fomit-frame-pointer -fstack-protector-strong -W -Wall -Wunreachable-code -Wformat -Werror=format-security -D_FORTIFY_SOURCE=2 -D_XOPEN_SOURCE -D_GNU_SOURCE -DVERSION=\"$(VERSION)\"
++override CFLAGS += -ansi -fomit-frame-pointer -W -Wall -Wunreachable-code -Wformat -Werror=format-security -D_FORTIFY_SOURCE=2 -D_XOPEN_SOURCE -D_GNU_SOURCE -DVERSION=\"$(VERSION)\"
+ override CFLAGS += $(shell getconf LFS_CFLAGS)
+ STATIC	=
+ MANDB	:= s@^\('\\\\\"\)[^\*-]*-\*- coding: [^[:blank:]]\+ -\*-@\1@
+--- a/src/bootlogd.c	2022-04-26 18:37:34.000000000 +0100
++++ b/src/bootlogd.c	2025-08-12 12:40:15.986981517 +0100
+@@ -412,7 +413,8 @@
+ 		int ignore = 0;
+ 
+ 		/* prepend date to every line */
+-		if (*(ptr-1) == '\n' || first_run) {
++		unsigned char *p = (ptr == ringbuf) ? endptr : ptr;
++		if (*(p-1) == '\n' || first_run) {
+ 			time_t t;
+ 			char *s;
+ 			time(&t);
