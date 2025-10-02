@@ -1,0 +1,36 @@
+From 5b3d8370a8280f88a6a5a79b14cb437cae877054 Mon Sep 17 00:00:00 2001
+From: Florian Schmaus <florian.schmaus@codasip.com>
+Date: Fri, 19 Sep 2025 13:55:11 +0200
+Subject: [PATCH] read: always update input_string pointer on CHERI
+
+On architectures with CHERI, the input_string pointer
+(i.e. capability), always needs to be updated after a resize.  Even
+though the pointer address may not have changed, the capabilities'
+bounds have.  Not updating the pointer later results in a CHERI
+exception due to an out of bound access.
+
+Signed-off-by: Florian Schmaus <florian.schmaus@codasip.com>
+Upstream-Status: Pending
+---
+ builtins/read.def | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/builtins/read.def b/builtins/read.def
+index ddd91d32d5db..ae524bc594de 100644
+--- a/builtins/read.def
++++ b/builtins/read.def
+@@ -734,6 +734,11 @@ read_builtin (list)
+ 	      remove_unwind_protect ();
+ 	      add_unwind_protect (xfree, input_string);
+ 	    }
++#ifdef __CHERI_PURE_CAPABILITY__
++	  else
++	    /* Update input_string with the new bounds */
++	    input_string = t;
++#endif
+ 	}
+ 
+       /* If the next character is to be accepted verbatim, a backslash
+-- 
+2.49.1
+
