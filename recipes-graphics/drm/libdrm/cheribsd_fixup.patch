@@ -1,0 +1,24 @@
+Upstream-Status: Inappropriate [CHERI specific]
+
+diff --git a/include/drm/drm.h b/include/drm/drm.h
+index 008b863..eebfab4 100644
+--- a/include/drm/drm.h
++++ b/include/drm/drm.h
+@@ -40,7 +40,7 @@
+ #include <linux/types.h>
+ #include <asm/ioctl.h>
+ typedef unsigned int drm_handle_t;
+-typedef __u64 drm_uptr_t;
++typedef __u64ptr drm_uptr_t;
+ 
+ #else /* One of the BSDs */
+ 
+@@ -498,7 +498,7 @@ enum drm_vblank_seq_type {
+ struct drm_wait_vblank_request {
+ 	enum drm_vblank_seq_type type;
+ 	unsigned int sequence;
+-	unsigned long signal;
++	__uptr signal;
+ };
+ 
+ struct drm_wait_vblank_reply {
