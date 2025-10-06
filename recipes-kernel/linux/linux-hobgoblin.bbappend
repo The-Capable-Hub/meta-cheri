@@ -5,6 +5,7 @@ CODASIP_GIT_LINUX_HOBGOBLIN_BRANCH = "${CODASIP_GIT_LINUX_HOBGOBLIN_CHERI_BRANCH
 
 LINUX_VERSION = "6.16.0"
 
+KBUILD_DEFCONFIG = "codasip-a730-hobgoblin2_defconfig"
 KBUILD_DEFCONFIG:cheri = "codasip-x730-hobgoblin2_defconfig"
 
 # When building Linux 6.10 for cheri, binutils 2.41.0 objcopy fails when
