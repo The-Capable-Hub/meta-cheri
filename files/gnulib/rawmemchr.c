@@ -24,6 +24,7 @@
 
 # include <limits.h>
 # include <stdint.h>
+# include <assert.h>
 
 
 /* Find the first occurrence of C in S.  */
