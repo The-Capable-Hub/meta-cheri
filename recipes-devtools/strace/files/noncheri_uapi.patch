@@ -1,0 +1,50 @@
+Fix assertion
+
+Upstream-Status: Inappropriate (at the moment) as Cheri specific
+
+diff --git a/src/ptp.c b/src/ptp.c
+index 6d06f71..191bd65 100644
+--- a/src/ptp.c
++++ b/src/ptp.c
+@@ -303,7 +303,10 @@ ptp_ioctl(struct tcb *const tcp, const unsigned int code,
+ 	case PTP_SYS_OFFSET_EXTENDED:
+ 	case PTP_SYS_OFFSET_EXTENDED2: {
+ 		struct ptp_sys_offset_extended sysoff;
+-		CHECK_TYPE_SIZE(sysoff.rsv, sizeof(unsigned int) * 3);
++		// Starting with kernel 6.12 one of the reserved ints
++		// is used for the clock id. Disable the reserved size
++		// check.
++		// CHECK_TYPE_SIZE(sysoff.rsv, sizeof(unsigned int) * 3);
+ 		CHECK_IOCTL_SIZE(PTP_SYS_OFFSET_EXTENDED, 1216);
+ 		CHECK_IOCTL_SIZE(PTP_SYS_OFFSET_EXTENDED2, 1216);
+ 
+diff --git a/src/rtnl_nh.c b/src/rtnl_nh.c
+index 336bd63..c7c99a0 100644
+--- a/src/rtnl_nh.c
++++ b/src/rtnl_nh.c
+@@ -12,6 +12,7 @@
+ 
+ #include <linux/rtnetlink.h>
+ #include <linux/nexthop.h>
++#include <linux/version.h>
+ 
+ #include "xlat/rtnl_nexthop_attrs.h"
+ #include "xlat/rtnl_nexthop_grp_types.h"
+@@ -28,10 +29,17 @@ print_nh_grp(struct tcb *const tcp, void *const elem_buf,
+ 	PRINT_FIELD_U(*grp, id);
+ 	tprint_struct_next();
+ 	PRINT_FIELD_U(*grp, weight);
++#if KERNEL_VERSION(LINUX_VERSION_MAJOR, LINUX_VERSION_PATCHLEVEL, 0) >= KERNEL_VERSION(6, 12, 0)
++	if (grp->weight_high) {
++		tprint_struct_next();
++		PRINT_FIELD_X(*grp, weight_high);
++	}
++#else
+ 	if (grp->resvd1) {
+ 		tprint_struct_next();
+ 		PRINT_FIELD_X(*grp, resvd1);
+ 	}
++#endif
+ 	if (grp->resvd2) {
+ 		tprint_struct_next();
+ 		PRINT_FIELD_X(*grp, resvd2);
