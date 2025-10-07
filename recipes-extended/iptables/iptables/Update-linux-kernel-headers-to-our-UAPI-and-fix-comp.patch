@@ -1,5 +1,5 @@
 From: Christian Ehrhardt <christian.ehrhardt@codasip.com>
-Subject: Update linux kernel headers to out UAPI and fix compile
+Subject: Update linux kernel headers to our UAPI and fix compile
 
 The iptables sources come with their own version of the linux
 kernel headers, presumably because iptables needs newer versions
@@ -148,10 +148,10 @@ index a9ae93c..eaef459 100644
  
  #endif /* __LINUX_FILTER_H__ */
 diff --git a/include/linux/kernel.h b/include/linux/kernel.h
-index d4c59f6..3925249 100644
+index d4c59f6..5413a8c 100644
 --- a/include/linux/kernel.h
 +++ b/include/linux/kernel.h
-@@ -1,29 +1,10 @@
+@@ -1,29 +1,8 @@
 +/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
  #ifndef _LINUX_KERNEL_H
  #define _LINUX_KERNEL_H
@@ -161,7 +161,9 @@ index d4c59f6..3925249 100644
 - */
 -#define __ALIGN_KERNEL(x, a)		__ALIGN_KERNEL_MASK(x, (typeof(x))(a) - 1)
 -#define __ALIGN_KERNEL_MASK(x, mask)	(((x) + (mask)) & ~(mask))
--
++#include <linux/sysinfo.h>
++#include <linux/const.h>
+ 
 -
 -#define SI_LOAD_SHIFT	16
 -struct sysinfo {
@@ -181,11 +183,7 @@ index d4c59f6..3925249 100644
 -	char _f[20-2*sizeof(long)-sizeof(int)];	/* Padding: libc5 uses this.. */
 -};
 -
-+#ifdef __GLIBC__
-+#include <linux/sysinfo.h>
-+#include <linux/const.h>
- #endif
-+
+-#endif
 +#endif /* _LINUX_KERNEL_H */
 diff --git a/include/linux/netfilter.h b/include/linux/netfilter.h
 index 042d8b1..30c045b 100644
@@ -525,7 +523,7 @@ index b600000..a64586e 100644
  struct nf_nat_ipv4_range {
  	unsigned int			flags;
 diff --git a/include/linux/netfilter/nf_tables.h b/include/linux/netfilter/nf_tables.h
-index e94d1fa..aa4094c 100644
+index e94d1fa..2beb30b 100644
 --- a/include/linux/netfilter/nf_tables.h
 +++ b/include/linux/netfilter/nf_tables.h
 @@ -97,6 +97,15 @@ enum nft_verdicts {
@@ -599,7 +597,80 @@ index e94d1fa..aa4094c 100644
  	NFT_RULE_COMPAT_F_INV	= (1 << 1),
  	NFT_RULE_COMPAT_F_MASK	= NFT_RULE_COMPAT_F_INV,
  };
-@@ -669,7 +694,7 @@ enum nft_range_ops {
+@@ -369,6 +394,8 @@ enum nft_set_field_attributes {
+  * @NFTA_SET_HANDLE: set handle (NLA_U64)
+  * @NFTA_SET_EXPR: set expression (NLA_NESTED: nft_expr_attributes)
+  * @NFTA_SET_EXPRESSIONS: list of expressions (NLA_NESTED: nft_list_attributes)
++ * @NFTA_SET_TYPE: set backend type (NLA_STRING)
++ * @NFTA_SET_COUNT: number of set elements (NLA_U32)
+  */
+ enum nft_set_attributes {
+ 	NFTA_SET_UNSPEC,
+@@ -390,6 +417,8 @@ enum nft_set_attributes {
+ 	NFTA_SET_HANDLE,
+ 	NFTA_SET_EXPR,
+ 	NFTA_SET_EXPRESSIONS,
++	NFTA_SET_TYPE,
++	NFTA_SET_COUNT,
+ 	__NFTA_SET_MAX
+ };
+ #define NFTA_SET_MAX		(__NFTA_SET_MAX - 1)
+@@ -411,7 +440,7 @@ enum nft_set_elem_flags {
+  * @NFTA_SET_ELEM_KEY: key value (NLA_NESTED: nft_data)
+  * @NFTA_SET_ELEM_DATA: data value of mapping (NLA_NESTED: nft_data_attributes)
+  * @NFTA_SET_ELEM_FLAGS: bitmask of nft_set_elem_flags (NLA_U32)
+- * @NFTA_SET_ELEM_TIMEOUT: timeout value (NLA_U64)
++ * @NFTA_SET_ELEM_TIMEOUT: timeout value, zero means never times out (NLA_U64)
+  * @NFTA_SET_ELEM_EXPIRATION: expiration time (NLA_U64)
+  * @NFTA_SET_ELEM_USERDATA: user data (NLA_BINARY)
+  * @NFTA_SET_ELEM_EXPR: expression (NLA_NESTED: nft_expr_attributes)
+@@ -539,16 +568,26 @@ enum nft_immediate_attributes {
+ /**
+  * enum nft_bitwise_ops - nf_tables bitwise operations
+  *
+- * @NFT_BITWISE_BOOL: mask-and-xor operation used to implement NOT, AND, OR and
+- *                    XOR boolean operations
++ * @NFT_BITWISE_MASK_XOR: mask-and-xor operation used to implement NOT, AND, OR
++ *                        and XOR boolean operations
+  * @NFT_BITWISE_LSHIFT: left-shift operation
+  * @NFT_BITWISE_RSHIFT: right-shift operation
++ * @NFT_BITWISE_AND: and operation
++ * @NFT_BITWISE_OR: or operation
++ * @NFT_BITWISE_XOR: xor operation
+  */
+ enum nft_bitwise_ops {
+-	NFT_BITWISE_BOOL,
++	NFT_BITWISE_MASK_XOR,
+ 	NFT_BITWISE_LSHIFT,
+ 	NFT_BITWISE_RSHIFT,
++	NFT_BITWISE_AND,
++	NFT_BITWISE_OR,
++	NFT_BITWISE_XOR,
+ };
++/*
++ * Old name for NFT_BITWISE_MASK_XOR.  Retained for backwards-compatibility.
++ */
++#define NFT_BITWISE_BOOL NFT_BITWISE_MASK_XOR
+ 
+ /**
+  * enum nft_bitwise_attributes - nf_tables bitwise expression netlink attributes
+@@ -561,6 +600,7 @@ enum nft_bitwise_ops {
+  * @NFTA_BITWISE_OP: type of operation (NLA_U32: nft_bitwise_ops)
+  * @NFTA_BITWISE_DATA: argument for non-boolean operations
+  *                     (NLA_NESTED: nft_data_attributes)
++ * @NFTA_BITWISE_SREG2: second source register (NLA_U32: nft_registers)
+  *
+  * The bitwise expression supports boolean and shift operations.  It implements
+  * the boolean operations by performing the following operation:
+@@ -584,6 +624,7 @@ enum nft_bitwise_attributes {
+ 	NFTA_BITWISE_XOR,
+ 	NFTA_BITWISE_OP,
+ 	NFTA_BITWISE_DATA,
++	NFTA_BITWISE_SREG2,
+ 	__NFTA_BITWISE_MAX
+ };
+ #define NFTA_BITWISE_MAX	(__NFTA_BITWISE_MAX - 1)
+@@ -669,7 +710,7 @@ enum nft_range_ops {
   * enum nft_range_attributes - nf_tables range expression netlink attributes
   *
   * @NFTA_RANGE_SREG: source register of data to compare (NLA_U32: nft_registers)
@@ -608,7 +679,7 @@ index e94d1fa..aa4094c 100644
   * @NFTA_RANGE_FROM_DATA: data range from (NLA_NESTED: nft_data_attributes)
   * @NFTA_RANGE_TO_DATA: data range to (NLA_NESTED: nft_data_attributes)
   */
-@@ -753,11 +778,14 @@ enum nft_dynset_attributes {
+@@ -753,11 +794,14 @@ enum nft_dynset_attributes {
   * @NFT_PAYLOAD_LL_HEADER: link layer header
   * @NFT_PAYLOAD_NETWORK_HEADER: network header
   * @NFT_PAYLOAD_TRANSPORT_HEADER: transport header
@@ -623,7 +694,7 @@ index e94d1fa..aa4094c 100644
  };
  
  /**
-@@ -777,6 +805,32 @@ enum nft_payload_csum_flags {
+@@ -777,6 +821,32 @@ enum nft_payload_csum_flags {
  	NFT_PAYLOAD_L4CSUM_PSEUDOHDR = (1 << 0),
  };
  
@@ -656,7 +727,7 @@ index e94d1fa..aa4094c 100644
  /**
   * enum nft_payload_attributes - nf_tables payload expression netlink attributes
   *
-@@ -814,12 +868,14 @@ enum nft_exthdr_flags {
+@@ -814,12 +884,14 @@ enum nft_exthdr_flags {
   * @NFT_EXTHDR_OP_TCP: match against tcp options
   * @NFT_EXTHDR_OP_IPV4: match against ipv4 options
   * @NFT_EXTHDR_OP_SCTP: match against sctp chunks
@@ -671,7 +742,7 @@ index e94d1fa..aa4094c 100644
  	__NFT_EXTHDR_OP_MAX
  };
  #define NFT_EXTHDR_OP_MAX	(__NFT_EXTHDR_OP_MAX - 1)
-@@ -833,7 +889,7 @@ enum nft_exthdr_op {
+@@ -833,7 +905,7 @@ enum nft_exthdr_op {
   * @NFTA_EXTHDR_LEN: extension header length (NLA_U32)
   * @NFTA_EXTHDR_FLAGS: extension header flags (NLA_U32)
   * @NFTA_EXTHDR_OP: option match type (NLA_U32)
@@ -680,7 +751,7 @@ index e94d1fa..aa4094c 100644
   */
  enum nft_exthdr_attributes {
  	NFTA_EXTHDR_UNSPEC,
-@@ -886,6 +942,7 @@ enum nft_exthdr_attributes {
+@@ -886,6 +958,7 @@ enum nft_exthdr_attributes {
   * @NFT_META_TIME_HOUR: hour of day (in seconds)
   * @NFT_META_SDIF: slave device interface index
   * @NFT_META_SDIFNAME: slave device interface name
@@ -688,7 +759,7 @@ index e94d1fa..aa4094c 100644
   */
  enum nft_meta_keys {
  	NFT_META_LEN,
-@@ -896,7 +953,8 @@ enum nft_meta_keys {
+@@ -896,7 +969,8 @@ enum nft_meta_keys {
  	NFT_META_OIF,
  	NFT_META_IIFNAME,
  	NFT_META_OIFNAME,
@@ -698,7 +769,7 @@ index e94d1fa..aa4094c 100644
  	NFT_META_OIFTYPE,
  	NFT_META_SKUID,
  	NFT_META_SKGID,
-@@ -923,6 +981,8 @@ enum nft_meta_keys {
+@@ -923,6 +997,8 @@ enum nft_meta_keys {
  	NFT_META_TIME_HOUR,
  	NFT_META_SDIF,
  	NFT_META_SDIFNAME,
@@ -707,7 +778,7 @@ index e94d1fa..aa4094c 100644
  };
  
  /**
-@@ -1213,10 +1273,10 @@ enum nft_last_attributes {
+@@ -1213,10 +1289,10 @@ enum nft_last_attributes {
  /**
   * enum nft_log_attributes - nf_tables log expression netlink attributes
   *
@@ -720,6 +791,46 @@ index e94d1fa..aa4094c 100644
   * @NFTA_LOG_LEVEL: log level (NLA_U32)
   * @NFTA_LOG_FLAGS: logging flags (NLA_U32)
   */
+@@ -1316,7 +1392,7 @@ enum nft_secmark_attributes {
+ #define NFTA_SECMARK_MAX	(__NFTA_SECMARK_MAX - 1)
+ 
+ /* Max security context length */
+-#define NFT_SECMARK_CTX_MAXLEN		256
++#define NFT_SECMARK_CTX_MAXLEN		4096
+ 
+ /**
+  * enum nft_reject_types - nf_tables reject expression reject types
+@@ -1634,7 +1710,7 @@ enum nft_flowtable_flags {
+  *
+  * @NFTA_FLOWTABLE_TABLE: name of the table containing the expression (NLA_STRING)
+  * @NFTA_FLOWTABLE_NAME: name of this flow table (NLA_STRING)
+- * @NFTA_FLOWTABLE_HOOK: netfilter hook configuration(NLA_U32)
++ * @NFTA_FLOWTABLE_HOOK: netfilter hook configuration (NLA_NESTED)
+  * @NFTA_FLOWTABLE_USE: number of references to this flow table (NLA_U32)
+  * @NFTA_FLOWTABLE_HANDLE: object handle (NLA_U64)
+  * @NFTA_FLOWTABLE_FLAGS: flags (NLA_U32)
+@@ -1765,6 +1841,10 @@ enum nft_xfrm_keys {
+  * @NFTA_TRACE_MARK: nfmark (NLA_U32)
+  * @NFTA_TRACE_NFPROTO: nf protocol processed (NLA_U32)
+  * @NFTA_TRACE_POLICY: policy that decided fate of packet (NLA_U32)
++ * @NFTA_TRACE_CT_ID: conntrack id (NLA_U32)
++ * @NFTA_TRACE_CT_DIRECTION: packets direction (NLA_U8)
++ * @NFTA_TRACE_CT_STATUS: conntrack status (NLA_U32)
++ * @NFTA_TRACE_CT_STATE: packet state (new, established, ...) (NLA_U32)
+  */
+ enum nft_trace_attributes {
+ 	NFTA_TRACE_UNSPEC,
+@@ -1785,6 +1865,10 @@ enum nft_trace_attributes {
+ 	NFTA_TRACE_NFPROTO,
+ 	NFTA_TRACE_POLICY,
+ 	NFTA_TRACE_PAD,
++	NFTA_TRACE_CT_ID,
++	NFTA_TRACE_CT_DIRECTION,
++	NFTA_TRACE_CT_STATUS,
++	NFTA_TRACE_CT_STATE,
+ 	__NFTA_TRACE_MAX
+ };
+ #define NFTA_TRACE_MAX (__NFTA_TRACE_MAX - 1)
 diff --git a/include/linux/netfilter/nf_tables_compat.h b/include/linux/netfilter/nf_tables_compat.h
 index 36fb81d..0e2b9fc 100644
 --- a/include/linux/netfilter/nf_tables_compat.h
@@ -779,7 +890,7 @@ index c6d1991..b89a3e6 100644
  /* Reserved control nfnetlink messages */
  #define NFNL_MSG_BATCH_BEGIN		NLMSG_MIN_TYPE
 diff --git a/include/linux/netfilter/x_tables.h b/include/linux/netfilter/x_tables.h
-index 4120970..15e4a9c 100644
+index 4120970..9510419 100644
 --- a/include/linux/netfilter/x_tables.h
 +++ b/include/linux/netfilter/x_tables.h
 @@ -1,6 +1,7 @@
@@ -800,7 +911,22 @@ index 4120970..15e4a9c 100644
  };
  
  struct xt_entry_target {
-@@ -118,7 +119,7 @@ struct xt_counters_info {
+@@ -107,7 +108,13 @@ struct _xt_align {
+ #define ADD_COUNTER(c,b,p) do { (c).bcnt += (b); (c).pcnt += (p); } while(0)
+ 
+ struct xt_counters {
+-	__u64 pcnt, bcnt;			/* Packet and byte counters */
++	union {
++		struct {
++			__u64 pcnt, bcnt;	/* Packet and byte counters */
++		};
++		/* FIXCHERI: Move this out of the UAPI. */
++		__uptr percpu;
++	};
+ };
+ 
+ /* The argument to IPT_SO_ADD_COUNTERS. */
+@@ -118,7 +125,7 @@ struct xt_counters_info {
  	unsigned int num_counters;
  
  	/* The counters (actually `number' of these). */
@@ -2545,7 +2671,7 @@ index 3bfe411..54ed833 100644
  #define _IP6T_SRH_H
  
 diff --git a/include/linux/types.h b/include/linux/types.h
-index 630cd3b..0b1426e 100644
+index 630cd3b..b72dd45 100644
 --- a/include/linux/types.h
 +++ b/include/linux/types.h
 @@ -1,3 +1,4 @@
@@ -2586,7 +2712,34 @@ index 630cd3b..0b1426e 100644
  typedef __u16 __bitwise __le16;
  typedef __u16 __bitwise __be16;
  typedef __u32 __bitwise __le32;
-@@ -38,7 +42,7 @@ typedef __u32 __bitwise __wsum;
+@@ -34,18 +38,58 @@ typedef __u64 __bitwise __be64;
+ typedef __u16 __bitwise __sum16;
+ typedef __u32 __bitwise __wsum;
+ 
++/* An integer that can hold a ponter. */
++typedef __kernel_uintptr_t __uptr;
++typedef __kernel_intptr_t __sptr;
++
++/* At least 64-bit and large enough for a pointer. */
++#if defined(__ARCH_WANT_PURECAP) || defined(__CHERI_PURE_CAPABILITY__)
++typedef __kernel_uintptr_t __u64ptr;
++typedef __kernel_intptr_t __s64ptr;
++#else
++typedef __u64 __u64ptr;
++typedef __s64 __s64ptr;
++#endif
++
++/* At least 128-bit and large enough for a pointer. */
++#ifdef __SIZEOF_INT128__
++typedef unsigned __int128 __uptr128 __attribute__((aligned(16)));
++#else
++typedef __u64 __u128ptr[2];
++#endif
++
++typedef __kernel_ptraddr_t __ptraddr_t;
++typedef __u64 __ptraddr64_t;
++
+ /*
   * aligned_u64 should be used in defining kernel<->userspace ABIs to avoid
   * common 32/64-bit compat problems.
   * 64-bit values align to 4-byte boundaries on x86_32 (and possibly other
@@ -2595,20 +2748,25 @@ index 630cd3b..0b1426e 100644
   * aligned_64 type enforces 8-byte alignment so that structs containing
   * aligned_64 values have the same alignment on 32-bit and 64-bit architectures.
   * No conversions are necessary between 32-bit user-space and a 64-bit kernel.
-@@ -47,5 +51,18 @@ typedef __u32 __bitwise __wsum;
+  */
+ #define __aligned_u64 __u64 __attribute__((aligned(8)))
++#define __aligned_s64 __s64 __attribute__((aligned(8)))
  #define __aligned_be64 __be64 __attribute__((aligned(8)))
  #define __aligned_le64 __le64 __attribute__((aligned(8)))
  
-+#ifdef __CHERI_PURE_CAPABILITY__
-+typedef __uintcap_t	__kernel_uintptr_t;
-+typedef __uintcap_t	__kernel_aligned_uintptr_t;
++/*
++ * If the CHERI types are capabilities they are naturally aligned to
++ * at least 64-bit or more.
++ */
++#if defined(__ARCH_WANT_PURECAP) || defined(__CHERI_PURE_CAPABILITY__)
++#define __aligned_u64ptr __u64ptr
++#define __aligned_s64ptr __s64ptr
 +#else
-+typedef __u64		__kernel_uintptr_t;
-+typedef __aligned_u64	__kernel_aligned_uintptr_t;
++#define __aligned_u64ptr __aligned_u64
++#define __aligned_s64ptr __aligned_s64
 +#endif
 +
-+#define __u64ptr __kernel_uintptr_t
-+#define __aligned_u64ptr __kernel_aligned_uintptr_t
++#define __aligned_u128ptr __u128ptr __attribute__((aligned(16)));
 +
 +typedef unsigned __bitwise __poll_t;
 +
