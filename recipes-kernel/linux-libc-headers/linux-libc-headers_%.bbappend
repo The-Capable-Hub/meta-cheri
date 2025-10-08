@@ -1,3 +1,4 @@
+ERROR_QA:remove = "version-going-backwards"
 SRCREV = "${AUTOREV}"
 S = "${WORKDIR}/git"
 CODASIP_GIT_LINUX_HOBGOBLIN_CHERI_BRANCH ?= "bakewell-morello"
