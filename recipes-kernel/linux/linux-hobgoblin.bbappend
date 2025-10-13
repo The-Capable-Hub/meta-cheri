@@ -7,6 +7,8 @@ LINUX_VERSION = "6.16.0"
 
 KBUILD_DEFCONFIG = "codasip-a730-hobgoblin2_defconfig"
 KBUILD_DEFCONFIG:cheri = "codasip-x730-hobgoblin2_defconfig"
+KBUILD_DEFCONFIG:codasip-prime = "codasip-a730-prime_defconfig"
+KBUILD_DEFCONFIG:codasip-prime:cheri = "codasip-x730-prime_defconfig"
 
 # When building Linux 6.10 for cheri, binutils 2.41.0 objcopy fails when
 # building the vdso with the error:
