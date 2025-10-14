@@ -9,5 +9,5 @@ S = "${WORKDIR}/git"
 CODASIP_GIT_GDB_CHERI_BRANCH ?= "bakewell"
 CODASIP_GIT_GDB_BRANCH = "${CODASIP_GIT_GDB_CHERI_BRANCH}"
 SRC_URI = " \
-    git://${CODASIP_GIT_REPO}/bakewell/cheri-gdb.git;protocol=${CODASIP_GIT_PROTOCOL};branch=${CODASIP_GIT_GDB_BRANCH} \
+    git://${CODASIP_GIT_BAKEWELL_REPO}/cheri-gdb.git;protocol=${CODASIP_GIT_PROTOCOL};branch=${CODASIP_GIT_GDB_BRANCH} \
 "
