@@ -1,7 +1,7 @@
-CODASIP_GIT_OPENSBI_CHERI_BRANCH ?= "hobgoblin-cheri-v0.9.0"
+CODASIP_GIT_OPENSBI_CHERI_BRANCH ?= "v1.7-cheri"
 CODASIP_GIT_OPENSBI_BRANCH = "${CODASIP_GIT_OPENSBI_CHERI_BRANCH}"
 
-PV = "1.5+git${SRCPV}"
+PV = "1.7+git${SRCPV}"
 
 python () {
   import re
@@ -15,3 +15,6 @@ python () {
 }
 
 EXTRA_OEMAKE:append = " ${RISCV_VARS}"
+# TODO: Remove explicitly `CC_SUPPORT_VECTOR=n` when CHERI compiler supports 
+#       vector externsion for CHERI
+EXTRA_OEMAKE:append:cheri = " CC_SUPPORT_VECTOR=n"
