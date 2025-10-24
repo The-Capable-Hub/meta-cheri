@@ -1,0 +1,34 @@
+From f92f54780b80f2509fbf6aeec2b228988ee2e623 Mon Sep 17 00:00:00 2001
+From: Chris Hofer <christian.hofer@codasip.com>
+Date: Fri, 24 Oct 2025 11:13:26 +0200
+Subject: [PATCH] oslib: Fix missing macro for non-GNU C libraries
+
+When building with glibc, the macro FALLOC_FL_ZERO_RANGE is introduced
+by including fcntl.h, which itself includes the macro definition
+eventually from the Linux header file linux/falloc.h. For other C
+libraries that will not do that, e.g. Musl, include the required Linux
+header directly.
+
+Upstream-Status: Pending
+Signed-off-by: Chris Hofer <christian.hofer@codasip.com>
+---
+ oslib/linux-blkzoned.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/oslib/linux-blkzoned.c b/oslib/linux-blkzoned.c
+index 78e25fca..40311e42 100644
+--- a/oslib/linux-blkzoned.c
++++ b/oslib/linux-blkzoned.c
+@@ -21,6 +21,9 @@
+ #include "verify.h"
+ #include "zbd_types.h"
+ 
++#ifndef __GLIBC__
++#include <linux/falloc.h>
++#endif
+ #include <linux/blkzoned.h>
+ #ifndef BLKFINISHZONE
+ #define BLKFINISHZONE _IOW(0x12, 136, struct blk_zone_range)
+-- 
+2.47.3
+

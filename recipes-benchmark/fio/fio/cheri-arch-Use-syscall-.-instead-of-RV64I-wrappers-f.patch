@@ -1,0 +1,32 @@
+From de798d1ae45a8d93fa7300d80310d19506e82f2a Mon Sep 17 00:00:00 2001
+From: Chris Hofer <christian.hofer@codasip.com>
+Date: Fri, 24 Oct 2025 10:53:32 +0200
+Subject: [PATCH] cheri: arch: Use syscall(..) instead of RV64I wrappers for
+ PCuABI
+
+With PCuABI, we cannot use the RV64I assembly syscall wrappers as the
+register may carry capabilities. Use the syscall function provided by
+Musl instead.
+
+Upstream-Status: Inappropriate [CHERI-specific]
+Signed-off-by: Chris Hofer <christian.hofer@codasip.com>
+---
+ arch/arch.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arch.h b/arch/arch.h
+index 437736f8..5e0a3772 100644
+--- a/arch/arch.h
++++ b/arch/arch.h
+@@ -106,7 +106,7 @@ extern unsigned long arch_flags;
+ #include "arch-aarch64.h"
+ #elif defined(__loongarch64)
+ #include "arch-loongarch64.h"
+-#elif defined(__riscv) && __riscv_xlen == 64
++#elif defined(__riscv) && __riscv_xlen == 64 && !defined(__CHERI_PURE_CAPABILITY__)
+ #include "arch-riscv64.h"
+ #else
+ #warning "Unknown architecture, attempting to use generic model."
+-- 
+2.47.3
+

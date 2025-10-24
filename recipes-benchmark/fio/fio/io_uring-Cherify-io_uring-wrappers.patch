@@ -1,0 +1,199 @@
+From 71d8b912c4d9d1685d2e96e34cda7d651bf0580a Mon Sep 17 00:00:00 2001
+From: Chris Hofer <christian.hofer@codasip.com>
+Date: Thu, 23 Oct 2025 17:29:07 +0200
+Subject: [PATCH] io_uring: Cherify io_uring wrappers
+
+Upstream-Status: Inappropriate [CHERI-specific]
+Signed-off-by: Chris Hofer <christian.hofer@codasip.com>
+---
+ engines/io_uring.c  | 10 +++++-----
+ os/linux/io_uring.h | 37 +++++++++++++++++++------------------
+ 2 files changed, 24 insertions(+), 23 deletions(-)
+
+diff --git a/engines/io_uring.c b/engines/io_uring.c
+index 02f80bda..35ac7f92 100644
+--- a/engines/io_uring.c
++++ b/engines/io_uring.c
+@@ -503,7 +503,7 @@ static int fio_ioring_prep(struct thread_data *td, struct io_u *io_u)
+ 	if (io_u->ddir == DDIR_READ || io_u->ddir == DDIR_WRITE) {
+ 		if (o->fixedbufs) {
+ 			sqe->opcode = fixed_ddir_to_op[io_u->ddir];
+-			sqe->addr = (unsigned long) io_u->xfer_buf;
++			sqe->addr = (uintptr_t) io_u->xfer_buf;
+ 			sqe->len = io_u->xfer_buflen;
+ 			sqe->buf_index = io_u->index;
+ 		} else {
+@@ -518,10 +518,10 @@ static int fio_ioring_prep(struct thread_data *td, struct io_u *io_u)
+ 
+ 			sqe->opcode = ddir_to_op[io_u->ddir][!!o->nonvectored];
+ 			if (o->nonvectored) {
+-				sqe->addr = (unsigned long) iov->iov_base;
++				sqe->addr = (uintptr_t) iov->iov_base;
+ 				sqe->len = iov->iov_len;
+ 			} else {
+-				sqe->addr = (unsigned long) iov;
++				sqe->addr = (uintptr_t) iov;
+ 				sqe->len = 1;
+ 			}
+ 		}
+@@ -579,7 +579,7 @@ static int fio_ioring_prep(struct thread_data *td, struct io_u *io_u)
+ 		sqe->flags |= IOSQE_ASYNC;
+ 	}
+ 
+-	sqe->user_data = (unsigned long) io_u;
++	sqe->user_data = (uintptr_t) io_u;
+ 	return 0;
+ }
+ 
+@@ -617,7 +617,7 @@ static int fio_ioring_cmd_prep(struct thread_data *td, struct io_u *io_u)
+ 		sqe->rw_flags |= RWF_NOWAIT;
+ 
+ 	sqe->opcode = IORING_OP_URING_CMD;
+-	sqe->user_data = (unsigned long) io_u;
++	sqe->user_data = (uintptr_t) io_u;
+ 	if (o->nonvectored)
+ 		sqe->cmd_op = NVME_URING_CMD_IO;
+ 	else
+diff --git a/os/linux/io_uring.h b/os/linux/io_uring.h
+index 7b099902..e7674205 100644
+--- a/os/linux/io_uring.h
++++ b/os/linux/io_uring.h
+@@ -21,14 +21,14 @@ struct io_uring_sqe {
+ 	__s32	fd;		/* file descriptor to do IO on */
+ 	union {
+ 		__u64	off;	/* offset into file */
+-		__u64	addr2;
++		__u64ptr	addr2;
+ 		struct {
+ 			__u32	cmd_op;
+ 			__u32	__pad1;
+ 		};
+ 	};
+ 	union {
+-		__u64	addr;	/* pointer to buffer or iovecs */
++		__u64ptr	addr;	/* pointer to buffer or iovecs */
+ 		__u64	splice_off_in;
+ 	};
+ 	__u32	len;		/* buffer size or number of iovecs */
+@@ -51,7 +51,7 @@ struct io_uring_sqe {
+ 		__u32		hardlink_flags;
+ 		__u32		uring_cmd_flags;
+ 	};
+-	__u64	user_data;	/* data to be passed back at completion time */
++	__u64ptr	user_data;	/* data to be passed back at completion time */
+ 	/* pack this to avoid bogus arm OABI complaints */
+ 	union {
+ 		/* index into fixed buffers, if used */
+@@ -67,13 +67,14 @@ struct io_uring_sqe {
+ 	};
+ 	union {
+ 		struct {
+-			__u64	addr3;
+-			__u64	__pad2[1];
++			__u64ptr	addr3;
++			__u64ptr	__pad2[1];
+ 		};
+ 		struct {
+ 			__u64	attr_ptr; /* pointer to attribute information */
+ 			__u64	attr_type_mask; /* bit mask of attributes */
+ 		};
++		__u64ptr	optval;
+ 		/*
+ 		 * If the ring is initialized with IORING_SETUP_SQE128, then
+ 		 * this field is used for 80 bytes of arbitrary command data
+@@ -89,7 +90,7 @@ struct io_uring_attr_pi {
+ 		__u16	flags;
+ 		__u16	app_tag;
+ 		__u32	len;
+-		__u64	addr;
++		__u64ptr	addr;
+ 		__u64	seed;
+ 		__u64	rsvd;
+ };
+@@ -269,7 +270,7 @@ enum {
+  * IO completion data structure (Completion Queue Entry)
+  */
+ struct io_uring_cqe {
+-	__u64	user_data;	/* sqe->data submission passed back */
++	__u64ptr	user_data;	/* sqe->data submission passed back */
+ 	__s32	res;		/* result code for this event */
+ 	__u32	flags;
+ 
+@@ -277,7 +278,7 @@ struct io_uring_cqe {
+ 	 * If the ring is initialized with IORING_SETUP_CQE32, then this field
+ 	 * contains 16-bytes of padding, doubling the size of the CQE.
+ 	 */
+-	__u64 big_cqe[];
++	__u64ptr big_cqe[];
+ };
+ 
+ /*
+@@ -312,7 +313,7 @@ struct io_sqring_offsets {
+ 	__u32 dropped;
+ 	__u32 array;
+ 	__u32 resv1;
+-	__u64 resv2;
++	__u64ptr user_addr;
+ };
+ 
+ /*
+@@ -330,7 +331,7 @@ struct io_cqring_offsets {
+ 	__u32 cqes;
+ 	__u32 flags;
+ 	__u32 resv1;
+-	__u64 resv2;
++	__u64ptr user_addr;
+ };
+ 
+ /*
+@@ -430,28 +431,28 @@ enum {
+ struct io_uring_files_update {
+ 	__u32 offset;
+ 	__u32 resv;
+-	__aligned_u64 /* __s32 * */ fds;
++	__aligned_u64ptr /* __s32 * */ fds;
+ };
+ 
+ struct io_uring_rsrc_register {
+ 	__u32 nr;
+ 	__u32 resv;
+ 	__u64 resv2;
+-	__aligned_u64 data;
+-	__aligned_u64 tags;
++	__aligned_u64ptr data;
++	__aligned_u64ptr tags;
+ };
+ 
+ struct io_uring_rsrc_update {
+ 	__u32 offset;
+ 	__u32 resv;
+-	__aligned_u64 data;
++	__aligned_u64ptr data;
+ };
+ 
+ struct io_uring_rsrc_update2 {
+ 	__u32 offset;
+ 	__u32 resv;
+-	__aligned_u64 data;
+-	__aligned_u64 tags;
++	__aligned_u64ptr data;
++	__aligned_u64ptr tags;
+ 	__u32 nr;
+ 	__u32 resv2;
+ };
+@@ -507,10 +508,10 @@ enum {
+ };
+ 
+ struct io_uring_getevents_arg {
+-	__u64	sigmask;
++	__u64ptr	sigmask;
+ 	__u32	sigmask_sz;
+ 	__u32	pad;
+-	__u64	ts;
++	__u64ptr	ts;
+ };
+ 
+ #endif
+-- 
+2.47.3
+
