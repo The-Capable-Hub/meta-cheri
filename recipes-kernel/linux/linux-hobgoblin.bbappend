@@ -19,4 +19,8 @@ KBUILD_DEFCONFIG:codasip-prime:cheri = "codasip-x730-prime_defconfig"
 # Same problem occurs building linux 6.5 for non-cheri.
 KERNEL_OBJCOPY = "${HOST_PREFIX}llvm-objcopy"
 
+# We can't use binutils to strip kernel object files since it is not
+# aware of CHERI specific relocations. Use llvm-strip instead.
+KERNEL_STRIP = "${HOST_PREFIX}llvm-strip"
+
 LINUX_VERSION_EXTENSION:append:cheri = "-cheri"
