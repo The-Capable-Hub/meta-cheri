@@ -26,6 +26,14 @@ do_fixup_gnulib() {
 			cp "${SRC_GNULIB_PATH}" "${DEST_GNULIB_PATH}"
 		done
 	done
+
+    # Fixup versions of malloca.c which have been updated for CHERI, but lack
+    # a cast required by current versions of llvm.
+    for f in $(find "${S}" -type f -name malloca.c) ; do
+	echo "Ensure that $f CHERI support works with llvm"
+	mv $f ${f}.bak
+	sed 's/void \*mem = sp\[-1\]/void *mem = (void *) sp[-1];/' ${f}.bak > $f
+    done
 }
 
 addtask fixup_gnulib after do_patch before do_configure
