@@ -1,5 +1,10 @@
 SRC_URI:remove = " \
    https://busybox.net/downloads/busybox-${PV}.tar.bz2;name=tarball \
+   file://CVE-2021-42380.patch \
+   file://0001-awk-fix-segfault-when-compiled-by-clang.patch \
+   file://CVE-2023-42363.patch \
+   file://0001-awk-fix-precedence-of-relative-to.patch \
+   file://0002-awk-fix-ternary-operator-and-precedence-of.patch \
 "
 
 CODASIP_GIT_BUSYBOX_CHERI_BRANCH ?= "1_36_1_cheri_yocto"
