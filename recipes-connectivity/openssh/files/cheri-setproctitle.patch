@@ -1,0 +1,32 @@
+setproctitle() is used to modify argv so that ps displays the chosen string.
+It tries to determine which elements of argv and environ are contiguous, and
+rewrites these. However, under CHERI it needs a capability which describes
+this memory. CHERI BSD has added a field to the AUXVEC for this. We don't
+currently have this for Linux, so use the stack pointer, and set the bounds.
+Note __builtin_stack_address() doesn't yet work in LLVM, so resort to assembler.
+
+Upstream-Status: Inappropriate (at the moment) as Cheri specific
+
+Index: openssh-9.6p1/openbsd-compat/setproctitle.c
+===================================================================
+--- openssh-9.6p1.orig/openbsd-compat/setproctitle.c
++++ openssh-9.6p1/openbsd-compat/setproctitle.c
+@@ -109,6 +109,18 @@ compat_init_setproctitle(int argc, char
+ 	argv_start = argv[0];
+ 	argv_env_len = lastargv - argv[0] - 1;
+ 
++#ifdef __CHERI_PURE_CAPABILITY__
++	void* sp;
++#if 0
++	sp = __builtin_stack_address(0);
++#else
++	asm volatile("cmv %0, csp\n\t" : "=C"(sp));
++#endif
++	argv_start = __builtin_cheri_address_set(sp,
++				 __builtin_cheri_address_get(argv_start));
++	argv_start = __builtin_cheri_bounds_set(argv_start, argv_env_len + 1);
++#endif
++
+ 	/*
+ 	 * Copy environment
+ 	 * XXX - will truncate env on strdup fail
