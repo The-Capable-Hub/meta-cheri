@@ -147,44 +147,6 @@ index a9ae93c..eaef459 100644
 +#define BPF_LL_OFF	SKF_LL_OFF
  
  #endif /* __LINUX_FILTER_H__ */
-diff --git a/include/linux/kernel.h b/include/linux/kernel.h
-index d4c59f6..5413a8c 100644
---- a/include/linux/kernel.h
-+++ b/include/linux/kernel.h
-@@ -1,29 +1,8 @@
-+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
- #ifndef _LINUX_KERNEL_H
- #define _LINUX_KERNEL_H
- 
--/*
-- * 'kernel.h' contains some often-used function prototypes etc
-- */
--#define __ALIGN_KERNEL(x, a)		__ALIGN_KERNEL_MASK(x, (typeof(x))(a) - 1)
--#define __ALIGN_KERNEL_MASK(x, mask)	(((x) + (mask)) & ~(mask))
-+#include <linux/sysinfo.h>
-+#include <linux/const.h>
- 
--
--#define SI_LOAD_SHIFT	16
--struct sysinfo {
--	long uptime;			/* Seconds since boot */
--	unsigned long loads[3];		/* 1, 5, and 15 minute load averages */
--	unsigned long totalram;		/* Total usable main memory size */
--	unsigned long freeram;		/* Available memory size */
--	unsigned long sharedram;	/* Amount of shared memory */
--	unsigned long bufferram;	/* Memory used by buffers */
--	unsigned long totalswap;	/* Total swap space size */
--	unsigned long freeswap;		/* swap space still available */
--	unsigned short procs;		/* Number of current processes */
--	unsigned short pad;		/* explicit padding for m68k */
--	unsigned long totalhigh;	/* Total high memory size */
--	unsigned long freehigh;		/* Available high memory size */
--	unsigned int mem_unit;		/* Memory unit size in bytes */
--	char _f[20-2*sizeof(long)-sizeof(int)];	/* Padding: libc5 uses this.. */
--};
--
--#endif
-+#endif /* _LINUX_KERNEL_H */
 diff --git a/include/linux/netfilter.h b/include/linux/netfilter.h
 index 042d8b1..30c045b 100644
 --- a/include/linux/netfilter.h
@@ -526,34 +488,18 @@ diff --git a/include/linux/netfilter/nf_tables.h b/include/linux/netfilter/nf_ta
 index e94d1fa..2beb30b 100644
 --- a/include/linux/netfilter/nf_tables.h
 +++ b/include/linux/netfilter/nf_tables.h
-@@ -97,6 +97,15 @@ enum nft_verdicts {
-  * @NFT_MSG_NEWFLOWTABLE: add new flow table (enum nft_flowtable_attributes)
-  * @NFT_MSG_GETFLOWTABLE: get flow table (enum nft_flowtable_attributes)
-  * @NFT_MSG_DELFLOWTABLE: delete flow table (enum nft_flowtable_attributes)
-+ * @NFT_MSG_GETRULE_RESET: get rules and reset stateful expressions (enum nft_obj_attributes)
-+ * @NFT_MSG_DESTROYTABLE: destroy a table (enum nft_table_attributes)
-+ * @NFT_MSG_DESTROYCHAIN: destroy a chain (enum nft_chain_attributes)
-+ * @NFT_MSG_DESTROYRULE: destroy a rule (enum nft_rule_attributes)
-+ * @NFT_MSG_DESTROYSET: destroy a set (enum nft_set_attributes)
-+ * @NFT_MSG_DESTROYSETELEM: destroy a set element (enum nft_set_elem_attributes)
-+ * @NFT_MSG_DESTROYOBJ: destroy a stateful object (enum nft_object_attributes)
-+ * @NFT_MSG_DESTROYFLOWTABLE: destroy flow table (enum nft_flowtable_attributes)
+@@ -97,6 +97,7 @@ enum nft_verdicts {
+  * @NFT_MSG_DESTROYSETELEM: destroy a set element (enum nft_set_elem_attributes)
+  * @NFT_MSG_DESTROYOBJ: destroy a stateful object (enum nft_object_attributes)
+  * @NFT_MSG_DESTROYFLOWTABLE: destroy flow table (enum nft_flowtable_attributes)
 + * @NFT_MSG_GETSETELEM_RESET: get set elements and reset attached stateful expressions (enum nft_set_elem_attributes)
   */
  enum nf_tables_msg_types {
  	NFT_MSG_NEWTABLE,
-@@ -124,6 +133,15 @@ enum nf_tables_msg_types {
- 	NFT_MSG_NEWFLOWTABLE,
- 	NFT_MSG_GETFLOWTABLE,
- 	NFT_MSG_DELFLOWTABLE,
-+	NFT_MSG_GETRULE_RESET,
-+	NFT_MSG_DESTROYTABLE,
-+	NFT_MSG_DESTROYCHAIN,
-+	NFT_MSG_DESTROYRULE,
-+	NFT_MSG_DESTROYSET,
-+	NFT_MSG_DESTROYSETELEM,
-+	NFT_MSG_DESTROYOBJ,
-+	NFT_MSG_DESTROYFLOWTABLE,
+@@ -124,6 +133,7 @@ enum nf_tables_msg_types {
+ 	NFT_MSG_DESTROYSETELEM,
+ 	NFT_MSG_DESTROYOBJ,
+ 	NFT_MSG_DESTROYFLOWTABLE,
 +	NFT_MSG_GETSETELEM_RESET,
  	NFT_MSG_MAX,
  };
@@ -670,63 +616,6 @@ index e94d1fa..2beb30b 100644
  	__NFTA_BITWISE_MAX
  };
  #define NFTA_BITWISE_MAX	(__NFTA_BITWISE_MAX - 1)
-@@ -669,7 +710,7 @@ enum nft_range_ops {
-  * enum nft_range_attributes - nf_tables range expression netlink attributes
-  *
-  * @NFTA_RANGE_SREG: source register of data to compare (NLA_U32: nft_registers)
-- * @NFTA_RANGE_OP: cmp operation (NLA_U32: nft_cmp_ops)
-+ * @NFTA_RANGE_OP: cmp operation (NLA_U32: nft_range_ops)
-  * @NFTA_RANGE_FROM_DATA: data range from (NLA_NESTED: nft_data_attributes)
-  * @NFTA_RANGE_TO_DATA: data range to (NLA_NESTED: nft_data_attributes)
-  */
-@@ -753,11 +794,14 @@ enum nft_dynset_attributes {
-  * @NFT_PAYLOAD_LL_HEADER: link layer header
-  * @NFT_PAYLOAD_NETWORK_HEADER: network header
-  * @NFT_PAYLOAD_TRANSPORT_HEADER: transport header
-+ * @NFT_PAYLOAD_INNER_HEADER: inner header / payload
-  */
- enum nft_payload_bases {
- 	NFT_PAYLOAD_LL_HEADER,
- 	NFT_PAYLOAD_NETWORK_HEADER,
- 	NFT_PAYLOAD_TRANSPORT_HEADER,
-+	NFT_PAYLOAD_INNER_HEADER,
-+	NFT_PAYLOAD_TUN_HEADER,
- };
- 
- /**
-@@ -777,6 +821,32 @@ enum nft_payload_csum_flags {
- 	NFT_PAYLOAD_L4CSUM_PSEUDOHDR = (1 << 0),
- };
- 
-+enum nft_inner_type {
-+	NFT_INNER_UNSPEC	= 0,
-+	NFT_INNER_VXLAN,
-+	NFT_INNER_GENEVE,
-+};
-+
-+enum nft_inner_flags {
-+	NFT_INNER_HDRSIZE	= (1 << 0),
-+	NFT_INNER_LL		= (1 << 1),
-+	NFT_INNER_NH		= (1 << 2),
-+	NFT_INNER_TH		= (1 << 3),
-+};
-+#define NFT_INNER_MASK		(NFT_INNER_HDRSIZE | NFT_INNER_LL | \
-+				 NFT_INNER_NH | NFT_INNER_TH)
-+
-+enum nft_inner_attributes {
-+	NFTA_INNER_UNSPEC,
-+	NFTA_INNER_NUM,
-+	NFTA_INNER_TYPE,
-+	NFTA_INNER_FLAGS,
-+	NFTA_INNER_HDRSIZE,
-+	NFTA_INNER_EXPR,
-+	__NFTA_INNER_MAX
-+};
-+#define NFTA_INNER_MAX	(__NFTA_INNER_MAX - 1)
-+
- /**
-  * enum nft_payload_attributes - nf_tables payload expression netlink attributes
-  *
 @@ -814,12 +884,14 @@ enum nft_exthdr_flags {
   * @NFT_EXTHDR_OP_TCP: match against tcp options
   * @NFT_EXTHDR_OP_IPV4: match against ipv4 options
@@ -742,55 +631,6 @@ index e94d1fa..2beb30b 100644
  	__NFT_EXTHDR_OP_MAX
  };
  #define NFT_EXTHDR_OP_MAX	(__NFT_EXTHDR_OP_MAX - 1)
-@@ -833,7 +905,7 @@ enum nft_exthdr_op {
-  * @NFTA_EXTHDR_LEN: extension header length (NLA_U32)
-  * @NFTA_EXTHDR_FLAGS: extension header flags (NLA_U32)
-  * @NFTA_EXTHDR_OP: option match type (NLA_U32)
-- * @NFTA_EXTHDR_SREG: option match type (NLA_U32)
-+ * @NFTA_EXTHDR_SREG: source register (NLA_U32: nft_registers)
-  */
- enum nft_exthdr_attributes {
- 	NFTA_EXTHDR_UNSPEC,
-@@ -886,6 +958,7 @@ enum nft_exthdr_attributes {
-  * @NFT_META_TIME_HOUR: hour of day (in seconds)
-  * @NFT_META_SDIF: slave device interface index
-  * @NFT_META_SDIFNAME: slave device interface name
-+ * @NFT_META_BRI_BROUTE: packet br_netfilter_broute bit
-  */
- enum nft_meta_keys {
- 	NFT_META_LEN,
-@@ -896,7 +969,8 @@ enum nft_meta_keys {
- 	NFT_META_OIF,
- 	NFT_META_IIFNAME,
- 	NFT_META_OIFNAME,
--	NFT_META_IIFTYPE,
-+	NFT_META_IFTYPE,
-+#define NFT_META_IIFTYPE	NFT_META_IFTYPE
- 	NFT_META_OIFTYPE,
- 	NFT_META_SKUID,
- 	NFT_META_SKGID,
-@@ -923,6 +997,8 @@ enum nft_meta_keys {
- 	NFT_META_TIME_HOUR,
- 	NFT_META_SDIF,
- 	NFT_META_SDIFNAME,
-+	NFT_META_BRI_BROUTE,
-+	__NFT_META_IIFTYPE,
- };
- 
- /**
-@@ -1213,10 +1289,10 @@ enum nft_last_attributes {
- /**
-  * enum nft_log_attributes - nf_tables log expression netlink attributes
-  *
-- * @NFTA_LOG_GROUP: netlink group to send messages to (NLA_U32)
-+ * @NFTA_LOG_GROUP: netlink group to send messages to (NLA_U16)
-  * @NFTA_LOG_PREFIX: prefix to prepend to log messages (NLA_STRING)
-  * @NFTA_LOG_SNAPLEN: length of payload to include in netlink message (NLA_U32)
-- * @NFTA_LOG_QTHRESHOLD: queue threshold (NLA_U32)
-+ * @NFTA_LOG_QTHRESHOLD: queue threshold (NLA_U16)
-  * @NFTA_LOG_LEVEL: log level (NLA_U32)
-  * @NFTA_LOG_FLAGS: logging flags (NLA_U32)
-  */
 @@ -1316,7 +1392,7 @@ enum nft_secmark_attributes {
  #define NFTA_SECMARK_MAX	(__NFTA_SECMARK_MAX - 1)
  
@@ -2378,15 +2218,6 @@ index bb88d53..e3630fd 100644
  /* Header file for iptables ipt_ECN target
   *
   * (C) 2002 by Harald Welte <laforge@gnumonks.org>
-diff --git a/include/linux/netfilter_ipv4/ipt_LOG.h b/include/linux/netfilter_ipv4/ipt_LOG.h
-index dcdbadf..b7cf2c6 100644
---- a/include/linux/netfilter_ipv4/ipt_LOG.h
-+++ b/include/linux/netfilter_ipv4/ipt_LOG.h
-@@ -1,3 +1,4 @@
-+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
- #ifndef _IPT_LOG_H
- #define _IPT_LOG_H
- 
 diff --git a/include/linux/netfilter_ipv4/ipt_REJECT.h b/include/linux/netfilter_ipv4/ipt_REJECT.h
 index 4293a1a..ae61ddd 100644
 --- a/include/linux/netfilter_ipv4/ipt_REJECT.h
@@ -2548,21 +2379,6 @@ index ebd8ead..eaed56a 100644
  /* Hop Limit modification module for ip6tables
   * Maciej Soltysiak <solt@dns.toxicfilms.tv>
   * Based on HW's TTL module */
-diff --git a/include/linux/netfilter_ipv6/ip6t_LOG.h b/include/linux/netfilter_ipv6/ip6t_LOG.h
-index 9dd5579..0b7b16d 100644
---- a/include/linux/netfilter_ipv6/ip6t_LOG.h
-+++ b/include/linux/netfilter_ipv6/ip6t_LOG.h
-@@ -1,3 +1,4 @@
-+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
- #ifndef _IP6T_LOG_H
- #define _IP6T_LOG_H
- 
-@@ -16,4 +17,4 @@ struct ip6t_log_info {
- 	char prefix[30];
- };
- 
--#endif /*_IPT_LOG_H*/
-+#endif /* _IP6T_LOG_H */
 diff --git a/include/linux/netfilter_ipv6/ip6t_NPT.h b/include/linux/netfilter_ipv6/ip6t_NPT.h
 index f763355..422aef0 100644
 --- a/include/linux/netfilter_ipv6/ip6t_NPT.h
