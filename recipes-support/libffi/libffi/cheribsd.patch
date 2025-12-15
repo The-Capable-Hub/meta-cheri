@@ -5,20 +5,15 @@ Minor changes to support building non-CHERI.
 
 Upstream-Status: Inappropriate [CHERI specific]
 
-diff --git .clang-format .clang-format
-new file mode 100644
-index 0000000..3fbf3b4
 --- /dev/null
 +++ .clang-format
 @@ -0,0 +1,3 @@
 +BasedOnStyle: GNU
 +UseTab: ForContinuationAndIndentation
 +SortIncludes: Never
-diff --git include/ffi_common.h include/ffi_common.h
-index 2bd31b0..87f0108 100644
---- include/ffi_common.h
+--- include/ffi_common.h.orig
 +++ include/ffi_common.h
-@@ -95,10 +95,23 @@ void ffi_type_test(ffi_type *a, char *file, int line);
+@@ -97,10 +97,23 @@ void ffi_type_test(ffi_type *a, const ch
  #define FFI_ASSERT_VALID_TYPE(x)
  #endif
  
@@ -44,11 +39,9 @@ index 2bd31b0..87f0108 100644
  
  /* Perform machine dependent cif processing */
  ffi_status ffi_prep_cif_machdep(ffi_cif *cif);
-diff --git src/aarch64/ffi.c src/aarch64/ffi.c
-index 6544ac0..e2e94e6 100644
---- src/aarch64/ffi.c
+--- src/aarch64/ffi.c.orig
 +++ src/aarch64/ffi.c
-@@ -20,6 +20,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+@@ -20,6 +20,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF
  SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
  
  #if defined(__aarch64__) || defined(__arm64__)|| defined (_M_ARM64)
@@ -86,7 +79,7 @@ index 6544ac0..e2e94e6 100644
  };
  
  #if FFI_EXEC_TRAMPOLINE_TABLE
-@@ -318,7 +337,7 @@ allocate_and_copy_struct_to_stack (struct arg_state *state, void *stack,
+@@ -318,7 +337,7 @@ allocate_and_copy_struct_to_stack (struc
  }
  
  static ffi_arg
@@ -95,7 +88,7 @@ index 6544ac0..e2e94e6 100644
  {
    switch (type)
      {
-@@ -377,6 +396,44 @@ extend_integer_type (void *source, int type)
+@@ -377,6 +396,44 @@ extend_integer_type (void *source, int t
      }
  }
  
@@ -140,9 +133,9 @@ index 6544ac0..e2e94e6 100644
  #if defined(_MSC_VER)
  void extend_hfa_type (void *dest, void *src, int h);
  #else
-@@ -387,7 +444,11 @@ extend_hfa_type (void *dest, void *src, int h)
-   void *x0;
+@@ -388,7 +445,11 @@ extend_hfa_type (void *dest, void *src,
  
+ #define BTI_J "hint #36"
    asm volatile (
 +#ifdef __CHERI_PURE_CAPABILITY__
 +	"adr	%0, 0f+1\n" /* +1 is needed to stay in C64 mode */
@@ -151,19 +144,19 @@ index 6544ac0..e2e94e6 100644
 +#endif
  "	add	%0, %0, %1\n"
  "	br	%0\n"
- "0:	ldp	s16, s17, [%3]\n"	/* S4 */
-@@ -429,8 +490,8 @@ extend_hfa_type (void *dest, void *src, int h)
+ "0:	"BTI_J"\n"			/* S4 */
+@@ -442,8 +503,8 @@ extend_hfa_type (void *dest, void *src,
  "3:	str	q18, [%2, #32]\n"
  "2:	str	q17, [%2, #16]\n"
  "1:	str	q16, [%2]"
 -    : "=&r"(x0)
--    : "r"(f * 12), "r"(dest), "r"(src)
+-    : "r"(f * 16), "r"(dest), "r"(src)
 +    : "=&" PTR_CONSTR (x0)
-+    : "r"(f * 12), PTR_CONSTR(dest), PTR_CONSTR(src)
++    : "r"(f * 16), PTR_CONSTR(dest), PTR_CONSTR(src)
      : "memory", "v16", "v17", "v18", "v19");
  }
  #endif
-@@ -456,19 +517,19 @@ compress_hfa_type (void *dest, void *reg, int h)
+@@ -469,19 +530,19 @@ compress_hfa_type (void *dest, void *reg
      case AARCH64_RET_S2:
        asm ("ldp q16, q17, [%1]\n\t"
  	   "st2 { v16.s, v17.s }[0], [%0]"
@@ -186,7 +179,7 @@ index 6544ac0..e2e94e6 100644
        break;
  
      case AARCH64_RET_D1:
-@@ -484,19 +545,19 @@ compress_hfa_type (void *dest, void *reg, int h)
+@@ -497,19 +558,19 @@ compress_hfa_type (void *dest, void *reg
      case AARCH64_RET_D2:
        asm ("ldp q16, q17, [%1]\n\t"
  	   "st2 { v16.d, v17.d }[0], [%0]"
@@ -209,7 +202,7 @@ index 6544ac0..e2e94e6 100644
        break;
  
      default:
-@@ -560,7 +621,7 @@ ffi_prep_cif_machdep (ffi_cif *cif)
+@@ -573,7 +634,7 @@ ffi_prep_cif_machdep (ffi_cif *cif)
        flags = AARCH64_RET_INT64;
        break;
      case FFI_TYPE_POINTER:
@@ -218,7 +211,7 @@ index 6544ac0..e2e94e6 100644
        break;
  
      case FFI_TYPE_FLOAT:
-@@ -638,12 +699,32 @@ ffi_call_int (ffi_cif *cif, void (*fn)(void), void *orig_rvalue,
+@@ -651,12 +712,32 @@ ffi_call_int (ffi_cif *cif, void (*fn)(v
  	      void **avalue, void *closure)
  {
    struct call_context *context;
@@ -253,7 +246,7 @@ index 6544ac0..e2e94e6 100644
    flags = cif->flags;
    rtype = cif->rtype;
    rtype_size = rtype->size;
-@@ -669,19 +750,58 @@ ffi_call_int (ffi_cif *cif, void (*fn)(void), void *orig_rvalue,
+@@ -682,19 +763,58 @@ ffi_call_int (ffi_cif *cif, void (*fn)(v
    else if (flags & AARCH64_RET_NEED_COPY)
      rsize = 16;
  
@@ -319,7 +312,7 @@ index 6544ac0..e2e94e6 100644
        int h, t;
        void *dest;
  
-@@ -719,7 +839,14 @@ ffi_call_int (ffi_cif *cif, void (*fn)(void), void *orig_rvalue,
+@@ -732,7 +852,14 @@ ffi_call_int (ffi_cif *cif, void (*fn)(v
  #ifdef __APPLE__
  		memcpy(d, a, s);
  #else
@@ -335,7 +328,7 @@ index 6544ac0..e2e94e6 100644
  #endif
  	      }
  	  }
-@@ -731,6 +858,9 @@ ffi_call_int (ffi_cif *cif, void (*fn)(void), void *orig_rvalue,
+@@ -744,6 +871,9 @@ ffi_call_int (ffi_cif *cif, void (*fn)(v
  	case FFI_TYPE_STRUCT:
  	case FFI_TYPE_COMPLEX:
  	  {
@@ -345,7 +338,7 @@ index 6544ac0..e2e94e6 100644
  	    h = is_vfp_type (ty);
  	    if (h)
  	      {
-@@ -760,7 +890,8 @@ ffi_call_int (ffi_cif *cif, void (*fn)(void), void *orig_rvalue,
+@@ -773,7 +903,8 @@ ffi_call_int (ffi_cif *cif, void (*fn)(v
                  dest = allocate_to_stack (&state, stack, ty->alignment, s);
                }
  	      }
@@ -355,7 +348,7 @@ index 6544ac0..e2e94e6 100644
  	      {
  		/* If the argument is a composite type that is larger than 16
  		   bytes, then the argument is copied to memory, and
-@@ -768,22 +899,43 @@ ffi_call_int (ffi_cif *cif, void (*fn)(void), void *orig_rvalue,
+@@ -781,22 +912,43 @@ ffi_call_int (ffi_cif *cif, void (*fn)(v
  		dest = allocate_and_copy_struct_to_stack (&state, stack,
  							  ty->alignment, s,
  							  avalue[i]);
@@ -405,7 +398,7 @@ index 6544ac0..e2e94e6 100644
  		  }
  		else
  		  {
-@@ -813,10 +965,38 @@ ffi_call_int (ffi_cif *cif, void (*fn)(void), void *orig_rvalue,
+@@ -826,10 +978,38 @@ ffi_call_int (ffi_cif *cif, void (*fn)(v
  #endif
      }
  
@@ -444,7 +437,7 @@ index 6544ac0..e2e94e6 100644
  }
  
  void
-@@ -895,9 +1075,10 @@ ffi_prep_closure_loc (ffi_closure *closure,
+@@ -908,9 +1088,10 @@ ffi_prep_closure_loc (ffi_closure *closu
    /* Initialize the dynamic trampoline. */
    memcpy (tramp, trampoline, sizeof(trampoline));
  
@@ -456,11 +449,9 @@ index 6544ac0..e2e94e6 100644
  
    /* Also flush the cache for code mapping.  */
  # ifdef _WIN32
-diff --git src/aarch64/ffitarget.h src/aarch64/ffitarget.h
-index d5622e1..91585c3 100644
---- src/aarch64/ffitarget.h
+--- src/aarch64/ffitarget.h.orig
 +++ src/aarch64/ffitarget.h
-@@ -27,7 +27,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
+@@ -27,7 +27,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN
  #endif
  
  #ifndef LIBFFI_ASM
@@ -486,24 +477,21 @@ index d5622e1..91585c3 100644
  #define FFI_NATIVE_RAW_API 0
  
  #if defined (FFI_EXEC_TRAMPOLINE_TABLE) && FFI_EXEC_TRAMPOLINE_TABLE
-@@ -69,8 +78,12 @@ typedef enum ffi_abi
- #error "No trampoline table implementation"
+@@ -70,7 +79,11 @@ typedef enum ffi_abi
  #endif
  
-+#else
+ #else
 +#ifdef __CHERI_PURE_CAPABILITY__
 +#define FFI_TRAMPOLINE_SIZE 32
- #else
++#else
  #define FFI_TRAMPOLINE_SIZE 24
 +#endif
  #define FFI_TRAMPOLINE_CLOSURE_OFFSET FFI_TRAMPOLINE_SIZE
  #endif
  
-diff --git src/aarch64/internal.h src/aarch64/internal.h
-index b5d102b..e8c4df6 100644
---- src/aarch64/internal.h
+--- src/aarch64/internal.h.orig
 +++ src/aarch64/internal.h
-@@ -22,7 +22,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
+@@ -22,7 +22,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN
  #define AARCH64_RET_INT64	1
  #define AARCH64_RET_INT128	2
  
@@ -512,7 +500,7 @@ index b5d102b..e8c4df6 100644
  #define AARCH64_RET_UNUSED4	4
  #define AARCH64_RET_UNUSED5	5
  #define AARCH64_RET_UNUSED6	6
-@@ -64,8 +64,19 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
+@@ -64,8 +64,19 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN
  #define AARCH64_FLAG_VARARG	(1 << 8)
  
  #define N_X_ARG_REG		8
@@ -533,7 +521,7 @@ index b5d102b..e8c4df6 100644
  
  #if defined(FFI_EXEC_STATIC_TRAMP)
  /*
-@@ -82,6 +93,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
+@@ -82,6 +93,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN
  #ifdef LIBFFI_ASM
  
  #ifdef HAVE_PTRAUTH
@@ -543,7 +531,7 @@ index b5d102b..e8c4df6 100644
  #define SIGN_LR pacibsp
  #define SIGN_LR_WITH_REG(x) pacib lr, x
  #define AUTH_LR_AND_RET retab
-@@ -91,7 +105,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
+@@ -91,7 +105,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN
  #else
  #define SIGN_LR
  #define SIGN_LR_WITH_REG(x)
@@ -555,11 +543,9 @@ index b5d102b..e8c4df6 100644
  #define AUTH_LR_WITH_REG(x)
  #define BRANCH_AND_LINK_TO_REG blr
  #define BRANCH_TO_REG br
-diff --git src/aarch64/sysv.S src/aarch64/sysv.S
-index eeaf3f8..becc717 100644
---- src/aarch64/sysv.S
+--- src/aarch64/sysv.S.orig
 +++ src/aarch64/sysv.S
-@@ -46,40 +46,71 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
+@@ -52,17 +52,34 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN
  # define BE(X)	0
  #endif
  
@@ -587,9 +573,17 @@ index eeaf3f8..becc717 100644
  #define PTR_SIZE	4
  #else
  #define PTR_SIZE	8
-+#endif
+ #endif
 +#define GP_REG_SIZE	8
 +#endif
++#endif
+ 
+ #define BTI_C hint #34
+ #define BTI_J hint #36
+@@ -71,29 +88,45 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN
+  * declare this support disables it for the whole process.
+  */
+ # define GNU_PROPERTY_AARCH64_BTI (1 << 0)         /* Has Branch Target Identification */
 +
 +#ifdef __ARM_MORELLO_PURECAP_BENCHMARK_ABI
 +#define BR_PTR_REG(n)	INT_REG(n)
@@ -600,8 +594,8 @@ index eeaf3f8..becc717 100644
 +#define BR_PTR_REG(n)	PTR_REG(n)
 +#define RETURN							\
 +	ret
- #endif
- 
++endif
++
  	.text
  	.align 4
  
@@ -629,13 +623,14 @@ index eeaf3f8..becc717 100644
 +#endif
  	cfi_startproc
  CNAME(ffi_call_SYSV):
+ 	BTI_C
  	/* Sign the lr with x1 since that is where it will be stored */
 -	SIGN_LR_WITH_REG(x1)
 +	SIGN_LR_WITH_REG(PTR_REG(1))
  
  	/* Use a stack frame allocated by our caller.  */
  #if defined(HAVE_PTRAUTH) && defined(__APPLE__)
-@@ -87,25 +118,29 @@ CNAME(ffi_call_SYSV):
+@@ -101,25 +134,29 @@ CNAME(ffi_call_SYSV):
  	 * used to sign the lr.  In order to allow unwinding through this
  	 * function it is necessary to point the cfa at the signing register.
  	 */
@@ -652,7 +647,8 @@ index eeaf3f8..becc717 100644
 +	scvalue	csp, csp, x0	/* restore stack bounds on context */
  #else
 -	cfi_def_cfa(x1, 40);
--#endif
++	mov	sp, GP_REG(0)
+ #endif
 -	stp	x29, x30, [x1]
 -	mov	x9, sp
 -	str	x9, [x1, #32]
@@ -661,15 +657,12 @@ index eeaf3f8..becc717 100644
 -	cfi_def_cfa_register(x29)
 -	cfi_rel_offset (x29, 0)
 -	cfi_rel_offset (x30, 8)
--
--	mov	x9, x2			/* save fn */
--	mov	x8, x3			/* install structure return */
-+	mov	sp, GP_REG(0)
-+#endif
 +	cfi_def_cfa_register(GP_REG(29))
 +	cfi_rel_offset (GP_REG(29), 0)
 +	cfi_rel_offset (GP_REG(30), GP_REG_SIZE)
-+
+ 
+-	mov	x9, x2			/* save fn */
+-	mov	x8, x3			/* install structure return */
 +	mov	GP_REG(10), GP_REG(2)			/* save fn */
 +	mov	GP_REG(8), GP_REG(3)			/* install structure return */
  #ifdef FFI_GO_CLOSURES
@@ -681,7 +674,7 @@ index eeaf3f8..becc717 100644
  
  	/* Load the vector argument passing registers, if necessary.  */
  	tbz	w4, #AARCH64_FLAG_ARG_V_BIT, 1f
-@@ -116,30 +151,35 @@ CNAME(ffi_call_SYSV):
+@@ -130,30 +167,35 @@ CNAME(ffi_call_SYSV):
  1:
  	/* Load the core argument passing registers, including
  	   the structure return pointer.  */
@@ -723,98 +716,152 @@ index eeaf3f8..becc717 100644
 -	adr	x5, 0f
 +	adr	GP_REG(5), 0f
  	and	w4, w4, #AARCH64_RET_MASK
--	add	x5, x5, x4, lsl #3
+-	add	x5, x5, x4, lsl #4
 -	br	x5
-+	add	PTR_REG(5), PTR_REG(5), INT_REG(4), lsl #3
++	add	PTR_REG(5), PTR_REG(5), INT_REG(4), lsl #4
 +	br	INT_REG(5)
  
- 	/* Note that each table entry is 2 insns, and thus 8 bytes.
+ 	/* Note that each table entry is 4 insns, and thus 16 bytes.
  	   For integer data, note that we're storing into ffi_arg
-@@ -148,11 +188,11 @@ CNAME(ffi_call_SYSV):
- 	.align	4
- 0:	b 99f				/* VOID */
+@@ -165,17 +207,17 @@ CNAME(ffi_call_SYSV):
+ 	nop 
  	nop
--1:	str	x0, [x3]		/* INT64 */
-+1:	str	x0, [PTR_REG(3)]		/* INT64 */
+ 1:	BTI_J				/* INT64 */
+-	str	x0, [x3]
++	str	x0, [PTR_REG(3)]
  	b 99f
--2:	stp	x0, x1, [x3]		/* INT128 */
-+2:	stp	x0, x1, [PTR_REG(3)]		/* INT128 */
+ 	nop
+ 2:	BTI_J				/* INT128 */
+-	stp	x0, x1, [x3]
++	stp	x0, x1, [PTR_REG(3)]
  	b 99f
+ 	nop
 -3:	brk	#1000			/* UNUSED */
-+3:	str	PTR_REG(0), [PTR_REG(3)]	/* POINTER */
++3:	BTI_J				/* POINTER */
++	str	PTR_REG(0), [PTR_REG(3)]
  	b 99f
+ 	nop
+-	nop
  4:	brk	#1000			/* UNUSED */
  	b 99f
-@@ -162,66 +202,63 @@ CNAME(ffi_call_SYSV):
- 	b 99f
- 7:	brk	#1000			/* UNUSED */
- 	b 99f
--8:	st4	{ v0.s, v1.s, v2.s, v3.s }[0], [x3]	/* S4 */
-+8:	st4	{ v0.s, v1.s, v2.s, v3.s }[0], [PTR_REG(3)]	/* S4 */
- 	b 99f
--9:	st3	{ v0.s, v1.s, v2.s }[0], [x3]	/* S3 */
-+9:	st3	{ v0.s, v1.s, v2.s }[0], [PTR_REG(3)]	/* S3 */
- 	b 99f
--10:	stp	s0, s1, [x3]		/* S2 */
-+10:	stp	s0, s1, [PTR_REG(3)]		/* S2 */
- 	b 99f
--11:	str	s0, [x3]		/* S1 */
-+11:	str	s0, [PTR_REG(3)]		/* S1 */
- 	b 99f
--12:	st4	{ v0.d, v1.d, v2.d, v3.d }[0], [x3]	/* D4 */
-+12:	st4	{ v0.d, v1.d, v2.d, v3.d }[0], [PTR_REG(3)]	/* D4 */
- 	b 99f
--13:	st3	{ v0.d, v1.d, v2.d }[0], [x3]	/* D3 */
-+13:	st3	{ v0.d, v1.d, v2.d }[0], [PTR_REG(3)]	/* D3 */
- 	b 99f
--14:	stp	d0, d1, [x3]		/* D2 */
-+14:	stp	d0, d1, [PTR_REG(3)]		/* D2 */
- 	b 99f
--15:	str	d0, [x3]		/* D1 */
-+15:	str	d0, [PTR_REG(3)]		/* D1 */
- 	b 99f
--16:	str	q3, [x3, #48]		/* Q4 */
-+16:	str	q3, [PTR_REG(3), #48]		/* Q4 */
  	nop
--17:	str	q2, [x3, #32]		/* Q3 */
-+17:	str	q2, [PTR_REG(3), #32]		/* Q3 */
+@@ -193,56 +235,56 @@ CNAME(ffi_call_SYSV):
  	nop
--18:	stp	q0, q1, [x3]		/* Q2 */
-+18:	stp	q0, q1, [PTR_REG(3)]		/* Q2 */
+ 	nop
+ 8:	BTI_J				/* S4 */
+-	st4	{ v0.s, v1.s, v2.s, v3.s }[0], [x3]
++	st4	{ v0.s, v1.s, v2.s, v3.s }[0], [PTR_REG(3)]
  	b 99f
--19:	str	q0, [x3]		/* Q1 */
-+19:	str	q0, [PTR_REG(3)]		/* Q1 */
+ 	nop
+ 9:	BTI_J				/* S3 */
+-	st3	{ v0.s, v1.s, v2.s }[0], [x3]
++	st3	{ v0.s, v1.s, v2.s }[0], [PTR_REG(3)]
  	b 99f
- 20:	uxtb	w0, w0			/* UINT8 */
+ 	nop
+ 10:	BTI_J				/* S2 */
+-	stp	s0, s1, [x3]
++	stp	s0, s1, [PTR_REG(3)]
+ 	b 99f
+ 	nop
+-11:	BTI_J
+-	str	s0, [x3]		/* S1 */
++11:	BTI_J				/* S1 */
++	str	s0, [PTR_REG(3)]
+ 	b 99f
+ 	nop
+ 12:	BTI_J				/* D4 */
+-	st4	{ v0.d, v1.d, v2.d, v3.d }[0], [x3]
++	st4	{ v0.d, v1.d, v2.d, v3.d }[0], [PTR_REG(3)]
+ 	b 99f
+ 	nop
+ 13:	BTI_J				/* D3 */
+-	st3	{ v0.d, v1.d, v2.d }[0], [x3]
++	st3	{ v0.d, v1.d, v2.d }[0], [PTR_REG(3)]
+ 	b 99f
+ 	nop
+ 14:	BTI_J				/* D2 */
+-	stp	d0, d1, [x3]
++	stp	d0, d1, [PTR_REG(3)]
+ 	b 99f
+ 	nop
+ 15:	BTI_J				/* D1 */
+-	str	d0, [x3]
++	str	d0, [PTR_REG(3)]
+ 	b 99f
+ 	nop
+ 16:	BTI_J				/* Q4 */
+-	str	q3, [x3, #48]
++	str	q3, [PTR_REG(3), #48]
+ 	nop
+ 	nop
+ 17:	BTI_J				/* Q3 */
+-	str	q2, [x3, #32]
++	str	q2, [PTR_REG(3), #32]
+ 	nop
+ 	nop
+ 18:	BTI_J				/* Q2 */
+-	stp	q0, q1, [x3]
++	stp	q0, q1, [PTR_REG(3)]
+ 	b 99f
+ 	nop
+ 19:	BTI_J				/* Q1 */
+-	str	q0, [x3]
++	str	q0, [PTR_REG(3)]
+ 	b 99f
+ 	nop
+ 20:	BTI_J				/* UINT8 */
+ 	uxtb	w0, w0
 -	str	x0, [x3]
 +	str	x0, [PTR_REG(3)]
+ 	nop
  21:	b 99f				/* reserved */
  	nop
- 22:	uxth	w0, w0			/* UINT16 */
+@@ -250,7 +292,7 @@ CNAME(ffi_call_SYSV):
+ 	nop
+ 22:	BTI_J				/* UINT16 */
+ 	uxth	w0, w0
 -	str	x0, [x3]
 +	str	x0, [PTR_REG(3)]
+ 	nop
  23:	b 99f				/* reserved */
  	nop
- 24:	mov	w0, w0			/* UINT32 */
+@@ -258,7 +300,7 @@ CNAME(ffi_call_SYSV):
+ 	nop
+ 24:	BTI_J				/* UINT32 */
+ 	mov	w0, w0
 -	str	x0, [x3]
 +	str	x0, [PTR_REG(3)]
+ 	nop
  25:	b 99f				/* reserved */
  	nop
- 26:	sxtb	x0, w0			/* SINT8 */
+@@ -266,7 +308,7 @@ CNAME(ffi_call_SYSV):
+ 	nop
+ 26:	BTI_J				/* SINT8 */
+ 	sxtb	x0, w0
 -	str	x0, [x3]
 +	str	x0, [PTR_REG(3)]
+ 	nop
  27:	b 99f				/* reserved */
  	nop
- 28:	sxth	x0, w0			/* SINT16 */
+@@ -274,7 +316,7 @@ CNAME(ffi_call_SYSV):
+ 	nop
+ 28:	BTI_J				/* SINT16 */
+ 	sxth	x0, w0
 -	str	x0, [x3]
 +	str	x0, [PTR_REG(3)]
+ 	nop
  29:	b 99f				/* reserved */
  	nop
- 30:	sxtw	x0, w0			/* SINT32 */
+@@ -282,7 +324,7 @@ CNAME(ffi_call_SYSV):
+ 	nop
+ 30:	BTI_J				/* SINT32 */
+ 	sxtw	x0, w0
 -	str	x0, [x3]
 +	str	x0, [PTR_REG(3)]
+ 	nop
  31:	b 99f				/* reserved */
  	nop
+@@ -291,15 +333,12 @@ CNAME(ffi_call_SYSV):
  
  	/* Return now that result has been populated. */
  99:
@@ -832,7 +879,7 @@ index eeaf3f8..becc717 100644
  	.size CNAME(ffi_call_SYSV), .-CNAME(ffi_call_SYSV)
  #endif
  
-@@ -244,13 +281,18 @@ CNAME(ffi_call_SYSV):
+@@ -322,14 +361,19 @@ CNAME(ffi_call_SYSV):
  #define ffi_closure_SYSV_FS (8*2 + CALL_CONTEXT_SIZE + 64)
  
  	.align 4
@@ -843,6 +890,7 @@ index eeaf3f8..becc717 100644
 +#endif
  CNAME(ffi_closure_SYSV_V):
  	cfi_startproc
+ 	BTI_C
  	SIGN_LR
 -	stp     x29, x30, [sp, #-ffi_closure_SYSV_FS]!
 +	stp     GP_REG(29), GP_REG(30), [sp, #-ffi_closure_SYSV_FS]!
@@ -854,7 +902,7 @@ index eeaf3f8..becc717 100644
  
  	/* Save the argument passing vector registers.  */
  	stp     q0, q1, [sp, #16 + 0]
-@@ -260,58 +302,63 @@ CNAME(ffi_closure_SYSV_V):
+@@ -339,49 +383,54 @@ CNAME(ffi_closure_SYSV_V):
  	b	0f
  	cfi_endproc
  
@@ -873,6 +921,7 @@ index eeaf3f8..becc717 100644
 +#endif
  	cfi_startproc
  CNAME(ffi_closure_SYSV):
+ 	BTI_C
  	SIGN_LR
 -	stp     x29, x30, [sp, #-ffi_closure_SYSV_FS]!
 +	stp     GP_REG(29), GP_REG(30), [sp, #-ffi_closure_SYSV_FS]!
@@ -901,7 +950,7 @@ index eeaf3f8..becc717 100644
 +	ldp	PTR_REG(0), PTR_REG(1), [PTR_REG(17), #FFI_TRAMPOLINE_CLOSURE_OFFSET]	/* load cif, fn */
 +	ldr	PTR_REG(2), [PTR_REG(17), #FFI_TRAMPOLINE_CLOSURE_OFFSET+PTR_SIZE*2]	/* load user_data */
  #ifdef FFI_GO_CLOSURES
- .Ldo_closure:
+ L(do_closure):
  #endif
 -	add	x3, sp, #16				/* load context */
 -	add	x4, sp, #ffi_closure_SYSV_FS		/* load stack */
@@ -920,95 +969,147 @@ index eeaf3f8..becc717 100644
 -	adr	x1, 0f
 +	adr	PTR_REG(1), 0f
  	and	w0, w0, #AARCH64_RET_MASK
--	add	x1, x1, x0, lsl #3
+-	add	x1, x1, x0, lsl #4
 -	add	x3, sp, #16+CALL_CONTEXT_SIZE
 -	br	x1
-+	add	PTR_REG(1), PTR_REG(1), INT_REG(0), lsl #3
++	add	PTR_REG(1), PTR_REG(1), INT_REG(0), lsl #4
 +	add	PTR_REG(3), sp, #16+CALL_CONTEXT_SIZE
 +	br	BR_PTR_REG(1)
  
- 	/* Note that each table entry is 2 insns, and thus 8 bytes.  */
+ 	/* Note that each table entry is 4 insns, and thus 16 bytes.  */
  	.align	4
- 0:	b	99f			/* VOID */
+@@ -390,15 +439,15 @@ L(do_closure):
  	nop
--1:	ldr	x0, [x3]		/* INT64 */
-+1:	ldr	x0, [PTR_REG(3)]		/* INT64 */
+ 	nop
+ 1:	BTI_J				/* INT64 */
+-	ldr	x0, [x3]
++	ldr	x0, [PTR_REG(3)]
  	b	99f
--2:	ldp	x0, x1, [x3]		/* INT128 */
-+2:	ldp	x0, x1, [PTR_REG(3)]		/* INT128 */
+ 	nop
+ 2:	BTI_J				/* INT128 */
+-	ldp	x0, x1, [x3]
++	ldp	x0, x1, [PTR_REG(3)]
  	b	99f
+ 	nop
 -3:	brk	#1000			/* UNUSED */
-+3:	ldr	PTR_REG(0), [PTR_REG(3)]	/* POINTER */
+-	nop
++3:	BTI_J				/* POINTER */
++	ldr	PTR_REG(0), [PTR_REG(3)]
+ 	nop
  	nop
  4:	brk	#1000			/* UNUSED */
+@@ -418,55 +467,55 @@ L(do_closure):
  	nop
-@@ -321,93 +368,94 @@ CNAME(ffi_closure_SYSV):
  	nop
- 7:	brk	#1000			/* UNUSED */
+ 8:	BTI_J				/* S4 */
+-	ldr	s3, [x3, #12]
++	ldr	s3, [PTR_REG(3), #12]
  	nop
--8:	ldr	s3, [x3, #12]		/* S4 */
-+8:	ldr	s3, [PTR_REG(3), #12]		/* S4 */
  	nop
--9:	ldr	s2, [x3, #8]		/* S3 */
-+9:	ldr	s2, [PTR_REG(3), #8]		/* S3 */
+ 9:	BTI_J				/* S3 */
+-	ldr	s2, [x3, #8]
++	ldr	s2, [PTR_REG(3), #8]
  	nop
--10:	ldp	s0, s1, [x3]		/* S2 */
-+10:	ldp	s0, s1, [PTR_REG(3)]		/* S2 */
+ 	nop
+ 10:	BTI_J				/* S2 */
+-	ldp	s0, s1, [x3]
++	ldp	s0, s1, [PTR_REG(3)]
  	b	99f
--11:	ldr	s0, [x3]		/* S1 */
-+11:	ldr	s0, [PTR_REG(3)]		/* S1 */
- 	b	99f
--12:	ldr	d3, [x3, #24]		/* D4 */
-+12:	ldr	d3, [PTR_REG(3), #24]		/* D4 */
  	nop
--13:	ldr	d2, [x3, #16]		/* D3 */
-+13:	ldr	d2, [PTR_REG(3), #16]		/* D3 */
+ 11:	BTI_J				/* S1 */
+-	ldr	s0, [x3]
++	ldr	s0, [PTR_REG(3)]
+ 	b	99f
  	nop
--14:	ldp	d0, d1, [x3]		/* D2 */
-+14:	ldp	d0, d1, [PTR_REG(3)]		/* D2 */
- 	b	99f
--15:	ldr	d0, [x3]		/* D1 */
-+15:	ldr	d0, [PTR_REG(3)]		/* D1 */
- 	b	99f
--16:	ldr	q3, [x3, #48]		/* Q4 */
-+16:	ldr	q3, [PTR_REG(3), #48]		/* Q4 */
+ 12:	BTI_J				/* D4 */
+-	ldr	d3, [x3, #24]
++	ldr	d3, [PTR_REG(3), #24]
  	nop
--17:	ldr	q2, [x3, #32]		/* Q3 */
-+17:	ldr	q2, [PTR_REG(3), #32]		/* Q3 */
  	nop
--18:	ldp	q0, q1, [x3]		/* Q2 */
-+18:	ldp	q0, q1, [PTR_REG(3)]		/* Q2 */
+ 13:	BTI_J				/* D3 */
+-	ldr	d2, [x3, #16]
++	ldr	d2, [PTR_REG(3), #16]
+ 	nop
+ 	nop
+ 14:	BTI_J				/* D2 */
+-	ldp	d0, d1, [x3]
++	ldp	d0, d1, [PTR_REG(3)]
  	b	99f
--19:	ldr	q0, [x3]		/* Q1 */
-+19:	ldr	q0, [PTR_REG(3)]		/* Q1 */
+ 	nop
+ 15:	BTI_J				/* D1 */
+-	ldr	d0, [x3]
++	ldr	d0, [PTR_REG(3)]
  	b	99f
--20:	ldrb	w0, [x3, #BE(7)]	/* UINT8 */
-+20:	ldrb	w0, [PTR_REG(3), #BE(7)]	/* UINT8 */
+ 	nop
+ 16:	BTI_J				/* Q4 */
+-	ldr	q3, [x3, #48]
++	ldr	q3, [PTR_REG(3), #48]
+ 	nop
+ 	nop
+ 17:	BTI_J				/* Q3 */
+-	ldr	q2, [x3, #32]
++	ldr	q2, [PTR_REG(3), #32]
+ 	nop
+ 	nop
+ 18:	BTI_J				/* Q2 */
+-	ldp	q0, q1, [x3]
++	ldp	q0, q1, [PTR_REG(3)]
  	b	99f
+ 	nop
+ 19:	BTI_J				/* Q1 */
+-	ldr	q0, [x3]
++	ldr	q0, [PTR_REG(3)]
+ 	b	99f
+ 	nop
+ 20:	BTI_J				/* UINT8 */
+-	ldrb	w0, [x3, #BE(7)]
++	ldrb	w0, [PTR_REG(3), #BE(7)]
+ 	b	99f
+ 	nop
  21:	brk	#1000			/* reserved */
+@@ -474,7 +523,7 @@ L(do_closure):
  	nop
--22:	ldrh	w0, [x3, #BE(6)]	/* UINT16 */
-+22:	ldrh	w0, [PTR_REG(3), #BE(6)]	/* UINT16 */
+ 	nop
+ 22:	BTI_J				/* UINT16 */
+-	ldrh	w0, [x3, #BE(6)]
++	ldrh	w0, [PTR_REG(3), #BE(6)]
  	b	99f
+ 	nop
  23:	brk	#1000			/* reserved */
+@@ -482,7 +531,7 @@ L(do_closure):
  	nop
--24:	ldr	w0, [x3, #BE(4)]	/* UINT32 */
-+24:	ldr	w0, [PTR_REG(3), #BE(4)]	/* UINT32 */
+ 	nop
+ 24:	BTI_J				/* UINT32 */
+-	ldr	w0, [x3, #BE(4)]
++	ldr	w0, [PTR_REG(3), #BE(4)]
  	b	99f
+ 	nop
  25:	brk	#1000			/* reserved */
+@@ -490,7 +539,7 @@ L(do_closure):
  	nop
--26:	ldrsb	x0, [x3, #BE(7)]	/* SINT8 */
-+26:	ldrsb	x0, [PTR_REG(3), #BE(7)]	/* SINT8 */
+ 	nop
+ 26:	BTI_J				/* SINT8 */
+-	ldrsb	x0, [x3, #BE(7)]
++	ldrsb	x0, [PTR_REG(3), #BE(7)]
  	b	99f
+ 	nop
  27:	brk	#1000			/* reserved */
+@@ -498,7 +547,7 @@ L(do_closure):
  	nop
--28:	ldrsh	x0, [x3, #BE(6)]	/* SINT16 */
-+28:	ldrsh	x0, [PTR_REG(3), #BE(6)]	/* SINT16 */
+ 	nop
+ 28:	BTI_J				/* SINT16 */
+-	ldrsh	x0, [x3, #BE(6)]
++	ldrsh	x0, [PTR_REG(3), #BE(6)]
  	b	99f
- 29:	brk	#1000			/* reserved */
  	nop
--30:	ldrsw	x0, [x3, #BE(4)]	/* SINT32 */
-+30:	ldrsw	x0, [PTR_REG(3), #BE(4)]	/* SINT32 */
+ 29:	brk	#1000			/* reserved */
+@@ -506,50 +555,51 @@ L(do_closure):
+ 	nop
+ 	nop
+ 30:	BTI_J				/* SINT32 */
+-	ldrsw	x0, [x3, #BE(4)]
++	ldrsw	x0, [PTR_REG(3), #BE(4)]
+ 	nop
  	nop
  31:					/* reserved */
 -99:	ldp     x29, x30, [sp], #ffi_closure_SYSV_FS
@@ -1069,7 +1170,7 @@ index eeaf3f8..becc717 100644
  	.size	CNAME(ffi_closure_SYSV_alt), . - CNAME(ffi_closure_SYSV_alt)
  #endif
  
-@@ -431,22 +479,24 @@ CNAME(ffi_closure_SYSV_alt):
+@@ -573,22 +623,24 @@ CNAME(ffi_closure_SYSV_alt):
   * - restore the stack pointer to what it was when the trampoline was invoked.
   */
  	.align	AARCH64_TRAMP_MAP_SHIFT
@@ -1104,7 +1205,7 @@ index eeaf3f8..becc717 100644
  	.size	CNAME(trampoline_code_table), . - CNAME(trampoline_code_table)
  #endif
  	.align	AARCH64_TRAMP_MAP_SHIFT
-@@ -457,18 +507,20 @@ CNAME(trampoline_code_table):
+@@ -599,18 +651,20 @@ CNAME(trampoline_code_table):
  #ifdef __MACH__
  #include <mach/machine/vm_param.h>
      .align PAGE_MAX_SHIFT
@@ -1131,7 +1232,7 @@ index eeaf3f8..becc717 100644
      	.size	CNAME(ffi_closure_trampoline_table_page), . - CNAME(ffi_closure_trampoline_table_page)
      #endif
  #endif
-@@ -477,12 +529,17 @@ CNAME(ffi_closure_trampoline_table_page):
+@@ -619,13 +673,18 @@ CNAME(ffi_closure_trampoline_table_page)
  
  #ifdef FFI_GO_CLOSURES
  	.align 4
@@ -1142,6 +1243,7 @@ index eeaf3f8..becc717 100644
 +#endif
  CNAME(ffi_go_closure_SYSV_V):
  	cfi_startproc
+ 	BTI_C
 -	stp     x29, x30, [sp, #-ffi_closure_SYSV_FS]!
 +	stp     GP_REG(29), GP_REG(30), [sp, #-ffi_closure_SYSV_FS]!
  	cfi_adjust_cfa_offset (ffi_closure_SYSV_FS)
@@ -1152,7 +1254,7 @@ index eeaf3f8..becc717 100644
  
  	/* Save the argument passing vector registers.  */
  	stp     q0, q1, [sp, #16 + 0]
-@@ -492,39 +549,38 @@ CNAME(ffi_go_closure_SYSV_V):
+@@ -635,40 +694,39 @@ CNAME(ffi_go_closure_SYSV_V):
  	b	0f
  	cfi_endproc
  
@@ -1171,6 +1273,7 @@ index eeaf3f8..becc717 100644
 +#endif
  	cfi_startproc
  CNAME(ffi_go_closure_SYSV):
+ 	BTI_C
 -	stp     x29, x30, [sp, #-ffi_closure_SYSV_FS]!
 +	stp     GP_REG(29), GP_REG(30), [sp, #-ffi_closure_SYSV_FS]!
  	cfi_adjust_cfa_offset (ffi_closure_SYSV_FS)
@@ -1197,7 +1300,7 @@ index eeaf3f8..becc717 100644
 -	mov	x2, x18					/* load user_data */
 +	ldp	PTR_REG(0), PTR_REG(1), [PTR_REG(18), #PTR_SIZE]/* load cif, fn */
 +	mov	GP_REG(2), GP_REG(18)					/* load user_data */
- 	b	.Ldo_closure
+ 	b	L(do_closure)
  	cfi_endproc
  
 -	.globl	CNAME(ffi_go_closure_SYSV)
@@ -1207,9 +1310,7 @@ index eeaf3f8..becc717 100644
  	.size	CNAME(ffi_go_closure_SYSV), . - CNAME(ffi_go_closure_SYSV)
  #endif
  #endif /* FFI_GO_CLOSURES */
-diff --git src/dlmalloc.c src/dlmalloc.c
-index 6f4a5f6..28f3761 100644
---- src/dlmalloc.c
+--- src/dlmalloc.c.orig
 +++ src/dlmalloc.c
 @@ -1278,7 +1278,9 @@ extern void*     sbrk(ptrdiff_t);
  #define CHUNK_ALIGN_MASK    (MALLOC_ALIGNMENT - SIZE_T_ONE)
@@ -1221,7 +1322,7 @@ index 6f4a5f6..28f3761 100644
  
  /* the number of bytes to offset an address to align it */
  #define align_offset(A)\
-@@ -3947,10 +3949,7 @@ static void* internal_memalign(mstate m, size_t alignment, size_t bytes) {
+@@ -3947,10 +3949,7 @@ static void* internal_memalign(mstate m,
            We've allocated enough total room so that this is always
            possible.
          */
@@ -1233,9 +1334,7 @@ index 6f4a5f6..28f3761 100644
          char* pos = ((size_t)(br - (char*)(p)) >= MIN_CHUNK_SIZE)?
            br : br+alignment;
          mchunkptr newp = (mchunkptr)pos;
-diff --git src/riscv/ffi.c src/riscv/ffi.c
-index b455b12..f8c248e 100644
---- src/riscv/ffi.c
+--- src/riscv/ffi.c.orig
 +++ src/riscv/ffi.c
 @@ -50,9 +50,15 @@ typedef struct call_context
  #if ABI_FLEN
@@ -1271,7 +1370,7 @@ index b455b12..f8c248e 100644
  #define IS_INT(type) ((type) >= FFI_TYPE_UINT8 && (type) <= FFI_TYPE_SINT64)
  #else
  #define IS_INT(type) ((type) >= FFI_TYPE_UINT8 && (type) <= FFI_TYPE_SINT32)
-@@ -131,7 +137,7 @@ static float_struct_info struct_passed_as_elements(call_builder *cb, ffi_type *t
+@@ -131,7 +137,7 @@ static float_struct_info struct_passed_a
  
  /* allocates a single register, float register, or XLEN-sized stack slot to a datum */
  static void marshal_atom(call_builder *cb, int type, void *data) {
@@ -1280,7 +1379,7 @@ index b455b12..f8c248e 100644
      switch (type) {
          case FFI_TYPE_UINT8: value = *(uint8_t *)data; break;
          case FFI_TYPE_SINT8: value = *(int8_t *)data; break;
-@@ -140,11 +146,11 @@ static void marshal_atom(call_builder *cb, int type, void *data) {
+@@ -140,11 +146,11 @@ static void marshal_atom(call_builder *c
          /* 32-bit quantities are always sign-extended in the ABI */
          case FFI_TYPE_UINT32: value = *(int32_t *)data; break;
          case FFI_TYPE_SINT32: value = *(int32_t *)data; break;
@@ -1294,7 +1393,7 @@ index b455b12..f8c248e 100644
  
          /* float values may be recoded in an implementation-defined way
             by hardware conforming to 2.1 or earlier, so use asm to
-@@ -170,7 +176,7 @@ static void marshal_atom(call_builder *cb, int type, void *data) {
+@@ -170,7 +176,7 @@ static void marshal_atom(call_builder *c
  }
  
  static void unmarshal_atom(call_builder *cb, int type, void *data) {
@@ -1303,7 +1402,7 @@ index b455b12..f8c248e 100644
      switch (type) {
  #if ABI_FLEN >= 32
          case FFI_TYPE_FLOAT:
-@@ -191,17 +197,17 @@ static void unmarshal_atom(call_builder *cb, int type, void *data) {
+@@ -191,17 +197,17 @@ static void unmarshal_atom(call_builder
      }
  
      switch (type) {
@@ -1331,7 +1430,7 @@ index b455b12..f8c248e 100644
          default: FFI_ASSERT(0); break;
      }
  }
-@@ -242,7 +248,7 @@ static void marshal(call_builder *cb, ffi_type *type, int var, void *data) {
+@@ -242,7 +248,7 @@ static void marshal(call_builder *cb, ff
          if (type->alignment > __SIZEOF_POINTER__) {
              if (var)
                  cb->used_integer = FFI_ALIGN(cb->used_integer, 2);
@@ -1340,7 +1439,7 @@ index b455b12..f8c248e 100644
          }
  
          memcpy(realign, data, type->size);
-@@ -290,7 +296,7 @@ static void *unmarshal(call_builder *cb, ffi_type *type, int var, void *data) {
+@@ -290,7 +296,7 @@ static void *unmarshal(call_builder *cb,
          if (type->alignment > __SIZEOF_POINTER__) {
              if (var)
                  cb->used_integer = FFI_ALIGN(cb->used_integer, 2);
@@ -1349,7 +1448,7 @@ index b455b12..f8c248e 100644
          }
  
          if (type->size > 0)
-@@ -337,7 +343,7 @@ ffi_call_int (ffi_cif *cif, void (*fn) (void), void *rvalue, void **avalue,
+@@ -337,7 +343,7 @@ ffi_call_int (ffi_cif *cif, void (*fn) (
      /* this is a conservative estimate, assuming a complex return value and
         that all remaining arguments are long long / __int128 */
      size_t arg_bytes = cif->nargs <= 3 ? 0 :
@@ -1358,7 +1457,7 @@ index b455b12..f8c248e 100644
      /* Allocate space for copies of big structures.  */
      size_t struct_bytes = FFI_ALIGN (cif->bytes, STKALIGN);
      size_t rval_bytes = 0;
-@@ -348,12 +354,12 @@ ffi_call_int (ffi_cif *cif, void (*fn) (void), void *rvalue, void **avalue,
+@@ -348,12 +354,12 @@ ffi_call_int (ffi_cif *cif, void (*fn) (
      /* the assembly code will deallocate all stack data at lower addresses
         than the argument region, so we need to allocate the frame and the
         return value after the arguments in a single allocation */
@@ -1373,7 +1472,7 @@ index b455b12..f8c248e 100644
      } else {
          alloc_base = FFI_ALIGN(alloca(alloc_size + STKALIGN - 1), STKALIGN);
      }
-@@ -364,6 +370,11 @@ ffi_call_int (ffi_cif *cif, void (*fn) (void), void *rvalue, void **avalue,
+@@ -364,6 +370,11 @@ ffi_call_int (ffi_cif *cif, void (*fn) (
      call_builder cb;
      cb.used_float = cb.used_integer = 0;
      cb.aregs = (call_context*)(alloc_base + arg_bytes + rval_bytes + struct_bytes);
@@ -1385,7 +1484,7 @@ index b455b12..f8c248e 100644
      cb.used_stack = (void*)alloc_base;
      cb.struct_stack = (void *) (alloc_base + arg_bytes + rval_bytes);
  
-@@ -375,6 +386,13 @@ ffi_call_int (ffi_cif *cif, void (*fn) (void), void *rvalue, void **avalue,
+@@ -375,6 +386,13 @@ ffi_call_int (ffi_cif *cif, void (*fn) (
      for (i = 0; i < cif->nargs; i++)
          marshal(&cb, cif->arg_types[i], i >= cif->riscv_nfixedargs, avalue[i]);
  
@@ -1399,7 +1498,7 @@ index b455b12..f8c248e 100644
      ffi_call_asm ((void *) alloc_base, cb.aregs, fn, closure);
  
      cb.used_float = cb.used_integer = 0;
-@@ -434,10 +450,18 @@ ffi_status ffi_prep_closure_loc(ffi_closure *closure, ffi_cif *cif, void (*fun)(
+@@ -434,11 +452,19 @@ ffi_status ffi_prep_closure_loc(ffi_clos
         as the memory is readable it should work */
  
      tramp[0] = 0x00000317; /* auipc t1, 0 (i.e. t0 <- codeloc) */
@@ -1414,11 +1513,12 @@ index b455b12..f8c248e 100644
      tramp[1] = 0x01033383; /* ld t2, 16(t1) */
  #else
      tramp[1] = 0x01032383; /* lw t2, 16(t1) */
-+#endif
  #endif
++#endif
      tramp[2] = 0x00038067; /* jr t2 */
      tramp[3] = 0x00000013; /* nop */
-@@ -478,7 +502,7 @@ void FFI_HIDDEN
+     tramp[4] = fn;
+@@ -478,7 +504,7 @@ void FFI_HIDDEN
  ffi_closure_inner (ffi_cif *cif,
  		   void (*fun) (ffi_cif *, void *, void **, void *),
  		   void *user_data,
@@ -1427,9 +1527,7 @@ index b455b12..f8c248e 100644
  {
      void **avalue = alloca(cif->nargs * sizeof(void*));
      /* storage for arguments which will be copied by unmarshal().  We could
-diff --git src/riscv/sysv.S src/riscv/sysv.S
-index 522d0b0..3f7fee4 100644
---- src/riscv/sysv.S
+--- src/riscv/sysv.S.orig
 +++ src/riscv/sysv.S
 @@ -32,7 +32,22 @@
  
@@ -1537,16 +1635,8 @@ index 522d0b0..3f7fee4 100644
 -    FLARG   fa5, -FRAME_LEN+5*FLTS(fp)
 -    FLARG   fa6, -FRAME_LEN+6*FLTS(fp)
 -    FLARG   fa7, -FRAME_LEN+7*FLTS(fp)
-+    LOAD_FLOAT(fa0, -FRAME_LEN+0*FLTS, fp)
-+    LOAD_FLOAT(fa1, -FRAME_LEN+1*FLTS, fp)
-+    LOAD_FLOAT(fa2, -FRAME_LEN+2*FLTS, fp)
-+    LOAD_FLOAT(fa3, -FRAME_LEN+3*FLTS, fp)
-+    LOAD_FLOAT(fa4, -FRAME_LEN+4*FLTS, fp)
-+    LOAD_FLOAT(fa5, -FRAME_LEN+5*FLTS, fp)
-+    LOAD_FLOAT(fa6, -FRAME_LEN+6*FLTS, fp)
-+    LOAD_FLOAT(fa7, -FRAME_LEN+7*FLTS, fp)
- #endif
- 
+-#endif
+-
 -    LARG    a0, -FRAME_LEN+8*FLTS+0*PTRS(fp)
 -    LARG    a1, -FRAME_LEN+8*FLTS+1*PTRS(fp)
 -    LARG    a2, -FRAME_LEN+8*FLTS+2*PTRS(fp)
@@ -1555,6 +1645,16 @@ index 522d0b0..3f7fee4 100644
 -    LARG    a5, -FRAME_LEN+8*FLTS+5*PTRS(fp)
 -    LARG    a6, -FRAME_LEN+8*FLTS+6*PTRS(fp)
 -    LARG    a7, -FRAME_LEN+8*FLTS+7*PTRS(fp)
++    LOAD_FLOAT(fa0, -FRAME_LEN+0*FLTS, fp)
++    LOAD_FLOAT(fa1, -FRAME_LEN+1*FLTS, fp)
++    LOAD_FLOAT(fa2, -FRAME_LEN+2*FLTS, fp)
++    LOAD_FLOAT(fa3, -FRAME_LEN+3*FLTS, fp)
++    LOAD_FLOAT(fa4, -FRAME_LEN+4*FLTS, fp)
++    LOAD_FLOAT(fa5, -FRAME_LEN+5*FLTS, fp)
++    LOAD_FLOAT(fa6, -FRAME_LEN+6*FLTS, fp)
++    LOAD_FLOAT(fa7, -FRAME_LEN+7*FLTS, fp)
++#endif
++
 +    LOAD_ARG(a0, -FRAME_LEN+8*FLTS+0*PTRS, fp)
 +    LOAD_ARG(a1, -FRAME_LEN+8*FLTS+1*PTRS, fp)
 +    LOAD_ARG(a2, -FRAME_LEN+8*FLTS+2*PTRS, fp)
@@ -1630,16 +1730,8 @@ index 522d0b0..3f7fee4 100644
 -    FSARG   fa5, 5*FLTS(sp)
 -    FSARG   fa6, 6*FLTS(sp)
 -    FSARG   fa7, 7*FLTS(sp)
-+    STORE_FLOAT(fa0, 0*FLTS, sp)
-+    STORE_FLOAT(fa1, 1*FLTS, sp)
-+    STORE_FLOAT(fa2, 2*FLTS, sp)
-+    STORE_FLOAT(fa3, 3*FLTS, sp)
-+    STORE_FLOAT(fa4, 4*FLTS, sp)
-+    STORE_FLOAT(fa5, 5*FLTS, sp)
-+    STORE_FLOAT(fa6, 6*FLTS, sp)
-+    STORE_FLOAT(fa7, 7*FLTS, sp)
- #endif
- 
+-#endif
+-
 -    SARG    a0, 8*FLTS+0*PTRS(sp)
 -    SARG    a1, 8*FLTS+1*PTRS(sp)
 -    SARG    a2, 8*FLTS+2*PTRS(sp)
@@ -1648,6 +1740,22 @@ index 522d0b0..3f7fee4 100644
 -    SARG    a5, 8*FLTS+5*PTRS(sp)
 -    SARG    a6, 8*FLTS+6*PTRS(sp)
 -    SARG    a7, 8*FLTS+7*PTRS(sp)
++    STORE_FLOAT(fa0, 0*FLTS, sp)
++    STORE_FLOAT(fa1, 1*FLTS, sp)
++    STORE_FLOAT(fa2, 2*FLTS, sp)
++    STORE_FLOAT(fa3, 3*FLTS, sp)
++    STORE_FLOAT(fa4, 4*FLTS, sp)
++    STORE_FLOAT(fa5, 5*FLTS, sp)
++    STORE_FLOAT(fa6, 6*FLTS, sp)
++    STORE_FLOAT(fa7, 7*FLTS, sp)
++#endif
+ 
+-    /* enter C */
+-    LARG    a0, FFI_TRAMPOLINE_SIZE+0*PTRS(t1)
+-    LARG    a1, FFI_TRAMPOLINE_SIZE+1*PTRS(t1)
+-    LARG    a2, FFI_TRAMPOLINE_SIZE+2*PTRS(t1)
+-    addi    a3, sp, FRAME_LEN
+-    mv      a4, sp
 +    STORE_ARG(a0, 8*FLTS+0*PTRS, sp)
 +    STORE_ARG(a1, 8*FLTS+1*PTRS, sp)
 +    STORE_ARG(a2, 8*FLTS+2*PTRS, sp)
@@ -1657,13 +1765,7 @@ index 522d0b0..3f7fee4 100644
 +    STORE_ARG(a6, 8*FLTS+6*PTRS, sp)
 +    STORE_ARG(a7, 8*FLTS+7*PTRS, sp)
  
-     /* enter C */
--    LARG    a0, FFI_TRAMPOLINE_SIZE+0*PTRS(t1)
--    LARG    a1, FFI_TRAMPOLINE_SIZE+1*PTRS(t1)
--    LARG    a2, FFI_TRAMPOLINE_SIZE+2*PTRS(t1)
--    addi    a3, sp, FRAME_LEN
--    mv      a4, sp
--
++    /* enter C */
 +    LOAD_ARG(a0, FFI_TRAMPOLINE_SIZE+0*PTRS, t1)
 +    LOAD_ARG(a1, FFI_TRAMPOLINE_SIZE+1*PTRS, t1)
 +    LOAD_ARG(a2, FFI_TRAMPOLINE_SIZE+2*PTRS, t1)
@@ -1736,16 +1838,8 @@ index 522d0b0..3f7fee4 100644
 -    FSARG   fa5, 5*FLTS(sp)
 -    FSARG   fa6, 6*FLTS(sp)
 -    FSARG   fa7, 7*FLTS(sp)
-+    STORE_FLOAT(fa0, 0*FLTS, sp)
-+    STORE_FLOAT(fa1, 1*FLTS, sp)
-+    STORE_FLOAT(fa2, 2*FLTS, sp)
-+    STORE_FLOAT(fa3, 3*FLTS, sp)
-+    STORE_FLOAT(fa4, 4*FLTS, sp)
-+    STORE_FLOAT(fa5, 5*FLTS, sp)
-+    STORE_FLOAT(fa6, 6*FLTS, sp)
-+    STORE_FLOAT(fa7, 7*FLTS, sp)
- #endif
- 
+-#endif
+-
 -    SARG    a0, 8*FLTS+0*PTRS(sp)
 -    SARG    a1, 8*FLTS+1*PTRS(sp)
 -    SARG    a2, 8*FLTS+2*PTRS(sp)
@@ -1754,6 +1848,22 @@ index 522d0b0..3f7fee4 100644
 -    SARG    a5, 8*FLTS+5*PTRS(sp)
 -    SARG    a6, 8*FLTS+6*PTRS(sp)
 -    SARG    a7, 8*FLTS+7*PTRS(sp)
++    STORE_FLOAT(fa0, 0*FLTS, sp)
++    STORE_FLOAT(fa1, 1*FLTS, sp)
++    STORE_FLOAT(fa2, 2*FLTS, sp)
++    STORE_FLOAT(fa3, 3*FLTS, sp)
++    STORE_FLOAT(fa4, 4*FLTS, sp)
++    STORE_FLOAT(fa5, 5*FLTS, sp)
++    STORE_FLOAT(fa6, 6*FLTS, sp)
++    STORE_FLOAT(fa7, 7*FLTS, sp)
++#endif
+ 
+-    /* enter C */
+-    LARG    a0, 1*PTRS(t2)
+-    LARG    a1, 2*PTRS(t2)
+-    mv      a2, t2
+-    addi    a3, sp, FRAME_LEN
+-    mv      a4, sp
 +    STORE_ARG(a0, 8*FLTS+0*PTRS, sp)
 +    STORE_ARG(a1, 8*FLTS+1*PTRS, sp)
 +    STORE_ARG(a2, 8*FLTS+2*PTRS, sp)
@@ -1763,13 +1873,7 @@ index 522d0b0..3f7fee4 100644
 +    STORE_ARG(a6, 8*FLTS+6*PTRS, sp)
 +    STORE_ARG(a7, 8*FLTS+7*PTRS, sp)
  
-     /* enter C */
--    LARG    a0, 1*PTRS(t2)
--    LARG    a1, 2*PTRS(t2)
--    mv      a2, t2
--    addi    a3, sp, FRAME_LEN
--    mv      a4, sp
--
++    /* enter C */
 +    LOAD_ARG(a0, 1*PTRS, t2)
 +    LOAD_ARG(a1, 2*PTRS, t2)
 +    PTRMOVE(a2, t2)
@@ -1813,9 +1917,7 @@ index 522d0b0..3f7fee4 100644
 +#endif
      .cfi_endproc
      .size ffi_go_closure_asm, .-ffi_go_closure_asm
-diff --git testsuite/lib/target-libpath.exp testsuite/lib/target-libpath.exp
-index e33a656..abb2f10 100644
---- testsuite/lib/target-libpath.exp
+--- testsuite/lib/target-libpath.exp.orig
 +++ testsuite/lib/target-libpath.exp
 @@ -24,6 +24,9 @@ set orig_ld_libraryn32_path_saved 0
  set orig_ld_library64_path_saved 0
@@ -1894,7 +1996,7 @@ index e33a656..abb2f10 100644
    if { $orig_dyld_library_path_saved } {
      setenv DYLD_LIBRARY_PATH "$ld_library_path:$orig_dyld_library_path"
    } else {
-@@ -199,6 +241,9 @@ proc restore_ld_library_path_env_vars { } {
+@@ -199,6 +241,9 @@ proc restore_ld_library_path_env_vars {
    global orig_ld_library64_path_saved
    global orig_ld_library_path_32_saved
    global orig_ld_library_path_64_saved
@@ -1904,7 +2006,7 @@ index e33a656..abb2f10 100644
    global orig_dyld_library_path_saved
    global orig_path_saved
    global orig_ld_library_path
-@@ -208,6 +253,9 @@ proc restore_ld_library_path_env_vars { } {
+@@ -208,6 +253,9 @@ proc restore_ld_library_path_env_vars {
    global orig_ld_library64_path
    global orig_ld_library_path_32
    global orig_ld_library_path_64
@@ -1914,7 +2016,7 @@ index e33a656..abb2f10 100644
    global orig_dyld_library_path
    global orig_path
  
-@@ -250,6 +298,21 @@ proc restore_ld_library_path_env_vars { } {
+@@ -250,6 +298,21 @@ proc restore_ld_library_path_env_vars {
    } elseif [info exists env(LD_LIBRARY_PATH_64)] {
      unsetenv LD_LIBRARY_PATH_64
    }
@@ -1936,9 +2038,7 @@ index e33a656..abb2f10 100644
    if { $orig_dyld_library_path_saved } {
      setenv DYLD_LIBRARY_PATH "$orig_dyld_library_path"
    } elseif [info exists env(DYLD_LIBRARY_PATH)] {
-diff --git testsuite/libffi.bhaible/test-call.c testsuite/libffi.bhaible/test-call.c
-index 4887e00..4d8b4f0 100644
---- testsuite/libffi.bhaible/test-call.c
+--- testsuite/libffi.bhaible/test-call.c.orig
 +++ testsuite/libffi.bhaible/test-call.c
 @@ -456,7 +456,11 @@ void
  
@@ -1964,11 +2064,9 @@ index 4887e00..4d8b4f0 100644
    fflush(out);
  #endif  
    return;
-diff --git testsuite/libffi.bhaible/testcases.c testsuite/libffi.bhaible/testcases.c
-index 23a6f46..48525e5 100644
---- testsuite/libffi.bhaible/testcases.c
+--- testsuite/libffi.bhaible/testcases.c.orig
 +++ testsuite/libffi.bhaible/testcases.c
-@@ -269,7 +269,11 @@ double ABI_ATTR d_d16 (double a, double b, double c, double d, double e, double
+@@ -269,7 +269,11 @@ double ABI_ATTR d_d16 (double a, double
  void* ABI_ATTR vp_vpdpcpsp (void* a, double* b, char* c, Int* d)
  {
    void* ret = (char*)b + 1;
