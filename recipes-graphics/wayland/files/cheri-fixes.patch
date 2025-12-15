@@ -1,0 +1,13 @@
+Upstream-Status: Inappropriate [CHERI specific]
+
+--- wayland-1.22.0/tests/test-runner.c.orig	2023-04-04 08:58:31.000000000 +0100
++++ wayland-1.22.0/tests/test-runner.c	2025-11-06 15:32:35.534047624 +0000
+@@ -280,7 +280,7 @@
+ 			_exit(1);
+ 		if (!waitpid(-1, NULL, 0))
+ 			_exit(1);
+-		ptrace(PTRACE_CONT, NULL, NULL);
++		ptrace(PTRACE_CONT, ppid, NULL, NULL);
+ 		ptrace(PTRACE_DETACH, ppid, NULL, NULL);
+ 		_exit(0);
+ 	} else {
