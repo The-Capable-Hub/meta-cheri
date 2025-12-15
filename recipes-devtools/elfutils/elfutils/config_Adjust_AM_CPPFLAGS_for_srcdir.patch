@@ -1,0 +1,95 @@
+From 76bd5f6bea9bbeed68b1434455e4904d0fc22b04 Mon Sep 17 00:00:00 2001
+From: Mark Wielaard <mark@klomp.org>
+Date: Thu, 26 Jun 2025 15:06:07 +0200
+Subject: [PATCH] config: Adjust AM_CPPFLAGS for srcdir and .. path includes
+
+When building with clang and libc++ some standard headers might try
+including <stack> even when no source file requests such include
+directly. When building with srcdir == builddir this might clash in
+the src dir since we then build a stack binary there and the src dir
+also has srcfiles.cxx which might include some standard c++ headers.
+
+Work around this by removing -I.. from AM_CPPFLAGS and replacing it
+with -I(abs_top_builddir) where the <config.h> file can be found. And
+use -iquote for srcdir so it doesn't get included in the search path
+for the system <header> includes (only for "header" includes).
+
+Note that DEFAULT_INCLUDES might add . and srcdir back.  So
+DEFAULT_INCLUDES is disabled explicitly in src/Makefile.am (where the
+stack binary is build). We could also use the nostdinc automake option
+to completely suppress that, but that needs more auditing of various
+installed vs not-installed header files.
+
+	* config/eu.am (AM_CPPFLAGS): Use -iquote for $(srcdir) and
+        replace -I.. with -I$(abs_top_builddir).
+	* libdw/libdwP.h: Include "libdw.h" and "dwarf.h" instead of
+        the system headers <libdw.h> and <dwarf.h>.
+
+https://sourceware.org/bugzilla/show_bug.cgi?id=33103
+
+Signed-off-by: Mark Wielaard <mark@klomp.org>
+
+Upstream-Status: Backport [76bd5f6bea9bbeed68b1434455e4904d0fc22b04]
+
+---
+ config/eu.am   | 21 +++++++++++++++++++--
+ libdw/libdwP.h |  4 ++--
+ 2 files changed, 21 insertions(+), 4 deletions(-)
+
+diff --git a/config/eu.am b/config/eu.am
+index 5157a34e..0f4aa9f0 100644
+--- a/config/eu.am
++++ b/config/eu.am
+@@ -1,7 +1,7 @@
+ ## Common automake fragments for elfutils subdirectory makefiles.
+ ##
+ ## Copyright (C) 2010, 2014, 2016 Red Hat, Inc.
+-## Copyright (C) 2023, Mark J. Wielaard <mark@klomp.org>
++## Copyright (C) 2023, 2025 Mark J. Wielaard <mark@klomp.org>
+ ##
+ ## This file is part of elfutils.
+ ##
+@@ -31,7 +31,24 @@
+ ##
+ 
+ DEFS = -D_GNU_SOURCE -DHAVE_CONFIG_H -DLOCALEDIR='"${localedir}"'
+-AM_CPPFLAGS = -iquote . -I$(srcdir) -I$(top_srcdir)/lib -I..
++
++# -iquote dirs are just for "header" includes, -I for both <header>
++# and "header" includes. We don't want system <header> includes to
++# search . and srcdir. We do want the headers under lib and the abs
++# top build dir (for config.h).
++#
++# This is mainly to prevent things like #include <stack> to
++# accidentially import the stack binary instead of the standard C++
++# header file (which apparently clang plus libc++ do indirectly).
++# https://bugs.gentoo.org/925241
++# https://sourceware.org/bugzilla/show_bug.cgi?id=33103
++#
++# Note that DEFAULT_INCLUDES might add . and srcdir back.  So
++# DEFAULT_INCLUDES is disabled explicitly in src/Makefile.am (where
++# the stack binary is build). We could also use the nostdinc automake
++# option to completely suppress that, but that needs more auditing of
++# various installed vs not-installed header files.
++AM_CPPFLAGS = -iquote. -iquote$(srcdir) -I$(top_srcdir)/lib -I$(abs_top_builddir)
+ 
+ # Drop the 'u' flag that automake adds by default. It is incompatible
+ # with deterministic archives.
+diff --git a/libdw/libdwP.h b/libdw/libdwP.h
+index 25d53d31..b77db142 100644
+--- a/libdw/libdwP.h
++++ b/libdw/libdwP.h
+@@ -32,8 +32,8 @@
+ #include <stdbool.h>
+ #include <pthread.h>
+ 
+-#include <libdw.h>
+-#include <dwarf.h>
++#include "libdw.h"
++#include "dwarf.h"
+ 
+ 
+ /* Known location expressions already decoded.  */
+-- 
+2.43.7
+

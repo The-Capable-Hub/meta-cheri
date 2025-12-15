@@ -1,0 +1,48 @@
+From b426c4db31e7c80d4262abdd845d2ece0c9a841c Mon Sep 17 00:00:00 2001
+From: Alfred Wingate <parona@protonmail.com>
+Date: Wed, 14 Aug 2024 12:14:38 -0400
+Subject: [PATCH] Avoid overriding libcxx system header
+
+Replace -I with -iquote to avoid overriding stack system header from libcxx-18
+with the previously built stack binary. Override DEFAULT_INLCUDES because m4
+adds -I. by default.
+
+https://bugs.gentoo.org/925241
+
+Signed-off-by: Aaron Merey <amerey@redhat.com>
+
+Upstream-Status: Backport [b426c4db31e7c80d4262abdd845d2ece0c9a841c]
+---
+ config/eu.am    | 2 +-
+ src/Makefile.am | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/config/eu.am b/config/eu.am
+index e6c241f9..0b7dab5b 100644
+--- a/config/eu.am
++++ b/config/eu.am
+@@ -31,7 +31,7 @@
+ ##
+ 
+ DEFS = -D_GNU_SOURCE -DHAVE_CONFIG_H -DLOCALEDIR='"${localedir}"'
+-AM_CPPFLAGS = -I. -I$(srcdir) -I$(top_srcdir)/lib -I..
++AM_CPPFLAGS = -iquote . -I$(srcdir) -I$(top_srcdir)/lib -I..
+ 
+ # Drop the 'u' flag that automake adds by default. It is incompatible
+ # with deterministic archives.
+diff --git a/src/Makefile.am b/src/Makefile.am
+index 1d592d4d..ffa3d252 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -19,6 +19,8 @@
+ include $(top_srcdir)/config/eu.am
+ DEFS += $(YYDEBUG) -DDEBUGPRED=@DEBUGPRED@ \
+ 	-DSRCDIR=\"$(shell cd $(srcdir);pwd)\" -DOBJDIR=\"$(shell pwd)\"
++
++DEFAULT_INCLUDES =
+ AM_CPPFLAGS += -I$(srcdir)/../libelf -I$(srcdir)/../libebl \
+ 	    -I$(srcdir)/../libdw -I$(srcdir)/../libdwelf \
+ 	    -I$(srcdir)/../libdwfl -I$(srcdir)/../libasm -I../debuginfod
+-- 
+2.43.7
+
