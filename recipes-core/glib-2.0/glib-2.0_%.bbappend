@@ -1,5 +1,5 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/glib-2.0:"
-SRC_URI:append:class-target = " \
+SRC_URI:append = " \
     file://cheribsd.patch;striplevel=0 \
     file://cheri-fixes.patch \
 "
