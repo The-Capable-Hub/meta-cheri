@@ -12,11 +12,6 @@ PACKAGECONFIG:append:pn-compiler-rt = " crt"
 # We need to force the use of LLVM lld for Cheri builds
 DISTRO_FEATURES:append = " ld-is-lld"
 
-SYSVINIT_SCRIPTS:remove = "modutils-initscripts"
-VIRTUAL-RUNTIME_init_manager = "busybox"
-VIRTUAL-RUNTIME_dev_manager = "eudev"
-VIRTUAL-RUNTIME_base-utils-syslog = ""
-
 # Override the toolchain specified in nonclangable.
 TOOLCHAIN:pn-libssp-nonshared = "clang"
 
