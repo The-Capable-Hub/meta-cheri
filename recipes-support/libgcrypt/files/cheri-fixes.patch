@@ -1,0 +1,119 @@
+Upstream-Status: Inappropriate [CHERI specific]
+
+Index: libgcrypt-1.10.3/src/g10lib.h
+===================================================================
+--- libgcrypt-1.10.3.orig/src/g10lib.h
++++ libgcrypt-1.10.3/src/g10lib.h
+@@ -365,10 +365,19 @@ void __gcry_burn_stack (unsigned int byt
+    wiping is inlined.  Dead store elimination of inlined memset is
+    avoided here by using assembly block after memset.  For non-constant
+    length buffers, memory is wiped through _gcry_fast_wipememory.  */
++#ifndef ASM_CONSTRAINT_PTR
++#ifdef __CHERI_PURE_CAPABILITY__
++#define ASM_CONSTRAINT_PTR "C"
++#else
++#define ASM_CONSTRAINT_PTR "r"
++#endif
++#define ASM_CONSTRAINT_ULONG "r"
++#endif
++
+ #ifdef HAVE_GCC_ASM_VOLATILE_MEMORY
+ #define fast_wipememory2_inline(_ptr,_set,_len) do { \
+ 	      memset((_ptr), (_set), (_len)); \
+-	      asm volatile ("\n" :: "r" (_ptr) : "memory"); \
++	      asm volatile ("\n" :: ASM_CONSTRAINT_PTR (_ptr) : "memory"); \
+ 	    } while(0)
+ #else
+ #define fast_wipememory2_inline(_ptr,_set,_len) \
+Index: libgcrypt-1.10.3/src/const-time.h
+===================================================================
+--- libgcrypt-1.10.3.orig/src/const-time.h
++++ libgcrypt-1.10.3/src/const-time.h
+@@ -82,20 +82,29 @@ unsigned int _gcry_ct_not_memequal (cons
+    any structure.  */
+ unsigned int _gcry_ct_memequal (const void *b1, const void *b2, size_t len);
+ 
++#ifndef ASM_CONSTRAINT_PTR
++#ifdef __CHERI_PURE_CAPABILITY__
++#define ASM_CONSTRAINT_PTR "C"
++#else
++#define ASM_CONSTRAINT_PTR "r"
++#endif
++#define ASM_CONSTRAINT_ULONG "r"
++#endif
++
+ /*
+  * Return all bits set if A is 1 and return 0 otherwise.
+  */
+ #ifdef HAVE_GCC_ASM_VOLATILE_MEMORY
+-#  define DEFINE_CT_TYPE_GEN_MASK(name, type) \
++#  define DEFINE_CT_TYPE_GEN_MASK(name, type, constraint) \
+      static inline type \
+      ct_##name##_gen_mask (unsigned long op_enable) \
+      { \
+        type mask = -(type)op_enable; \
+-       asm volatile ("\n" : "+r" (mask) :: "memory"); \
++       asm volatile ("\n" : "+" constraint (mask) :: "memory"); \
+        return mask; \
+      }
+ #else
+-#  define DEFINE_CT_TYPE_GEN_MASK(name, type) \
++#  define DEFINE_CT_TYPE_GEN_MASK(name, type, constraint) \
+      static inline type \
+      ct_##name##_gen_mask (unsigned long op_enable) \
+      { \
+@@ -103,23 +112,23 @@ unsigned int _gcry_ct_memequal (const vo
+        return mask; \
+      }
+ #endif
+-DEFINE_CT_TYPE_GEN_MASK(uintptr, uintptr_t)
+-DEFINE_CT_TYPE_GEN_MASK(ulong, unsigned long)
++DEFINE_CT_TYPE_GEN_MASK(uintptr, uintptr_t, ASM_CONSTRAINT_PTR)
++DEFINE_CT_TYPE_GEN_MASK(ulong, unsigned long, ASM_CONSTRAINT_ULONG)
+ 
+ /*
+  * Return all bits set if A is 0 and return 1 otherwise.
+  */
+ #ifdef HAVE_GCC_ASM_VOLATILE_MEMORY
+-#  define DEFINE_CT_TYPE_GEN_INV_MASK(name, type) \
++#  define DEFINE_CT_TYPE_GEN_INV_MASK(name, type, constraint)	\
+      static inline type \
+      ct_##name##_gen_inv_mask (unsigned long op_enable) \
+      { \
+        type mask = (type)op_enable - (type)1; \
+-       asm volatile ("\n" : "+r" (mask) :: "memory"); \
++       asm volatile ("\n" : "+" constraint (mask) :: "memory"); \
+        return mask; \
+      }
+ #else
+-#  define DEFINE_CT_TYPE_GEN_INV_MASK(name, type) \
++#  define DEFINE_CT_TYPE_GEN_INV_MASK(name, type, constraint) \
+      static inline type \
+      ct_##name##_gen_inv_mask (unsigned long op_enable) \
+      { \
+@@ -127,8 +136,8 @@ DEFINE_CT_TYPE_GEN_MASK(ulong, unsigned
+        return mask; \
+      }
+ #endif
+-DEFINE_CT_TYPE_GEN_INV_MASK(uintptr, uintptr_t)
+-DEFINE_CT_TYPE_GEN_INV_MASK(ulong, unsigned long)
++DEFINE_CT_TYPE_GEN_INV_MASK(uintptr, uintptr_t, ASM_CONSTRAINT_PTR)
++DEFINE_CT_TYPE_GEN_INV_MASK(ulong, unsigned long, ASM_CONSTRAINT_ULONG)
+ 
+ /*
+  *  Return A when OP_ENABLED=1
+Index: libgcrypt-1.10.3/mpi/mpi-internal.h
+===================================================================
+--- libgcrypt-1.10.3.orig/mpi/mpi-internal.h
++++ libgcrypt-1.10.3/mpi/mpi-internal.h
+@@ -268,8 +268,8 @@ mpi_limb_t _gcry_mpih_rshift( mpi_ptr_t
+ #define mpih_abs_cond(w,u,s,o) _gcry_mpih_abs_cond ((w),(u),(s),(o))
+ #define mpih_mod(v,vs,u,us) _gcry_mpih_mod ((v),(vs),(u),(us))
+ 
+-DEFINE_CT_TYPE_GEN_MASK(limb, mpi_limb_t)
+-DEFINE_CT_TYPE_GEN_INV_MASK(limb, mpi_limb_t)
++DEFINE_CT_TYPE_GEN_MASK(limb, mpi_limb_t, ASM_CONSTRAINT_ULONG)
++DEFINE_CT_TYPE_GEN_INV_MASK(limb, mpi_limb_t, ASM_CONSTRAINT_ULONG)
+ 
+ static inline int
+ mpih_limb_is_zero (mpi_limb_t a)
