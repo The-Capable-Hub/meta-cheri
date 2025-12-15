@@ -1,0 +1,22 @@
+The code defines a struct JsonObjectIter which is a generic struct
+visible to the user of the library. The two concrete structs used by
+the library need to be the same size, so there is less padding needed
+in JsonObjectIterReal.
+
+Upstream-Status: Inappropriate [CHERI specific]
+
+--- json-glib-1.8.0/json-glib/json-types-private.h.orig	2023-09-16 12:45:21.000000000 +0100
++++ json-glib-1.8.0/json-glib/json-types-private.h	2025-11-11 17:19:18.393105270 +0000
+@@ -114,7 +114,12 @@
+ {
+   JsonObject *object;  /* unowned */
+   GHashTableIter members_iter;  /* iterator over @members */
++#ifdef __CHERI_PURE_CAPABILITY__
++  /* GHashTableIter has a pointer instead of an int */
++  gpointer padding[1];  /* for future expansion */
++#else
+   gpointer padding[2];  /* for future expansion */
++#endif
+ } JsonObjectIterReal;
+ 
+ G_STATIC_ASSERT (sizeof (JsonObjectIterReal) == sizeof (JsonObjectIter));
