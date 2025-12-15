@@ -1,0 +1,27 @@
+Upstream-Status: Inappropriate [CHERI specific]
+
+--- a/src/util/ralloc.c.orig	2025-11-06 18:00:18.036689035 +0000
++++ b/src/util/ralloc.c	2025-11-10 10:03:01.406335083 +0000
+@@ -35,6 +35,10 @@
+ 
+ #include "ralloc.h"
+ 
++#ifdef __CHERI_PURE_CAPABILITY__
++#include <cheri.h>
++#endif
++
+ #define CANARY 0x5A1106
+ 
+ #if defined(__LP64__) || defined(_WIN64) || defined(__CHERI_PURE_CAPABILITY__)
+@@ -171,7 +175,11 @@
+       return NULL;
+ 
+    /* Update parent and sibling's links to the reallocated node. */
++#ifdef __CHERI_PURE_CAPABILITY__
++   if (!cheri_equal_exact(info, old) && info->parent != NULL) {
++#else
+    if (info != old && info->parent != NULL) {
++#endif
+       if (info->parent->child == old)
+ 	 info->parent->child = info;
+ 

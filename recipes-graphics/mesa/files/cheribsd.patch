@@ -1,0 +1,472 @@
+Downloaded from
+https://github.com/CTSRD-CHERI/cheribsd-ports/blob/main/graphics/mesa-dri/files/cheribsd.patch /files/cheribsd.patch
+
+Refreshed from 22.3.7 to 24.0.7.
+
+Upstream-Status: Inappropriate [CHERI specific]
+
+Index: README.rst
+===================================================================
+--- README.rst.orig
++++ README.rst
+@@ -1,59 +1,15 @@
+-`Mesa <https://mesa3d.org>`_ - The 3D Graphics Library
+-======================================================
++CHERI Purecap Mesa (without window system support)
+ 
+-
+-Source
+-------
+-
+-This repository lives at https://gitlab.freedesktop.org/mesa/mesa.
+-Other repositories are likely forks, and code found there is not supported.
+-
+-
+-Build & install
+----------------
+-
+-You can find more information in our documentation (`docs/install.rst
+-<https://mesa3d.org/install.html>`_), but the recommended way is to use
+-Meson (`docs/meson.rst <https://mesa3d.org/meson.html>`_):
++Build for Morello (Panfrost)
+ 
+ .. code-block:: sh
+ 
+-  $ mkdir build
+-  $ cd build
+-  $ meson ..
+-  $ sudo ninja install
+-
+-
+-Support
+--------
+-
+-Many Mesa devs hang on IRC; if you're not sure which channel is
+-appropriate, you should ask your question on `OFTC's #dri-devel
+-<irc://irc.oftc.net/dri-devel>`_, someone will redirect you if
+-necessary.
+-Remember that not everyone is in the same timezone as you, so it might
+-take a while before someone qualified sees your question.
+-To figure out who you're talking to, or which nick to ping for your
+-question, check out `Who's Who on IRC
+-<https://dri.freedesktop.org/wiki/WhosWho/>`_.
+-
+-The next best option is to ask your question in an email to the
+-mailing lists: `mesa-dev\@lists.freedesktop.org
+-<https://lists.freedesktop.org/mailman/listinfo/mesa-dev>`_
+-
+-
+-Bug reports
+------------
+-
+-If you think something isn't working properly, please file a bug report
+-(`docs/bugs.rst <https://mesa3d.org/bugs.html>`_).
+-
+-
+-Contributing
+-------------
+-
+-Contributions are welcome, and step-by-step instructions can be found in our
+-documentation (`docs/submittingpatches.rst
+-<https://mesa3d.org/submittingpatches.html>`_).
+-
+-Note that Mesa uses gitlab for patches submission, review and discussions.
++ $ mkdir build
++ $ cd build
++ $ meson .. -Dcpp_rtti=false -Dllvm=disabled -Dgallium-xvmc=enabled -Ddri-drivers= -Dgallium-drivers=panfrost,swrast \
++   -Dvulkan-drivers= -Dplatforms= -Dgallium-xa=disabled -Dgallium-vdpau=disabled -Dgallium-va=disabled -Dgles1=enabled \
++   -Dgles2=enabled -Dglx=disabled -Dosmesa=false -Dtools= -Ddri-drivers= -Dglvnd=false -Dgbm=enabled -Degl=enabled \
++   -Dgallium-nine=false -Dgallium-xa=disabled -Dgallium-va=disabled -Dgallium-omx=disabled -Dgallium-xvmc=disabled \
++   -Dgallium-vdpau=disabled
++ $ ninja
++ $ sudo ninja install
+Index: include/EGL/eglplatform.h
+===================================================================
+--- include/EGL/eglplatform.h.orig
++++ include/EGL/eglplatform.h
+@@ -116,8 +116,13 @@ typedef intptr_t EGLNativeWindowType;
+ #include <X11/Xutil.h>
+ 
+ typedef Display *EGLNativeDisplayType;
++#ifdef __CHERI_PURE_CAPABILITY__
++typedef khronos_uintptr_t EGLNativePixmapType;
++typedef khronos_uintptr_t EGLNativeWindowType;
++#else
+ typedef Pixmap   EGLNativePixmapType;
+ typedef Window   EGLNativeWindowType;
++#endif
+ 
+ #elif defined(__unix__)
+ 
+Index: src/compiler/glsl_types.c
+===================================================================
+--- src/compiler/glsl_types.c.orig
++++ src/compiler/glsl_types.c
+@@ -1513,12 +1513,12 @@ static unsigned
+ record_key_hash(const void *a)
+ {
+    const glsl_type *const key = (glsl_type *) a;
+-   uintptr_t hash = key->length;
++   size_t hash = key->length;
+    unsigned retval;
+ 
+    for (unsigned i = 0; i < key->length; i++) {
+       /* casting pointer to uintptr_t */
+-      hash = (hash * 13 ) + (uintptr_t) key->fields.structure[i].type;
++      hash = (hash * 13 ) + (size_t) key->fields.structure[i].type;
+    }
+ 
+    if (sizeof(hash) == 8)
+Index: src/compiler/nir/nir_opt_copy_prop_vars.c
+===================================================================
+--- src/compiler/nir/nir_opt_copy_prop_vars.c.orig
++++ src/compiler/nir/nir_opt_copy_prop_vars.c
+@@ -236,13 +236,13 @@ gather_vars_written(struct copy_prop_var
+             /* Destination in all of store_deref, copy_deref and the atomics is src[0]. */
+             nir_deref_instr *dst = nir_src_as_deref(intrin->src[0]);
+ 
+-            uintptr_t mask = intrin->intrinsic == nir_intrinsic_store_deref ? nir_intrinsic_write_mask(intrin) : (1 << glsl_get_vector_elements(dst->type)) - 1;
++            size_t mask = intrin->intrinsic == nir_intrinsic_store_deref ? nir_intrinsic_write_mask(intrin) : (1 << glsl_get_vector_elements(dst->type)) - 1;
+ 
+             struct hash_entry *ht_entry = _mesa_hash_table_search(written->derefs, dst);
+             if (ht_entry)
+                ht_entry->data = (void *)(mask | (uintptr_t)ht_entry->data);
+             else
+-               _mesa_hash_table_insert(written->derefs, dst, (void *)mask);
++               _mesa_hash_table_insert(written->derefs, dst, (void *)(uintptr_t)mask);
+ 
+             break;
+          }
+@@ -294,8 +294,8 @@ gather_vars_written(struct copy_prop_var
+                _mesa_hash_table_search_pre_hashed(written->derefs, new_entry->hash,
+                                                   new_entry->key);
+             if (old_entry) {
+-               nir_component_mask_t merged = (uintptr_t)new_entry->data |
+-                                             (uintptr_t)old_entry->data;
++               nir_component_mask_t merged = (size_t)new_entry->data |
++                                             (size_t)old_entry->data;
+                old_entry->data = (void *)((uintptr_t)merged);
+             } else {
+                _mesa_hash_table_insert_pre_hashed(written->derefs, new_entry->hash,
+Index: src/egl/main/eglapi.c
+===================================================================
+--- src/egl/main/eglapi.c.orig
++++ src/egl/main/eglapi.c
+@@ -1097,7 +1097,7 @@ _fixupNativeWindow(_EGLDisplay *disp, vo
+        * `Window*`.  Convert `Window*` to `Window` because that's what
+        * dri2_x11_create_window_surface() expects.
+        */
+-      return (void *)(*(Window *)native_window);
++      return (void *)(uintptr_t)(*(Window *)native_window);
+    }
+ #endif
+ #ifdef HAVE_XCB_PLATFORM
+@@ -1160,7 +1160,7 @@ _fixupNativePixmap(_EGLDisplay *disp, vo
+     * dri2_x11_create_pixmap_surface() expects.
+     */
+    if (disp && disp->Platform == _EGL_PLATFORM_X11 && native_pixmap != NULL)
+-      return (void *)(*(Pixmap *)native_pixmap);
++      return (void *)(uintptr_t)(*(Pixmap *)native_pixmap);
+ #endif
+ #ifdef HAVE_XCB_PLATFORM
+    if (disp && disp->Platform == _EGL_PLATFORM_XCB && native_pixmap != NULL) {
+Index: src/gallium/auxiliary/util/u_threaded_context.c
+===================================================================
+--- src/gallium/auxiliary/util/u_threaded_context.c.orig
++++ src/gallium/auxiliary/util/u_threaded_context.c
+@@ -35,6 +35,10 @@
+ #include "util/perf/cpu_trace.h"
+ #include "compiler/shader_info.h"
+ 
++#ifndef MAX
++#define MAX(a, b) ((a > b) ? (a) : (b))
++#endif
++
+ #if TC_DEBUG >= 1
+ #define tc_assert assert
+ #else
+@@ -3773,10 +3777,11 @@ is_next_call_a_mergeable_draw(struct tc_
+    if (next->base.call_id != TC_CALL_draw_single)
+       return false;
+ 
+-   STATIC_ASSERT(offsetof(struct pipe_draw_info, min_index) ==
+-                 sizeof(struct pipe_draw_info) - 8);
+-   STATIC_ASSERT(offsetof(struct pipe_draw_info, max_index) ==
+-                 sizeof(struct pipe_draw_info) - 4);
++#define DRAW_INFO_SIZE_PADDING MAX(0, sizeof(void*) - 2 * sizeof(int))
++    STATIC_ASSERT(offsetof(struct pipe_draw_info, min_index) ==
++                      sizeof(struct pipe_draw_info) - DRAW_INFO_SIZE_PADDING - 8);
++    STATIC_ASSERT(offsetof(struct pipe_draw_info, max_index) ==
++                      sizeof(struct pipe_draw_info) - DRAW_INFO_SIZE_PADDING - 4);
+    /* All fields must be the same except start and count. */
+    /* u_threaded_context stores start/count in min/max_index for single draws. */
+    return memcmp((uint32_t*)&first->info, (uint32_t*)&next->info,
+Index: src/mesa/main/bufferobj.c
+===================================================================
+--- src/mesa/main/bufferobj.c.orig
++++ src/mesa/main/bufferobj.c
+@@ -468,7 +468,7 @@ _mesa_access_flags_to_transfer_flags(GLb
+  */
+ void *
+ _mesa_bufferobj_map_range(struct gl_context *ctx,
+-                           GLintptr offset, GLsizeiptr length, GLbitfield access,
++                           GLsizeiptr offset, GLsizeiptr length, GLbitfield access,
+                            struct gl_buffer_object *obj,
+                            gl_map_buffer_index index)
+ {
+@@ -516,7 +516,7 @@ _mesa_bufferobj_map_range(struct gl_cont
+ 
+ void
+ _mesa_bufferobj_flush_mapped_range(struct gl_context *ctx,
+-                                   GLintptr offset, GLsizeiptr length,
++                                   GLsizeiptr offset, GLsizeiptr length,
+                                    struct gl_buffer_object *obj,
+                                    gl_map_buffer_index index)
+ {
+Index: src/mesa/main/bufferobj.h
+===================================================================
+--- src/mesa/main/bufferobj.h.orig
++++ src/mesa/main/bufferobj.h
+@@ -86,13 +86,13 @@ _mesa_bufferobj_get_subdata(struct gl_co
+                             void *data, struct gl_buffer_object *obj);
+ 
+ void *_mesa_bufferobj_map_range(struct gl_context *ctx,
+-                                GLintptr offset, GLsizeiptr length,
++                                GLsizeiptr offset, GLsizeiptr length,
+                                 GLbitfield access,
+                                 struct gl_buffer_object *obj,
+                                 gl_map_buffer_index index);
+ 
+ void _mesa_bufferobj_flush_mapped_range(struct gl_context *ctx,
+-                                        GLintptr offset, GLsizeiptr length,
++                                        GLsizeiptr offset, GLsizeiptr length,
+                                         struct gl_buffer_object *obj,
+                                         gl_map_buffer_index index);
+ GLboolean _mesa_bufferobj_unmap(struct gl_context *ctx, struct gl_buffer_object *obj,
+Index: src/mesa/main/dlist.c
+===================================================================
+--- src/mesa/main/dlist.c.orig
++++ src/mesa/main/dlist.c
+@@ -646,7 +646,11 @@ union pointer
+ static inline void
+ save_pointer(Node *dest, void *src)
+ {
+-   union pointer p;
++#ifdef __CHERI_PURE_CAPABILITY__
++    /* Hopefully dest is aligned to pointer alignment */
++    *(void**)dest = src;
++#else
++    union pointer p;
+    unsigned i;
+ 
+    STATIC_ASSERT(POINTER_DWORDS == 1 || POINTER_DWORDS == 2);
+@@ -656,6 +660,7 @@ save_pointer(Node *dest, void *src)
+ 
+    for (i = 0; i < POINTER_DWORDS; i++)
+       dest[i].ui = p.dwords[i];
++#endif
+ }
+ 
+ 
+@@ -665,6 +670,10 @@ save_pointer(Node *dest, void *src)
+ static inline void *
+ get_pointer(const Node *node)
+ {
++#ifdef __CHERI_PURE_CAPABILITY__
++    /* Hopefully node is aligned to pointer alignment */
++    return *(void**)node;
++#else
+    union pointer p;
+    unsigned i;
+ 
+@@ -672,6 +681,7 @@ get_pointer(const Node *node)
+       p.dwords[i] = node[i].ui;
+ 
+    return p.ptr;
++#endif
+ }
+ 
+ 
+@@ -1199,25 +1209,37 @@ memdup(const void *src, GLsizei bytes)
+  * Allocate space for a display list instruction (opcode + payload space).
+  * \param opcode  the instruction opcode (OPCODE_* value)
+  * \param bytes   instruction payload size (not counting opcode)
+- * \param align8  does the payload need to be 8-byte aligned?
+- *                This is only relevant in 64-bit environments.
++ * \param align   does the payload need to be pointer aligned?
++ *                This is only relevant in 64-bit and CHERI environments.
+  * \return pointer to allocated memory (the payload will be at pointer+1)
+  */
+ static Node *
+-dlist_alloc(struct gl_context *ctx, OpCode opcode, GLuint bytes, bool align8)
++dlist_alloc(struct gl_context *ctx, OpCode opcode, GLuint bytes, bool align)
+ {
+    const GLuint numNodes = 1 + (bytes + sizeof(Node) - 1) / sizeof(Node);
+    const GLuint contNodes = 1 + POINTER_DWORDS;  /* size of continue info */
++   GLuint ii, numNopNodes;
+ 
+    assert(bytes <= BLOCK_SIZE * sizeof(Node));
+ 
+-   /* If this node needs to start on an 8-byte boundary, pad the last node. */
+-   if (sizeof(void *) == 8 && align8 &&
+-       ctx->ListState.CurrentPos % 2 == 1) {
++   if (align &&
++       (sizeof(void *) == 16 || sizeof(void *) == 8)) {
++      numNopNodes = ctx->ListState.CurrentPos % (sizeof(void *) / 4);
++      if (numNopNodes != 0) {
++         numNopNodes = (sizeof(void *) / 4) - numNopNodes;
++      }
++   } else {
++      numNopNodes = 0;
++   }
++
++   /* If this node needs to start on a pointer boundary, pad the last nodes. */
++   if (numNopNodes != 0) {
+       Node *last = ctx->ListState.CurrentBlock + ctx->ListState.CurrentPos -
+                    ctx->ListState.LastInstSize;
+-      last->InstSize++;
+-      ctx->ListState.CurrentPos++;
++      for (ii = 0; ii < numNopNodes; ii++) {
++         last->InstSize++;
++         ctx->ListState.CurrentPos++;
++      }
+    }
+ 
+    if (ctx->ListState.CurrentPos + numNodes + contNodes >= BLOCK_SIZE) {
+@@ -1231,7 +1253,7 @@ dlist_alloc(struct gl_context *ctx, OpCo
+          return NULL;
+       }
+ 
+-      /* a fresh block should be 8-byte aligned on 64-bit systems */
++      /* a fresh block should be aligned to a pointer size */
+       assert(((GLintptr) newblock) % sizeof(void *) == 0);
+ 
+       save_pointer(&n[1], newblock);
+Index: src/mesa/main/image.c
+===================================================================
+--- src/mesa/main/image.c.orig
++++ src/mesa/main/image.c
+@@ -151,8 +151,8 @@ _mesa_image_offset( GLuint dimensions,
+ 
+    if (type == GL_BITMAP) {
+       /* BITMAP data */
+-      GLintptr bytes_per_row;
+-      GLintptr bytes_per_image;
++      GLsizeiptr bytes_per_row;
++      GLsizeiptr bytes_per_image;
+       /* components per pixel for color or stencil index: */
+       const GLint comp_per_pixel = 1;
+ 
+@@ -170,8 +170,8 @@ _mesa_image_offset( GLuint dimensions,
+    }
+    else {
+       /* Non-BITMAP data */
+-      GLintptr bytes_per_pixel, bytes_per_row, remainder, bytes_per_image;
+-      GLintptr topOfImage;
++      GLsizeiptr bytes_per_pixel, bytes_per_row, remainder, bytes_per_image;
++      GLsizeiptr topOfImage;
+ 
+       bytes_per_pixel = _mesa_bytes_per_pixel( format, type );
+ 
+Index: src/util/hash_table.c
+===================================================================
+--- src/util/hash_table.c.orig
++++ src/util/hash_table.c
+@@ -686,7 +686,7 @@ _mesa_hash_string_with_length(const void
+ uint32_t
+ _mesa_hash_pointer(const void *pointer)
+ {
+-   uintptr_t num = (uintptr_t) pointer;
++   size_t num = (size_t) (uintptr_t) pointer;
+    return (uint32_t) ((num >> 2) ^ (num >> 6) ^ (num >> 10) ^ (num >> 14));
+ }
+ 
+Index: src/util/ralloc.c
+===================================================================
+--- src/util/ralloc.c.orig
++++ src/util/ralloc.c
+@@ -37,7 +37,7 @@
+ 
+ #define CANARY 0x5A1106
+ 
+-#if defined(__LP64__) || defined(_WIN64)
++#if defined(__LP64__) || defined(_WIN64) || defined(__CHERI_PURE_CAPABILITY__)
+ #define HEADER_ALIGN 16
+ #else
+ #define HEADER_ALIGN 8
+@@ -561,6 +561,8 @@ enum gc_flags {
+ 
+ typedef struct
+ {
++   alignas(HEADER_ALIGN)
++
+ #ifndef NDEBUG
+    /* A canary value used to determine whether a pointer is allocated using gc_alloc. */
+    unsigned canary;
+@@ -964,7 +966,11 @@ gc_sweep_end(gc_ctx *ctx)
+  * other buffers.
+  */
+ 
++#ifdef __CHERI_PURE_CAPABILITY__
++#define SUBALLOC_ALIGNMENT 16
++#else
+ #define SUBALLOC_ALIGNMENT 8
++#endif
+ #define LMAGIC_CONTEXT 0x87b9c7d3
+ #define LMAGIC_NODE    0x87b910d3
+ 
+Index: src/util/rb_tree.c
+===================================================================
+--- src/util/rb_tree.c.orig
++++ src/util/rb_tree.c
+@@ -69,13 +69,13 @@ rb_node_set_red(struct rb_node *n)
+ static void
+ rb_node_copy_color(struct rb_node *dst, struct rb_node *src)
+ {
+-    dst->parent = (dst->parent & ~1ull) | (src->parent & 1);
++    dst->parent = (dst->parent & ~1ull) | (size_t)(src->parent & 1);
+ }
+ 
+ static void
+ rb_node_set_parent(struct rb_node *n, struct rb_node *p)
+ {
+-    n->parent = (n->parent & 1) | (uintptr_t)p;
++    n->parent = (size_t)(n->parent & 1) | (uintptr_t)p;
+ }
+ 
+ static struct rb_node *
+Index: src/util/sparse_array.c
+===================================================================
+--- src/util/sparse_array.c.orig
++++ src/util/sparse_array.c
+@@ -45,8 +45,8 @@ util_sparse_array_init(struct util_spars
+    assert(node_size >= 2 && node_size == (1ull << arr->node_size_log2));
+ }
+ 
+-#define NODE_PTR_MASK (~((uintptr_t)NODE_ALLOC_ALIGN - 1))
+-#define NODE_LEVEL_MASK ((uintptr_t)NODE_ALLOC_ALIGN - 1)
++#define NODE_PTR_MASK (~((size_t)NODE_ALLOC_ALIGN - 1))
++#define NODE_LEVEL_MASK ((size_t)NODE_ALLOC_ALIGN - 1)
+ #define NULL_NODE 0
+ 
+ static inline uintptr_t
+Index: src/util/u_pointer.h
+===================================================================
+--- src/util/u_pointer.h.orig
++++ src/util/u_pointer.h
+@@ -82,10 +82,14 @@ uintptr_to_pointer( uintptr_t u )
+  * Return a pointer aligned to next multiple of N bytes.
+  */
+ static inline void *
+-align_pointer( const void *unaligned, uintptr_t alignment )
++align_pointer( void *unaligned, uintptr_t alignment )
+ {
++#if defined(__has_builtin) && __has_builtin(__builtin_align_up)
++    return __builtin_align_up(unaligned, alignment);
++#else
+    uintptr_t aligned = (pointer_to_uintptr( unaligned ) + alignment - 1) & ~(alignment - 1);
+    return uintptr_to_pointer( aligned );
++#endif
+ }
+ 
+ 
