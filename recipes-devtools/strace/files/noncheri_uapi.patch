@@ -48,3 +48,27 @@ index 336bd63..c7c99a0 100644
  	if (grp->resvd2) {
  		tprint_struct_next();
  		PRINT_FIELD_X(*grp, resvd2);
+diff --git a/src/tee.c b/src/tee.c
+index 25f6e76c54e5..e0c31d519fbd 100644
+--- a/src/tee.c
++++ b/src/tee.c
+@@ -8,7 +8,9 @@
+ #include "defs.h"
+ #include <linux/tee.h>
+ 
+-/* Not in UAPI.  */
++/* Not in UAPI in some version.  */
++#ifndef TEE_IOC_SHM_REGISTER_FD
++
+ struct tee_ioctl_shm_register_fd_data {
+ 	int64_t fd;
+ 	uint64_t size;
+@@ -20,6 +22,8 @@ struct tee_ioctl_shm_register_fd_data {
+ 
+ #define TEE_IOC_SHM_REGISTER_FD _IOWR(0xa4, 8, struct tee_ioctl_shm_register_fd_data)
+ 
++#endif /* TEE_IOC_SHM_REGISTER_FD */
++
+ #include "xlat/tee_ioctl_gen_caps.h"
+ #include "xlat/tee_ioctl_impl_ids.h"
+ #include "xlat/tee_ioctl_login_types.h"

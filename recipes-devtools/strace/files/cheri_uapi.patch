@@ -4,7 +4,7 @@ Date:   Mon Nov 25 12:58:34 2024 +0100
 
     cheri: Adjust internal copies of UAPI definitions
     
-    Strace as internal knowledge about the layout of various UAPI
+    Strace has internal knowledge about the layout of various UAPI
     data structures. The layout of these structures changes with
     CHERI and the strace versions must be adjusted.
 
