@@ -1,0 +1,6 @@
+TOOLCHAIN:forcevariable = "clang"
+DEPENDS:remove:toolchain-clang = "virtual/${TARGET_PREFIX}binutils virtual/${TARGET_PREFIX}gcc"
+DEPENDS:append:toolchain-clang = " clang-cross-${TARGET_ARCH}"
+KERNEL_CC:toolchain-clang = "${CCACHE}clang ${HOST_CC_KERNEL_ARCH} ${DEBUG_PREFIX_MAP} -fdebug-prefix-map=${STAGING_KERNEL_DIR}=${KERNEL_SRC_PATH}"
+KERNEL_LD:toolchain-clang = "${CCACHE}ld.lld"
+KERNEL_AR:toolchain-clang = "${CCACHE}llvm-ar"
