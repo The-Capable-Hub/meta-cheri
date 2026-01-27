@@ -1,0 +1,89 @@
+Import changes from
+https://git.morello-project.org/morello/llvm-project/-/blob/morello/dev/clang/lib/Headers/cheri.h
+in particaular the addition of functions such as cheri_bounds_set()
+which are needed by upstream changes to gnulib.
+
+--- a/clang/lib/Headers/cheri.h
++++ b/clang/lib/Headers/cheri.h
+@@ -22,10 +22,16 @@
+  * THE SOFTWARE.
+  *
+ \*===----------------------------------------------------------------------===*/
++#ifndef _CHERI_H
++#define _CHERI_H
+ 
+ #pragma once
+ 
++#if defined(__aarch64__) || defined(__riscv)
++typedef unsigned int cheri_perms_t;
++#else
+ typedef unsigned short cheri_perms_t;
++#endif
+ typedef unsigned short cheri_flags_t;
+ typedef unsigned __INT32_TYPE__ cheri_type_t;
+ #ifdef __cplusplus
+@@ -89,6 +95,41 @@ void * __capability cheri_offset_increme
+                    ((char*)__cap) + __offset);
+ }
+ 
++#ifdef __aarch64__
++static inline
++void * __capability cheri_tag_clear(void * __capability __cap) {
++  return __IF_CAPS(__builtin_cheri_tag_clear(__cap), (void*)__cap);
++}
++
++static inline
++void * __capability cheri_seal(void * __capability __cap,
++                               const void * __capability __type) {
++  return __IF_CAPS(__builtin_cheri_seal(__cap, __type), (void*)__cap);
++}
++
++static inline
++void * __capability cheri_unseal(void * __capability __cap,
++                                 const void * __capability __type) {
++  return __IF_CAPS(__builtin_cheri_unseal(__cap, __type), (void*)__cap);
++}
++#endif
++
++static inline
++void * __capability cheri_bounds_set(void *__capability __cap,
++                                   __SIZE_TYPE__ __bounds) {
++  return __IF_CAPS(__builtin_cheri_bounds_set(__cap, __bounds), (void*)__cap);
++}
++
++static inline
++__SIZE_TYPE__ cheri_round_representable_length(__SIZE_TYPE__ __length) {
++  return __IF_CAPS(__builtin_cheri_round_representable_length(__length), __length);
++}
++
++static inline
++__SIZE_TYPE__ cheri_round_representable_mask(__SIZE_TYPE__ __mask) {
++  return __IF_CAPS(__builtin_cheri_representable_alignment_mask(__mask), __mask);
++}
++
+ static inline
+ __SIZE_TYPE__ cheri_copy_from_high(void *__capability __cap) {
+   return __IF_CAPS(__builtin_cheri_copy_from_high(__cap), __SIZE_MAX__);
+@@ -100,6 +141,16 @@ cheri_copy_to_high(const void *__capabil
+   return __IF_CAPS(__builtin_cheri_copy_to_high(__cap, __high), (void*)__cap);
+ }
+ 
++static inline __SIZE_TYPE__ cheri_equal_exact(const void * __capability __cap_a,
++    const void * __capability __cap_b) {
++  return __IF_CAPS(__builtin_cheri_equal_exact(__cap_a, __cap_b), 0);
++}
++
++static inline __SIZE_TYPE__ cheri_subset_test(const void * __capability __cap_a,
++    const void * __capability __cap_b) {
++  return __IF_CAPS(__builtin_cheri_subset_test(__cap_a, __cap_b), 0);
++}
++
+ #ifndef __CHERI_PURE_CAPABILITY__
+ static inline
+ void * __capability
+@@ -266,3 +317,5 @@ __cheri_low_bits_clear(uintcap_t ptr, __
+ #undef __CHERI_SET
+ #undef __cheri_bool
+ #undef __IF_CAPS
++
++#endif /* _CHERI_H */

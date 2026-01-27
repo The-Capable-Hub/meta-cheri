@@ -1,3 +1,5 @@
+require common-cheri.inc
+
 # meta-clang compiler-rt is adding dependencies on gcc libraries, but we do not
 # build them
 DEPENDS:remove = "libgcc"
@@ -18,9 +20,28 @@ UNWINDLIB:class-target:toolchain-clang = "-nostdlib"
 COMPILER_RT:class-target:toolchain-clang = "-nostdlib"
 
 # Use compiler-rt as the cmake source path
-# This has the effect of building compiler-rt standalone, and avoids a number of top
-# level cmake tests which requre a runtime library.
+# This has the effect of building compiler-rt standalone, and avoids a number
+# of top level cmake tests which requre a runtime library.
 OECMAKE_SOURCEPATH = "${S}/compiler-rt"
+
+# Because we are skipping the top level configuration, need to override
+# some default values
+EXTRA_OECMAKE:append = " \
+    -DCOMPILER_RT_INSTALL_PATH=${libdir}/clang/${MAJOR_VER} \
+    -DCOMPILER_RT_BUILTINS_HIDE_SYMBOLS=off \
+"
+
+# Disable use of eh_frame
+# Setting this flag disables calls to __register_frame_info() in
+# crtbegin.c, which it turns out do nothing anyway, and gets rid
+# of the warnings about __EH_FRAME_LIST__ at link time.
+EXTRA_OECMAKE:append = " \
+    -DCOMPILER_RT_CRT_USE_EH_FRAME_REGISTRY=OFF \
+"
+
+EXTRA_OECMAKE:append = " \
+    --trace \
+"
 
 # meta-clang has this but commented out
 PROVIDES:append:class-target = "\

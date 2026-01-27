@@ -1,3 +1,5 @@
+require common-cheri.inc
+
 COMPATIBLE_HOST = "${HOST_SYS}"
 
 # Enabling cross-platform unwinding support causes us to try and build the CHERI MIPS
