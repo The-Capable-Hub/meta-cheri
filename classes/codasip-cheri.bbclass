@@ -1,6 +1,3 @@
-# Disable LLDB build (even native builds fail currently)
-LLDB = ""
-
 PREFERRED_PROVIDER_virtual/${TARGET_PREFIX}compilerlibs = "compiler-rt"
 
 # Don't want to build anything on the target with gcc
