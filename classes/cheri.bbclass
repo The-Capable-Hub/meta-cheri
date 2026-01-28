@@ -1,5 +1,8 @@
 PREFERRED_PROVIDER_virtual/${TARGET_PREFIX}compilerlibs = "compiler-rt"
 
+PREFERRED_VERSION_cross-localedef = "1.0"
+PREFERRED_VERSION_cross-localedef-native = "1.0"
+
 # Don't want to build anything on the target with gcc
 BASE_DEFAULT_DEPS:remove:class-target = "virtual/${HOST_PREFIX}gcc"
 
