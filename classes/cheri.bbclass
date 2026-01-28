@@ -6,6 +6,25 @@ PREFERRED_VERSION_cross-localedef-native = "1.0"
 # Don't want to build anything on the target with gcc
 BASE_DEFAULT_DEPS:remove:class-target = "virtual/${HOST_PREFIX}gcc"
 
+TOOLCHAIN = "clang"
+
+# Use meta-clang to provide llvm rather than core
+PREFERRED_PROVIDER_llvm = "clang"
+PREFERRED_PROVIDER_llvm-native = "clang-native"
+PREFERRED_PROVIDER_nativesdk-llvm = "nativesdk-clang"
+PROVIDES:pn-clang = "llvm"
+PROVIDES:pn-clang-native = "llvm-native"
+PROVIDES:pn-nativesdk-clang = "nativesdk-llvm"
+
+# Too many places where Yocto uses gcc/binutils to mean C toolchain
+PREFERRED_PROVIDER_virtual/${TARGET_PREFIX}binutils = "clang-cross-${TARGET_ARCH}"
+PREFERRED_PROVIDER_virtual/${TARGET_PREFIX}gcc = "clang-cross-${TARGET_ARCH}"
+PROVIDES:pn-clang-cross-${TARGET_ARCH} = "virtual/${TARGET_PREFIX}binutils"
+PROVIDES:pn-clang-cross-${TARGET_ARCH} = "virtual/${TARGET_PREFIX}gcc"
+
+# Include clang in SDK
+CLANGSDK = "1"
+
 # Get crtbegin/end from compiler-rt
 PACKAGECONFIG:append:pn-compiler-rt = " crt"
 
@@ -37,3 +56,34 @@ PACKAGECONFIG:remove:pn-libxml2:class-target:cheri = "python"
 # libzstd's pointer arithmetics produces unrepresentable addresses
 # there's no simple way to fix this
 SKIP_RECIPE[zstd] = "libzstd has not been adapted for cheri yet"
+
+# Can't currently build python for CHERI
+SKIP_RECIPE[python3] = "python has not been adapted for cheri yet"
+
+# Prevent building gcc, binutils and glibc, which we can't currently
+# do for CHERI.
+SKIP_RECIPE[gcc] = "not adapted for CHERI yet"
+SKIP_RECIPE[gcc-cross-riscv64] = "not adapted for CHERI yet"
+SKIP_RECIPE[gcc-canadian] = "not adapted for CHERI yet"
+SKIP_RECIPE[gcc-crosssdk] = "not adapted for CHERI yet"
+SKIP_RECIPE[gcc-runtime] = "not adapted for CHERI yet"
+SKIP_RECIPE[gcc-sanitizers] = "not adapted for CHERI yet"
+SKIP_RECIPE[libgcc] = "not adapted for CHERI yet"
+SKIP_RECIPE[libgcc-initial] = "not adapted for CHERI yet"
+SKIP_RECIPE[libgfortran] = "not adapted for CHERI yet"
+
+SKIP_RECIPE[binutils] = "not adapted for CHERI yet"
+SKIP_RECIPE[binutils-cross-riscv64] = "not adapted for CHERI yet"
+SKIP_RECIPE[binutils-cross-canadian] = "not adapted for CHERI yet"
+SKIP_RECIPE[binutils-crosssdk] = "not adapted for CHERI yet"
+SKIP_RECIPE[binutils-cross-testsuite] = "not adapted for CHERI yet"
+
+# cross-localedef-native is normally built from glibc. However poky generates
+# lots of dependencies on it which would be hard to remove. So we provide
+# a dummy implementation to keep these dependencies happy.
+# SKIP_RECIPE[cross-localedef-native] = "not adapted for CHERI yet"
+SKIP_RECIPE[glibc] = "not adapted for CHERI yet"
+SKIP_RECIPE[glibc-locale] = "not adapted for CHERI yet"
+SKIP_RECIPE[glibc-mtrace] = "not adapted for CHERI yet"
+SKIP_RECIPE[glibc-scripts] = "not adapted for CHERI yet"
+SKIP_RECIPE[glibc-testsuite] = "not adapted for CHERI yet"
