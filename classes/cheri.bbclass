@@ -26,6 +26,10 @@ PROVIDES:pn-clang-cross-${TARGET_ARCH} = "virtual/${TARGET_PREFIX}gcc"
 # rust, so use the last version which didn't need rust.
 PREFERRED_VERSION_librsvg = "2.40.21"
 
+# We are rebuilding the linux header files from the kernel source, so
+# this needs to match the kernel version.
+LINUXLIBCVERSION = "6.18.0+git"
+
 # Include clang in SDK
 CLANGSDK = "1"
 
