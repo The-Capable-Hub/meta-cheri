@@ -22,6 +22,10 @@ PREFERRED_PROVIDER_virtual/${TARGET_PREFIX}gcc = "clang-cross-${TARGET_ARCH}"
 PROVIDES:pn-clang-cross-${TARGET_ARCH} = "virtual/${TARGET_PREFIX}binutils"
 PROVIDES:pn-clang-cross-${TARGET_ARCH} = "virtual/${TARGET_PREFIX}gcc"
 
+# Upstream poky has switched to librsvg 2.52.0 (or later) which use
+# rust, so use the last version which didn't need rust.
+PREFERRED_VERSION_librsvg = "2.40.21"
+
 # Include clang in SDK
 CLANGSDK = "1"
 
