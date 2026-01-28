@@ -33,6 +33,10 @@ LINUXLIBCVERSION = "6.18.0+git"
 # Include clang in SDK
 CLANGSDK = "1"
 
+# MACHINE_FEATURES (after careful consideration) we don't want included
+# qemu user mode isn't supported for CHERI builds
+MACHINE_FEATURES_BACKFILL_CONSIDERED += "qemu-usermode"
+
 # Get crtbegin/end from compiler-rt
 PACKAGECONFIG:append:pn-compiler-rt = " crt"
 
