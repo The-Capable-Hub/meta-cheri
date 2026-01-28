@@ -9,9 +9,6 @@ PACKAGECONFIG:append:pn-compiler-rt = " crt"
 # We need to force the use of LLVM lld for Cheri builds
 DISTRO_FEATURES:append = " ld-is-lld"
 
-# Override the toolchain specified in nonclangable.
-TOOLCHAIN:pn-libssp-nonshared = "clang"
-
 TC_CXX_RUNTIME="llvm"
 
 # Not only is this unnecessary for cheri, it generates a warning
