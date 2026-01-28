@@ -11,7 +11,7 @@ do_fixup_gnulib() {
 	    if ! grep -q "__INTPTR_WIDTH__ != (defined _WIN64 ? LLONG_WIDTH : LONG_WIDTH)" ${f} ; then
 		echo "Updating ${f}"
 		cp ${f} ${f}.bak
-		cp "${CODASIP_CHERI_FILES_DIR}/stdint.in.h" ${f}
+		cp "${META_CHERI_FILES_DIR}/stdint.in.h" ${f}
 		if grep -q "@GNULIB_OVERRIDES_WINT_T@" ${f}.bak ; then
 		    sed -i -e 's|@GNULIBHEADERS_OVERRIDE_WINT_T@|@GNULIB_OVERRIDES_WINT_T@|g' ${f}
 		fi
@@ -19,7 +19,7 @@ do_fixup_gnulib() {
 	fi
     done
 
-	for SRC_GNULIB_PATH in "${CODASIP_CHERI_FILES_DIR}"/gnulib/*; do
+	for SRC_GNULIB_PATH in "${META_CHERI_FILES_DIR}"/gnulib/*; do
 		SRC_GNULIB_FILE="$(basename "${SRC_GNULIB_PATH}")"
 		for DEST_GNULIB_PATH in $(find "${S}" -type f -name "${SRC_GNULIB_FILE}"); do
 			echo "Replacing ${DEST_GNULIB_PATH} with ${SRC_GNULIB_PATH}"
