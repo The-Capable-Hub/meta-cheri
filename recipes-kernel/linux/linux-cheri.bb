@@ -29,7 +29,7 @@ KCONFIG_MODE="--alldefconfig"
 
 KBUILD_DEFCONFIG ?= "qemu_riscv64cheripc_defconfig"
 
-COMPATIBLE_MACHINE = "^(qemu.*cheri|hobgoblin.*|codasip-prime)$"
+COMPATIBLE_MACHINE = "^qemu.*cheri$"
 
 # Keep kernel_configcheck task happy when it calls symbol_why.py
 CLANG_FLAGS:toolchain-clang = "-fintegrated-as"
