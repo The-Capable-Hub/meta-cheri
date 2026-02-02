@@ -19,6 +19,7 @@ ERROR_QA:remove = "version-going-backwards"
 
 SRC_URI = " \
     git://${META_CHERI_U_BOOT_REPO};protocol=${META_CHERI_U_BOOT_PROTOCOL};branch=${META_CHERI_U_BOOT_BRANCH} \
+    file://0001-Makefile-Strip-leading-spaces-when-preprocessing-gen.patch \
 "
 
 COMPATIBLE_MACHINE = "^qemu.*cheri$"
