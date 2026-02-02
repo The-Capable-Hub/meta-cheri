@@ -1,8 +1,7 @@
 ERROR_QA:remove = "version-going-backwards"
 SRCREV = "${AUTOREV}"
 S = "${WORKDIR}/git"
-CODASIP_GIT_LINUX_HOBGOBLIN_CHERI_BRANCH ?= "bakewell-morello"
 SRC_URI = " \
-    git://${CODASIP_GIT_CHERILINUX_REPO}/linux.git;protocol=${CODASIP_GIT_PROTOCOL};branch=${CODASIP_GIT_LINUX_HOBGOBLIN_CHERI_BRANCH} \
+    git://${META_CHERI_LINUX_REPO};protocol=${META_CHERI_LINUX_PROTOCOL};branch=${META_CHERI_LINUX_BRANCH} \
 "
 PV = "6.18.0+git"

@@ -1,7 +1,6 @@
-CODASIP_GIT_LTP_CHERI_BRANCH ?= "bakewell-morello"
-
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
-SRC_URI = "git://${CODASIP_GIT_CHERILINUX_REPO}/ltp.git;branch=${CODASIP_GIT_LTP_CHERI_BRANCH};protocol=${CODASIP_GIT_PROTOCOL} \
+SRC_URI = " \
+	   git://${META_CHERI_LTP_REPO};branch=${META_CHERI_LTP_BRANCH};protocol=${META_CHERI_LTP_PROTOCOL} \
            file://run_ltp_tests.sh \
           "
 SRCREV = "${AUTOREV}"

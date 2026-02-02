@@ -1,7 +1,7 @@
-CODASIP_GIT_LLVM_CHERI_BRANCH ?= "matthis/bakewell-19.1.7"
-BASEURI = "git://${CODASIP_GIT_BAKEWELL_REPO}/cherillvm.git;protocol=${CODASIP_GIT_PROTOCOL};branch=${CODASIP_GIT_LLVM_CHERI_BRANCH};destsuffix=cherillvm-${RELEASE}"
+BASEURI = "git://${META_CHERI_LLVM_PROJECT_REPO};protocol=${META_CHERI_LLVM_PROJECT_PROTOCOL};branch=${META_CHERI_LLVM_PROJECT_BRANCH};destsuffix=cherillvm-${RELEASE}"
 SOURCEDIR = "cherillvm-${RELEASE}"
 SRCREV ?= "${AUTOREV}"
+ERROR_QA:remove = "version-going-backwards"
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/clang:"
 SRC_URI += " \
