@@ -7,3 +7,7 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/clang:"
 SRC_URI += " \
     file://morello_clang_h.patch \
 "
+
+MAJOR_VER = "19"
+MINOR_VER = "0"
+PATCH_VER = "0"
