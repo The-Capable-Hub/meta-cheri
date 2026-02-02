@@ -25,5 +25,5 @@ SRC_URI = " \
     git://${CODASIP_GIT_CHERILINUX_REPO}/u-boot.git;protocol=${CODASIP_GIT_PROTOCOL};branch=${CODASIP_GIT_U_BOOT_HOBGOBLIN_BRANCH} \
 "
 
-COMPATIBLE_MACHINE = "^(qemu.*cheri|hobgoblin.*|codasip-prime)$"
+COMPATIBLE_MACHINE = "^qemu.*cheri$"
 
