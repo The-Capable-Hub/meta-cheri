@@ -15,9 +15,9 @@ KERNEL_IMAGETYPE = "Image"
 KERNEL_IMAGETYPES += "uImage"
 KEEPUIMAGE = "no"
 
-SERIAL_CONSOLES ?= "115200;ttyS0 115200;hvc0"
+SERIAL_CONSOLES ?= "115200;ttyS0"
 
-IMAGE_FSTYPES += "ext4 wic.qcow2"
+IMAGE_FSTYPES += "ext4 wic"
 
 WKS_FILE ?= "qemuriscv.wks"
 
