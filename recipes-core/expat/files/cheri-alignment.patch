@@ -1,0 +1,16 @@
+When building with CHERI, a pointer is larger than a long long, so need
+to use this for alignment calculations.
+
+Upstream-Status: Inappropriate [CHERI specific]
+
+--- expat-2.6.4/lib/internal.h	2026-02-02 18:53:46.405222262 +0000
++++ expat-2.6.4/lib/internal.h	2026-02-04 19:04:05.549066057 +0000
+@@ -153,7 +153,7 @@
+ 
+ // NOTE: If function expat_alloc was user facing, EXPAT_MALLOC_ALIGNMENT would
+ //       have to take sizeof(long double) into account
+-#define EXPAT_MALLOC_ALIGNMENT sizeof(long long) // largest parser (sub)member
++#define EXPAT_MALLOC_ALIGNMENT sizeof(uintptr_t) // largest parser (sub)member
+ #define EXPAT_MALLOC_PADDING ((EXPAT_MALLOC_ALIGNMENT) - sizeof(size_t))
+ 
+ /* NOTE END */
