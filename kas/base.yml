@@ -1,0 +1,42 @@
+header:
+  version: 16
+
+distro: cheri
+
+defaults:
+  repos:
+    branch: scarthgap
+
+repos:
+  meta-cheri:
+
+  poky:
+    url: "https://git.yoctoproject.org/git/poky"
+    commit: 9497778a4d756daa29c4fa8d45d1a242d63ab8cc
+    path: layers/poky
+    layers:
+      meta:
+      meta-poky:
+
+  meta-openembedded:
+    path: layers/meta-openembedded
+    url: "https://github.com/openembedded/meta-openembedded"
+    commit:  "b4812b18eec77e9f0286bd6b81a5c3032ac0d3be"
+    layers:
+      meta-oe:
+      meta-python:
+      meta-networking:
+      meta-gnome:
+      meta-multimedia:
+      meta-filesystems:
+
+  meta-clang:
+    path: layers/meta-clang
+    branch: master
+    url: https://github.com/kraj/meta-clang.git
+    commit: bd49e0622770941600e52d005c2944f7ede912b0
+
+machine: unset
+
+target:
+  - core-image-minimal
