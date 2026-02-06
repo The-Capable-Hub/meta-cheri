@@ -1,0 +1,2 @@
+# short-description: Create image for CHERI RISC-V QEMU machines
+part / --source rootfs --fstype=ext4 --label root --align 4096 --size ${QEMU_CHERI_IMAGE_ROOTFS_SIZE}

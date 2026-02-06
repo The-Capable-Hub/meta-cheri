@@ -19,7 +19,9 @@ SERIAL_CONSOLES ?= "115200;ttyS0"
 
 IMAGE_FSTYPES += "ext4 wic"
 
-WKS_FILE ?= "qemuriscv.wks"
+QEMU_CHERI_IMAGE_ROOTFS_SIZE ?= "2G"
+
+WKS_FILE ?= "quemuriscvcheri.wks.in"
 
 MACHINE_EXTRA_RRECOMMENDS += " kernel-modules"
 
