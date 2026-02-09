@@ -22,3 +22,5 @@ EXTRA_OEMAKE:append = " ${RISCV_VARS}"
 # TODO: Remove explicitly `CC_SUPPORT_VECTOR=n` when CHERI compiler supports 
 #       vector externsion for CHERI
 EXTRA_OEMAKE:append:cheri = " CC_SUPPORT_VECTOR=n"
+
+EXTRA_OEMAKE:append:qemuriscv64cheri = " FW_TEXT_START=0x80000000"
