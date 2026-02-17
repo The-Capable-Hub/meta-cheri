@@ -14,7 +14,7 @@ Index: perl-5.24.1/dist/XSLoader/XSLoader_pm.PL
 @@ -52,6 +52,24 @@ sub load {
      my ($caller, $modlibname) = caller();
      my $module = $caller;
-
+ 
 +    # OE: Allow env to form dynamic loader to look in a different place
 +    # This is so it finds the host .so files, not the targets
 +    if (defined $ENV{PERLHOSTLIB})
