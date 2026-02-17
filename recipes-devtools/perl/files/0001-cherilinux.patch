@@ -97,10 +97,10 @@ diff --git a/perl.c b/perl.c
 index e19d54db07..bb70f437ce 100644
 --- a/perl.c
 +++ b/perl.c
-@@ -1817,6 +1817,10 @@ perl_parse(pTHXx_ XSINIT_t xsinit, int argc, char **argv, char **env)
- #endif /* !defined(PERL_USE_SAFE_PUTENV) */
+@@ -1186,6 +1886,10 @@ perl_parse(pTHXx_ XSINIT_t xsinit, int argc, char **argv, char **env)
+ #endif /* USE_ENVIRON_ARRAY */
  
- 	 PL_origalen = s ? s - PL_origargv[0] + 1 : 0;
+          PL_origalen = s ? s - PL_origargv[0] + 1 : 0;
 +
 +#if defined(__CHERI_PURE_CAPABILITY__)
 +	 PL_origalen = MIN(PL_origalen, cheri_length_get(PL_origargv[0]));
@@ -109,10 +109,10 @@ index e19d54db07..bb70f437ce 100644
  
      if (PL_do_undump) {
 diff --git a/perl.h b/perl.h
-index 2f97a0b980..f3de83eec7 100644
+index fff5654..b5e5647 100644
 --- a/perl.h
 +++ b/perl.h
-@@ -28,6 +28,10 @@
+@@ -44,6 +44,10 @@
  #   include "config.h"
  #endif
  
@@ -120,10 +120,10 @@ index 2f97a0b980..f3de83eec7 100644
 +#   include <cheri.h>
 +#endif
 +
- /* this is used for functions which take a depth trailing
-  * argument under debugging */
- #ifdef DEBUGGING
-@@ -2061,10 +2065,10 @@ typedef UVINTTYPE UVINT;
+ /*
+ =for apidoc_section $debugging
+ =for apidoc CmnW ||comma_aDEPTH
+@@ -2440,10 +2444,10 @@ typedef UVINTTYPE UVINT;
  #    endif
  #    define UV_MIN ((UV)UINT64_MIN)
  #  else

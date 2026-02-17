@@ -17,6 +17,7 @@ SRC_URI = "https://www.cpan.org/src/5.0/perl-${PV}.tar.gz;name=perl \
            file://0002-Constant-Fix-up-shebang.patch \
            file://determinism.patch \
            file://0001-cpan-Sys-Syslog-Makefile.PL-Fix-_PATH_LOG-for-determ.patch \
+           file://0001-Fix-intermittent-failure-of-test-t-op-sigsystem.t.patch \
            "
 SRC_URI:append:class-native = " \
            file://perl-configpm-switch.patch \
@@ -24,13 +25,13 @@ SRC_URI:append:class-native = " \
 SRC_URI:append:class-target = " \
            file://encodefix.patch \
 "
-
 SRC_URI:prepend:class-target:cheri = " \
-           file://cheribsd.patch;striplevel=0 \
+           file://cheribsd.patch \
            file://0001-cherilinux.patch \
+           file://0002-inline-change-to-uvintsize-for-msbit_pos-macro.patch \
 "
 
-SRC_URI[perl.sha256sum] = "357951a491b0ba1ce3611263922feec78ccd581dddc24a446b033e25acf242a1"
+SRC_URI[perl.sha256sum] = "fb888accf8b50b5180e91166e5153608be294c57c19878e95f7659c1f1f12758"
 
 B = "${WORKDIR}/perl-${PV}-build"
 
@@ -279,7 +280,7 @@ FILES:${PN} = "${bindir}/perl ${bindir}/perl.real ${bindir}/perl${PV} ${libdir}/
                ${libdir}/perl5/${PV}/ExtUtils/typemap \
                "
 RPROVIDES:${PN} += "perl-module-strict perl-module-vars perl-module-config perl-module-warnings \
-                    perl-module-warnings-register"
+                    perl-module-warnings-register perl-module-config-git"
 
 FILES:${PN}-staticdev:append = " ${libdir}/perl5/${PV}/*/CORE/libperl.a"
 
@@ -312,8 +313,8 @@ ALTERNATIVE_PRIORITY = "40"
 ALTERNATIVE:${PN}-doc = "Thread.3"
 ALTERNATIVE_LINK_NAME[Thread.3] = "${mandir}/man3/Thread.3"
 
-# Create a perl-modules package recommending all the other perl
-# packages (actually the non modules packages and not created too)
+# Create a perl-modules package that represents the collection of all the
+# other perl packages (actually the non modules packages and not created too).
 ALLOW_EMPTY:${PN}-modules = "1"
 PACKAGES += "${PN}-modules "
 
@@ -328,11 +329,13 @@ python split_perl_packages () {
     do_split_packages(d, libdir, r'.*linux/([^\/].*)\.(pm|pl|e2x)', '${PN}-module-%s', 'perl module %s', recursive=True, allow_dirs=False, match_path=True, prepend=False)
     do_split_packages(d, libdir, r'(^(?!(CPAN\/|CPANPLUS\/|Module\/|unicore\/|.*linux\/)[^\/]).*)\.(pm|pl|e2x)', '${PN}-module-%s', 'perl module %s', recursive=True, allow_dirs=False, match_path=True, prepend=False)
 
-    # perl-modules should recommend every perl module, and only the
+    # perl-modules should runtime-depend on every perl module, and only the
     # modules. Don't attempt to use the result of do_split_packages() as some
-    # modules are manually split (eg. perl-module-unicore).
-    packages = filter(lambda p: 'perl-module-' in p, d.getVar('PACKAGES').split())
-    d.setVar(d.expand("RRECOMMENDS:${PN}-modules"), ' '.join(packages))
+    # modules are manually split (eg. perl-module-unicore). Also, the split
+    # packages should not include packages defined in RPROVIDES:${PN}.
+    perl_sub_pkgs = d.getVar(d.expand("RPROVIDES:${PN}")).split()
+    packages = filter(lambda p: 'perl-module-' in p and p not in perl_sub_pkgs, d.getVar('PACKAGES').split())
+    d.setVar(d.expand("RDEPENDS:${PN}-modules"), ' '.join(packages))
 
     # Read the pre-generated dependency file, and use it to set module dependecies
     for line in open(d.expand("${WORKDIR}") + '/perl-rdepends.txt').readlines():
@@ -358,11 +361,12 @@ python() {
         d.setVar("PACKAGES_DYNAMIC", "^nativesdk-perl-module-.*")
 }
 
-RDEPENDS:${PN}-misc += "perl perl-modules"
+RDEPENDS:${PN}-misc += "perl"
+RRECOMMENDS:${PN}-misc += "perl-modules"
 RDEPENDS:${PN}-pod += "perl"
 
-#Only use perl version 5.34.1 on CHERI target
-#BBCLASSEXTEND = "native nativesdk"
+#Only use perl version 5.38.4 on CHERI target
+# BBCLASSEXTEND = "native nativesdk"
 
 SSTATE_SCAN_FILES += "*.pm *.pod *.h *.pl *.sh"
 
@@ -372,7 +376,11 @@ do_create_rdepends_inc() {
 
 # Some additional dependencies that the above doesn't manage to figure out
 RDEPENDS:${PN}-module-file-spec += "${PN}-module-file-spec-unix"
+RDEPENDS:${PN}-module-scalar-util += "${PN}-module-list-util"
+RDEPENDS:${PN}-module-file-temp += "${PN}-module-scalar-util"
+RDEPENDS:${PN}-module-file-temp += "${PN}-module-file-spec"
 RDEPENDS:${PN}-module-io-file += "${PN}-module-symbol"
+RDEPENDS:${PN}-module-io-file += "${PN}-module-carp"
 RDEPENDS:${PN}-module-math-bigint += "${PN}-module-math-bigint-calc"
 RDEPENDS:${PN}-module-test-builder += "${PN}-module-list-util"
 RDEPENDS:${PN}-module-test-builder += "${PN}-module-scalar-util"
