@@ -1,0 +1,29 @@
+From d00ec31a01db84000eb8b28c24e6e00220557ff2 Mon Sep 17 00:00:00 2001
+From: Harrison Carter <harrison.carter@thecapablehub.org>
+Date: Fri, 20 Feb 2026 17:00:18 +0000
+Subject: [PATCH 1/1] port.h change qsort_s to qsort_r
+
+qsort_s doesn't exist. I don't understand where it came from. IT seems
+to be a windows function
+
+Signed-off-by: Harrison Carter <harrison.carter@thecapablehub.org>
+---
+ src/include/port.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/include/port.h b/src/include/port.h
+index d3fc417027..d0e152ef2f 100644
+--- a/src/include/port.h
++++ b/src/include/port.h
+@@ -503,7 +503,7 @@ typedef int (*qsort_arg_comparator) (const void *a, const void *b, void *arg);
+ static inline void
+ qsort_arg(void *a, size_t n, size_t es, qsort_arg_comparator cmp, void *arg)
+ {
+-	qsort_s(a, n, es, cmp, arg);
++	qsort_r(a, n, es, cmp, arg);
+ }
+ #else
+ #warning "Using postgres qsort"
+-- 
+2.43.0
+

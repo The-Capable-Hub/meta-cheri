@@ -1,0 +1,69 @@
+From 99ebac964a9e107656d59908c06fa637737d1a8a Mon Sep 17 00:00:00 2001
+From: Harrison Carter <harrison.carter@thecapablehub.org>
+Date: Wed, 25 Feb 2026 16:12:23 +0000
+Subject: [PATCH 1/1] xml: fix for updated xml2
+
+Ported from 400928b83bd254d20f0790d467f221bb52707e6e in postgres proper
+
+to paraphrase the patch "they decided to put add a const qualifier"
+
+Signed-off-by: Harrison Carter <harrison.carter@thecapablehub.org>
+---
+ contrib/xml2/xpath.c        |  3 ---
+ src/backend/utils/adt/xml.c | 12 ++++++++++--
+ 2 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/contrib/xml2/xpath.c b/contrib/xml2/xpath.c
+index b8ee757674..8b6a555bf8 100644
+--- a/contrib/xml2/xpath.c
++++ b/contrib/xml2/xpath.c
+@@ -71,9 +71,6 @@ pgxml_parser_init(PgXmlStrictness strictness)
+ 
+ 	/* Note: we're assuming an elog cannot be thrown by the following calls */
+ 
+-	/* Initialize libxml */
+-	xmlInitParser();
+-
+ 	xmlSubstituteEntitiesDefault(1);
+ 	xmlLoadExtDtdDefaultValue = 1;
+ 
+diff --git a/src/backend/utils/adt/xml.c b/src/backend/utils/adt/xml.c
+index 1ec6f1c2fd..ef536e188a 100644
+--- a/src/backend/utils/adt/xml.c
++++ b/src/backend/utils/adt/xml.c
+@@ -65,6 +65,14 @@
+ #if LIBXML_VERSION >= 20704
+ #define HAVE_XMLSTRUCTUREDERRORCONTEXT 1
+ #endif
++/*
++ * libxml2 2.12 decided to insert "const" into the error handler API.
++ */
++#if LIBXML_VERSION >= 21200
++#define PgXmlErrorPtr const xmlError *
++#else
++#define PgXmlErrorPtr xmlErrorPtr
++#endif
+ #endif							/* USE_LIBXML */
+ 
+ #include "access/htup_details.h"
+@@ -119,7 +127,7 @@ struct PgXmlErrorContext
+ 
+ static xmlParserInputPtr xmlPgEntityLoader(const char *URL, const char *ID,
+ 										   xmlParserCtxtPtr ctxt);
+-static void xml_errorHandler(void *data, xmlErrorPtr error);
++static void xml_errorHandler(void *data, PgXmlErrorPtr error);
+ static void xml_ereport_by_code(int level, int sqlcode,
+ 								const char *msg, int errcode);
+ static void chopStringInfoNewlines(StringInfo str);
+@@ -1749,7 +1757,7 @@ xml_ereport(PgXmlErrorContext *errcxt, int level, int sqlcode, const char *msg)
+  * Error handler for libxml errors and warnings
+  */
+ static void
+-xml_errorHandler(void *data, xmlErrorPtr error)
++xml_errorHandler(void *data, PgXmlErrorPtr error)
+ {
+ 	PgXmlErrorContext *xmlerrcxt = (PgXmlErrorContext *) data;
+ 	xmlParserCtxtPtr ctxt = (xmlParserCtxtPtr) error->ctxt;
+-- 
+2.43.0
+
