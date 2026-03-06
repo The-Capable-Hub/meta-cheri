@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - codasip-scarthgap
+      - pz/add-multilib-support
   pull_request:
     types: [review_requested, edited, synchronize]
 

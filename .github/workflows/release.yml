@@ -2,6 +2,8 @@ name: release
 
 on:
   push:
+    branches:
+      - pz/add-multilib-support
     tags:
       - "release*"
 
