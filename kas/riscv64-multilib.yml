@@ -1,0 +1,42 @@
+header:
+  version: 16
+
+machine: unset
+
+local_conf_header:
+
+  multilib_config: |
+
+    require conf/multilib.conf
+
+    MULTILIBS = "multilib:riscv64"
+    MULTILIB_GLOBAL_VARIANTS += "riscv64"
+
+    DEFAULTTUNE:virtclass-multilib-riscv64 = "codasip-lux"
+
+    BASELIB                              = "lib"
+    BASELIB:virtclass-multilib-riscv64   = "libriscv64"
+
+    # Set clang resource dir explicitly, add prefix for search path and
+    # also set linker flags; -L${STAGING_LIBDIR}/--dynamic-linker/-rpath here  # so the LDFLAGS are not lost during the config stages of packages likes of # perl
+
+    TARGET_CC_ARCH:append = " \
+    -resource-dir=${STAGING_DIR_TARGET}${libdir}/clang/${LLVMVERSION}  \
+    --prefix=${STAGING_LIBDIR} \
+    -L${STAGING_LIBDIR} \
+    -Wl,--dynamic-linker=${nonarch_base_libdir}/ld-musl-${TUNE_PKGARCH}.so.1 \
+    -Wl,-rpath=${libdir} \
+    "
+
+    SKIP_RECIPE[python3] = ""
+
+  multilib_install: |
+    IMAGE_INSTALL:append = " \
+                            riscv64-musl \
+                            riscv64-compiler-rt \
+                            riscv64-libcxx \
+                            riscv64-compiler-rt-sanitizers \
+                            riscv64-python3 \
+                            riscv64-cheri-test \
+                            cheri-test \
+                            "
