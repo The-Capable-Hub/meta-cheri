@@ -19,6 +19,7 @@ ERROR_QA:remove = "version-going-backwards"
 
 SRC_URI = " \
     git://${META_CHERI_LINUX_REPO};protocol=${META_CHERI_LINUX_PROTOCOL};branch=${META_CHERI_LINUX_BRANCH} \
+    file://0001-riscv-mman-allow-for-storing-caps-in-shared-memory.patch \
 "
 
 LINUX_VERSION ?= "6.18.0"

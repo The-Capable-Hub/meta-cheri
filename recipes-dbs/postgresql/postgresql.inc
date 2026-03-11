@@ -45,7 +45,7 @@ export LDFLAGS_EX_BE = "-Wl,--export-dynamic"
 inherit autotools pkgconfig perlnative  useradd update-rc.d systemd gettext perl-version multilib_header
 
 CFLAGS += "\
-    -ggdb -O0 -g3 \
+    -ggdb -g3 -g -O0 \
     -fno-omit-frame-pointer \
     -Wno-cheri-provenance \
     -I${STAGING_INCDIR}/${PYTHON_DIR} \
@@ -92,16 +92,6 @@ EXTRA_OECONF += "--enable-thread-safety --disable-rpath \
     --enable-cassert \
 "
 EXTRA_OECONF:sh4 += "--disable-spinlocks"
-
-DEBUG_OPTIMIZATION:remove:mips = " -Og"
-DEBUG_OPTIMIZATION:append:mips = " -O"
-BUILD_OPTIMIZATION:remove:mips = " -Og"
-BUILD_OPTIMIZATION:append:mips = " -O"
-
-DEBUG_OPTIMIZATION:remove:mipsel = " -Og"
-DEBUG_OPTIMIZATION:append:mipsel = " -O"
-BUILD_OPTIMIZATION:remove:mipsel = " -Og"
-BUILD_OPTIMIZATION:append:mipsel = " -O"
 
 PACKAGES_DYNAMIC += "^${PN}-plperl \
     ^${PN}-pltcl \
