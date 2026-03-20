@@ -43,6 +43,8 @@ do_configure() {
 	${S}/configure ${CONFIGUREOPTS}
 }
 
+# CFLAGS:append = " -g -ggdb -O0 "
+
 do_compile() {
 	:
 }

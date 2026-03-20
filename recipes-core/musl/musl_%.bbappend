@@ -16,6 +16,8 @@ DEPENDS:remove = "libssp-nonshared"
 
 RDEPENDS:${PN}-dev:remove = "libssp-nonshared-staticdev"
 
+# CFLAGS:append = " -g -ggdb -O0 "
+
 # musl Makefile uses
 #   STRIP  = $(CROSS_COMPILE)strip
 # which is the bfd strip, which fails with:

@@ -1,0 +1,13 @@
+#!/bin/sh
+
+if [ -z "$1" ]; then
+    echo "Usage: ./postgres-bench.sh EXISTING_DB_NAME"
+    exit 1
+fi
+
+PGENGINE=/usr/bin
+
+DB_NAME=$1
+
+${PGENGINE}/pgbench -i ${DB_NAME} -U postgres
+${PGENGINE}/pgbench -U postgres -c 2 -T 180 ${DB_NAME} 2>&1 | tee /tmp/pgbench-results.txt

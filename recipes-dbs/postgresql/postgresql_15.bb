@@ -21,6 +21,7 @@ SRC_URI += "\
    file://0002-qsort-change-defines-from-freebsd-to-cheri.patch \
    file://0003-array-fix-parameters.patch \
    file://0004-xml-fix-function-header.patch \
+   file://0006-ps_status-disable-clobber.patch \
 "
 
 SRC_URI[sha256sum] = "de8485f4ce9c32e3ddfeef0b7c261eed1cecb54c9bcd170e437ff454cb292b42"

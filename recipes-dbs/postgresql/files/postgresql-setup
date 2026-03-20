@@ -89,10 +89,13 @@ initdbtest () {
         chmod go-rwx "$PGLOG"
         [ -x /sbin/restorecon ] && /sbin/restorecon "$PGLOG"
     fi
+    fi
+}
 
-    echo -n  Initialize the database
-    $SU -l postgres -c "/usr/bin/gdb --args $PGENGINE/initdb -d --pgdata='$PGDATA' --auth='ident'"
+# echo -n  Initialize the database
+# $SU -l postgres -c "/usr/bin/gdb --args $PGENGINE/initdb -d --pgdata='$PGDATA' --auth='ident'"
 
+initdbpost () {
     echo -n  Create directory for postmaster log
     mkdir "$PGDATA/pg_log"
     chown postgres:postgres "$PGDATA/pg_log"
@@ -106,8 +109,7 @@ initdbtest () {
         echo -n " [FAILED] "
         script_result=1
     fi
-    echo
-    fi
+    echo ""
 }
 
 case "$1" in
@@ -116,6 +118,7 @@ case "$1" in
     ;;
   *)
     echo "Usage: $0 initdb"
+    echo '$SU -l postgres -c "/usr/bin/gdb --args $PGENGINE/initdb -d --pgdata='\$PGDATA' --auth='ident'"'
     # exit 2
 esac
 

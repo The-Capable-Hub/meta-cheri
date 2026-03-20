@@ -1,0 +1,30 @@
+From c3ba01c273391fdef88d8f3f04086eba1aadf01b Mon Sep 17 00:00:00 2001
+From: Pawel Zalewski <pzalewski@thegoodpenguin.co.uk>
+Date: Thu, 19 Mar 2026 15:40:01 +0000
+Subject: [PATCH] ps_status: disable clobber
+
+This wont work on CHERI as argv pointer will have its bounds defined
+by its capability, you cannot just overwrite it as it can overflow
+its bounds.
+
+Signed-off-by: Pawel Zalewski <pzalewski@thegoodpenguin.co.uk>
+---
+ src/backend/utils/misc/ps_status.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/backend/utils/misc/ps_status.c b/src/backend/utils/misc/ps_status.c
+index ec314c03f5..e8b15dcb17 100644
+--- a/src/backend/utils/misc/ps_status.c
++++ b/src/backend/utils/misc/ps_status.c
+@@ -73,7 +73,7 @@ bool		update_process_title = true;
+ #define PS_USE_PS_STRINGS
+ #elif (defined(BSD) || defined(__hurd__)) && !defined(__darwin__)
+ #define PS_USE_CHANGE_ARGV
+-#elif defined(__linux__) || defined(_AIX) || defined(__sgi) || (defined(sun) && !defined(BSD)) || defined(__svr5__) || defined(__darwin__)
++#elif (defined(__linux__)  && !defined(__CHERI_PURE_CAPABILITY__)) || defined(_AIX) || defined(__sgi) || (defined(sun) && !defined(BSD)) || defined(__svr5__) || defined(__darwin__)
+ #define PS_USE_CLOBBER_ARGV
+ #elif defined(WIN32)
+ #define PS_USE_WIN32
+-- 
+2.43.0
+

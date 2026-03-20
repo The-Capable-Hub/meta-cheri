@@ -21,7 +21,11 @@ HOMEPAGE = "http://www.postgresql.com"
 LICENSE = "0BSD"
 DEPENDS = "libnsl2 readline tzcode-native perl bison-native musl"
 
-# ARM_INSTRUCTION_SET = "arm"
+SRC_URI:append = "\
+    file://postgres-bench \
+    file://postgres-test \
+    file://test-schedule \
+   "
 
 SRC_URI = "git://github.com/CTSRD-CHERI/postgres;protocol=https;branch=${SRCBRANCH} \
     file://postgresql.init \
@@ -46,12 +50,12 @@ inherit autotools pkgconfig perlnative  useradd update-rc.d systemd gettext perl
 
 CFLAGS += "\
     -ggdb -g3 -g -O0 \
-    -fno-omit-frame-pointer \
-    -Wno-cheri-provenance \
     -I${STAGING_INCDIR}/${PYTHON_DIR} \
     -I${STAGING_INCDIR}/tcl8.6 \
     -ffile-prefix-map=${WORKDIR}=. \
     "
+CFLAGS:remove = "-O2"
+INHIBIT_PACKAGE_STRIP = "1"
 
 SYSTEMD_SERVICE:${PN} = "postgresql.service"
 SYSTEMD_AUTO_ENABLE:${PN} = "disable"
@@ -86,6 +90,7 @@ PACKAGECONFIG[icu] = "--with-icu,--without-icu,icu,icu"
 PACKAGECONFIG[debug] = "--enable-debug,,"
 PACKAGECONFIG[readline] = "--with-readline,--without-readline,readline"
 
+EXTRA_OECONF += "ac_cv_alignof_voidp=16"
 EXTRA_OECONF += "--enable-thread-safety --disable-rpath \
     --datadir=${datadir}/${BPN} \
     --sysconfdir=${sysconfdir}/${BPN} \
@@ -237,6 +242,28 @@ do_install:append() {
                -e 's#${TMPDIR}##g' \
              ${D}${libdir}/${BPN}/pgxs/src/Makefile.global
     fi
+
+    # Install test scripts
+    BENCH_SCRIPT=${D}${libdir}/${BPN}/postgres-bench.sh
+    install -m 0755 ${WORKDIR}/postgres-bench ${BENCH_SCRIPT}
+
+    sed -e "s:%BINDIR%:${bindir}:g" -i ${BENCH_SCRIPT}
+    sed -e "s:%LIBDIR%:${libdir}:g" -i ${BENCH_SCRIPT}
+
+    TEST_SCRIPT=${D}${libdir}/${BPN}/postgres-test.sh
+    install -m 0755 ${WORKDIR}/postgres-test ${TEST_SCRIPT}
+
+    sed -e "s:%BINDIR%:${bindir}:g" -i ${TEST_SCRIPT}
+    sed -e "s:%LIBDIR%:${libdir}:g" -i ${TEST_SCRIPT}
+
+    PSQL_REGRESS=${libdir}/${PN}/pgxs/src/test/regress
+    install -d ${D}${PSQL_REGRESS}
+    cp -r ${S}/src/test/regress/data ${D}${PSQL_REGRESS}
+    cp -r ${S}/src/test/regress/expected ${D}${PSQL_REGRESS}
+    cp -r ${S}/src/test/regress/sql ${D}${PSQL_REGRESS}
+
+    install -m 644 ${WORKDIR}/test-schedule ${D}${libdir}/${PN}/pgxs/src/test/regress/serial_schedule
+    install -m 644 ${S}/src/test/regress/parallel_schedule ${D}${libdir}/${PN}/pgxs/src/test/regress/parallel_schedule
 }
 
 SSTATE_SCAN_FILES += "Makefile.global"
@@ -252,7 +279,7 @@ postgresql_fix_sources () {
 }
 PACKAGESPLITFUNCS =+ "postgresql_fix_sources"
 
-PACKAGES =+ "${PN}-client ${PN}-server-dev ${PN}-timezone \
+PACKAGES =+ "${PN}-client ${PN}-server-dev ${PN}-timezone ${PN}-test \
     libecpg-compat libecpg-compat-dev \
     libecpg libecpg-dev libecpg-staticdev libecpg-doc \
     libpq libpq-dev libpq-staticdev \
@@ -269,6 +296,16 @@ RPROVIDES:${PN}-dbg += "libecpg-compat-dbg \
                         ${PN}-plpython-dbg \
                         ${PN}-plperl-dbg \
                        "
+
+FILES:${PN}-test += "\
+    ${libdir}/${BPN}/postgres-test.sh \
+    ${libdir}/${BPN}/postgres-bench.sh \
+    ${libdir}/${PN}/pgxs/src/test/regress/test_schedule \
+    ${libdir}/${PN}/pgxs/src/test/regress/parallel_schedule \
+    ${libdir}/${PN}/pgxs/src/test/regress/data \
+    ${libdir}/${PN}/pgxs/src/test/regress/expected \
+    ${libdir}/${PN}/pgxs/src/test/regress/sql \
+    "
 
 FILES:${PN} += "${sysconfdir}/init.d/${BPN}-server \
     ${localstatedir}/lib/${BPN}/data ${localstatedir}/lib/${BPN}/backups \

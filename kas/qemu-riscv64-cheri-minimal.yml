@@ -6,3 +6,7 @@ header:
 machine: qemuriscv64cheri
 
 target: core-image-minimal
+
+local_conf_header:
+  debug: |
+    PACKAGE_DEBUG_SPLIT_STYLE = "debug-with-srcpkg"

@@ -17,7 +17,7 @@ index 1e4c0618e56a..990897f8be32 100644
  	unsigned long ret = 0;
  
 -	if ((flags & MAP_TYPE) == 0x02 /* MAP_PRIVATE */)
-+	if ((flags & MAP_TYPE) == 0x02 || (flags & MAP_TYPE) == 0x01 ) /* MAP_PRIVATE | MAP_SHARED */
++	if ((flags & MAP_TYPE) == 0x02 || (flags & MAP_TYPE) == 0x01 || (flags & MAP_TYPE) == 0x04 ) /* MAP_PRIVATE | MAP_SHARED | MAP_HUGETLB */
  		ret |= VM_READ_CAPS | VM_WRITE_CAPS;
  	if (flags & MAP_ANONYMOUS)
  		ret |= VM_READ_CAPS | VM_WRITE_CAPS;
