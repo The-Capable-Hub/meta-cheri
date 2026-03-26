@@ -1,0 +1,62 @@
+From: =?UTF-8?q?Uwe=20Kleine-K=C3=B6nig?= <u.kleine-koenig@baylibre.com>
+Date: Mon, 16 Mar 2026 19:13:38 +0100
+Subject: [PATCH] Fixes to make compilable with cheri
+
+There were two issues:
+
+ - lib/rawmemchr assumed (with a static assertion) that uintptr_t doesn't
+   use padding. The assertion triggers with cheri (as we have
+
+   	sizeof(uintptr_t) = 16
+   	UINTPTR_WIDTH = 8
+
+   . The latter is derived from UINTPTR_MAX = 0xffffffffffffffff).
+
+ - lib/stdint.in.h redefines some types to cope for incomplete system
+   headers. In the end it redefines uintptr_t to unsigned long long
+   which clashes with the system definition.
+
+Upstream-Status: Inappropriate [Cheri specific]
+---
+ lib/rawmemchr.c | 6 +++---
+ lib/stdint.in.h | 2 ++
+ 2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/lib/rawmemchr.c b/lib/rawmemchr.c
+index 45c6cd352768..6f2809071b33 100644
+--- a/lib/rawmemchr.c
++++ b/lib/rawmemchr.c
+@@ -31,10 +31,10 @@ void *
+ rawmemchr (const void *s, int c_in)
+ {
+   /* Change this typedef to experiment with performance.  */
+-  typedef uintptr_t longword;
+-  /* If you change the "uintptr_t", you should change UINTPTR_WIDTH to match.
++  typedef unsigned long longword;
++  /* If you change the "unsigned long", you should change ULONG_WIDTH to match.
+      This verifies that the type does not have padding bits.  */
+-  static_assert (UINTPTR_WIDTH == UCHAR_WIDTH * sizeof (longword));
++  static_assert (ULONG_WIDTH == UCHAR_WIDTH * sizeof (longword));
+ 
+   const unsigned char *char_ptr;
+   unsigned char c = c_in;
+diff --git a/lib/stdint.in.h b/lib/stdint.in.h
+index 5ddc644b8ee1..1a49b85342f1 100644
+--- a/lib/stdint.in.h
++++ b/lib/stdint.in.h
+@@ -299,6 +299,7 @@ typedef gl_uint_fast32_t gl_uint_fast16_t;
+ 
+ /* 7.18.1.4. Integer types capable of holding object pointers */
+ 
++#if 0
+ /* kLIBC's <stdint.h> defines _INTPTR_T_DECLARED and needs its own
+    definitions of intptr_t and uintptr_t (which use int and unsigned)
+    to avoid clashes with declarations of system functions like sbrk.
+@@ -319,6 +320,7 @@ typedef unsigned long int gl_uintptr_t;
+ #  define intptr_t gl_intptr_t
+ #  define uintptr_t gl_uintptr_t
+ # endif
++#endif
+ 
+ /* 7.18.1.5. Greatest-width integer types */
+ 

@@ -1,8 +1,0 @@
-header:
-  version: 16
-  includes:
-    - base.yml
-
-machine: qemuriscv64cheri
-
-target: core-image-minimal

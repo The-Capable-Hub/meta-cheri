@@ -1,0 +1,14 @@
+header:
+  version: 16
+  includes:
+    - kas/base.yml
+
+machine: qemuriscv64cheri
+
+repos:
+  meta-cheri:
+      layers:
+        meta-cheri-bsp:
+        meta-cheri-distro:
+
+target: core-image-minimal
