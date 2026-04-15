@@ -12,4 +12,12 @@ repos:
         meta-cheri-bsp:
         meta-cheri-distro:
 
+  meta-wolfssl:
+    url: "https://github.com/wolfSSL/meta-wolfssl"
+    commit: 443e6f58cd358b40f2958d8c6d6fa7b0498e2d35
+    branch: master
+    path: layers/meta-wolfssl
+    layers:
+      .:
+
 target: core-image-minimal

@@ -1,0 +1,192 @@
+From cfa96596859c1480a57f7a17e6c79cc0936231df Mon Sep 17 00:00:00 2001
+From: "William Beasley (The Capable Hub)" <wbeasley@thegoodpenguin.co.uk>
+Date: Tue, 14 Apr 2026 13:33:04 +0100
+Subject: [PATCH 2/5] cheri: Fix CHERI tag violation on constant time pointer
+ selection
+
+The branchless code in casts sp_int pointers to size_t for bitmask
+arithmetic, then casts the result back to sp_int*.
+
+On CHERI, pointer-to-integer casts strip the hardware capability tag.
+The reconstructed pointer is tagless and cannot be dereferenced,
+causing a tag-violation fault.
+
+Add _sp_cond_copy that uses the bitmask on the digit data itself rather
+than the addresses, this avoids needed to do pointer arithmetic.
+
+On non-CHERI targets the behaviour is the same.
+
+Signed-off-by: William Beasley (The Capable Hub) <wbeasley@thegoodpenguin.co.uk>
+---
+ wolfcrypt/src/sp_int.c | 66 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 66 insertions(+)
+
+diff --git a/wolfcrypt/src/sp_int.c b/wolfcrypt/src/sp_int.c
+index b6ce7d1a3..8d471cf72 100644
+--- a/wolfcrypt/src/sp_int.c
++++ b/wolfcrypt/src/sp_int.c
+@@ -5115,6 +5115,21 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
+     (defined(HAVE_ECC) && defined(HAVE_COMP_KEY)) || defined(OPENSSL_EXTRA) || \
+     (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+ #ifndef WC_NO_CACHE_RESISTANT
++#ifdef __CHERI_PURE_CAPABILITY__
++static void _sp_cond_copy(const sp_int* a, int copy, sp_int* r, sp_size_t used)
++{
++    sp_int_digit mask = (sp_int_digit)0 - (sp_int_digit)copy;
++    unsigned int i;
++
++    for (i = 0; i < (unsigned int)used; i++) {
++        r->dp[i] ^= (r->dp[i] ^ a->dp[i]) & mask;
++    }
++    r->used ^= (r->used ^ a->used) & (sp_size_t)mask;
++#ifdef WOLFSSL_SP_INT_NEGATIVE
++    r->sign ^= (r->sign ^ a->sign) & (sp_sign_t)mask;
++#endif
++}
++#else
+     /* Mask of address for constant time operations. */
+     const size_t sp_off_on_addr[2] =
+     {
+@@ -5123,6 +5138,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
+     };
+ #endif
+ #endif
++#endif
+ 
+ 
+ #if defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_HAVE_SP_RSA)
+@@ -13166,13 +13182,23 @@ static int _sp_exptmod_ex(const sp_int* b, const sp_int* e, int bits,
+             }
+ #else
+             /* 4.1. t[s] = t[s] ^ 2 */
++#ifdef __CHERI_PURE_CAPABILITY__
++            _sp_cond_copy(t[0], s^1, t[2], m->used);
++            _sp_cond_copy(t[1], s,   t[2], m->used);
++#else
+             _sp_copy((sp_int*)(((size_t)t[0] & sp_off_on_addr[s^1]) +
+                                ((size_t)t[1] & sp_off_on_addr[s  ])),
+                      t[2]);
++#endif
+             err = sp_sqrmod(t[2], m, t[2]);
++#ifdef __CHERI_PURE_CAPABILITY__
++            _sp_cond_copy(t[2], s^1, t[0], m->used);
++            _sp_cond_copy(t[2], s,   t[1], m->used);
++#else
+             _sp_copy(t[2],
+                      (sp_int*)(((size_t)t[0] & sp_off_on_addr[s^1]) +
+                                ((size_t)t[1] & sp_off_on_addr[s  ])));
++#endif
+ 
+             if (err == MP_OKAY) {
+                 /* 4.2. y = e[i] */
+@@ -13183,13 +13209,23 @@ static int _sp_exptmod_ex(const sp_int* b, const sp_int* e, int bits,
+                 /* 4.4  s = s | y */
+                 s |= y;
+                 /* 4.5. t[j] = t[j] * b */
++#ifdef __CHERI_PURE_CAPABILITY__
++                _sp_cond_copy(t[0], j^1, t[2], m->used);
++                _sp_cond_copy(t[1], j,   t[2], m->used);
++#else
+                 _sp_copy((sp_int*)(((size_t)t[0] & sp_off_on_addr[j^1]) +
+                                    ((size_t)t[1] & sp_off_on_addr[j  ])),
+                          t[2]);
++#endif
+                 err = _sp_mulmod(t[2], b, m, t[2]);
++#ifdef __CHERI_PURE_CAPABILITY__
++                _sp_cond_copy(t[2], j^1, t[0], m->used);
++                _sp_cond_copy(t[2], j,   t[1], m->used);
++#else
+                 _sp_copy(t[2],
+                          (sp_int*)(((size_t)t[0] & sp_off_on_addr[j^1]) +
+                                    ((size_t)t[1] & sp_off_on_addr[j  ])));
++#endif
+             }
+ #endif
+         }
+@@ -13279,9 +13315,14 @@ static int _sp_exptmod_ex(const sp_int* b, const sp_int* e, int bits,
+             err = sp_mulmod(t[0], t[1], m, t[2]);
+             /* 3.3. t[3] = t[y] ^ 2 */
+             if (err == MP_OKAY) {
++#ifdef __CHERI_PURE_CAPABILITY__
++                _sp_cond_copy(t[0], y^1, t[3], m->used);
++                _sp_cond_copy(t[1], y,   t[3], m->used);
++#else
+                 _sp_copy((sp_int*)(((size_t)t[0] & sp_off_on_addr[y^1]) +
+                                    ((size_t)t[1] & sp_off_on_addr[y  ])),
+                          t[3]);
++#endif
+                 err = sp_sqrmod(t[3], m, t[3]);
+             }
+             /* 3.4. t[y] = t[3], t[y^1] = t[2] */
+@@ -13403,16 +13444,26 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
+         /* 6. For i in (bits-1)...0 */
+         for (i = bits - 1; (err == MP_OKAY) && (i >= 0); i--) {
+             /* 6.1. t[s] = t[s] ^ 2 */
++#ifdef __CHERI_PURE_CAPABILITY__
++            _sp_cond_copy(t[0], s^1, t[3], m->used);
++            _sp_cond_copy(t[1], s,   t[3], m->used);
++#else
+             _sp_copy((sp_int*)(((size_t)t[0] & sp_off_on_addr[s^1]) +
+                                ((size_t)t[1] & sp_off_on_addr[s  ])),
+                      t[3]);
++#endif
+             err = sp_sqr(t[3], t[3]);
+             if (err == MP_OKAY) {
+                 err = _sp_mont_red(t[3], m, mp, 0);
+             }
++#ifdef __CHERI_PURE_CAPABILITY__
++            _sp_cond_copy(t[3], s^1, t[0], m->used);
++            _sp_cond_copy(t[3], s,   t[1], m->used);
++#else
+             _sp_copy(t[3],
+                      (sp_int*)(((size_t)t[0] & sp_off_on_addr[s^1]) +
+                                ((size_t)t[1] & sp_off_on_addr[s  ])));
++#endif
+ 
+             if (err == MP_OKAY) {
+                 /* 6.2. y = e[i] */
+@@ -13424,16 +13475,26 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
+                 s |= y;
+ 
+                 /* 6.5. t[j] = t[j] * bm */
++#ifdef __CHERI_PURE_CAPABILITY__
++                _sp_cond_copy(t[0], j^1, t[3], m->used);
++                _sp_cond_copy(t[1], j,   t[3], m->used);
++#else
+                 _sp_copy((sp_int*)(((size_t)t[0] & sp_off_on_addr[j^1]) +
+                                    ((size_t)t[1] & sp_off_on_addr[j  ])),
+                          t[3]);
++#endif
+                 err = sp_mul(t[3], t[2], t[3]);
+                 if (err == MP_OKAY) {
+                     err = _sp_mont_red(t[3], m, mp, 0);
+                 }
++#ifdef __CHERI_PURE_CAPABILITY__
++                _sp_cond_copy(t[3], j^1, t[0], m->used);
++                _sp_cond_copy(t[3], j,   t[1], m->used);
++#else
+                 _sp_copy(t[3],
+                          (sp_int*)(((size_t)t[0] & sp_off_on_addr[j^1]) +
+                                    ((size_t)t[1] & sp_off_on_addr[j  ])));
++#endif
+             }
+         }
+         if (err == MP_OKAY) {
+@@ -13543,9 +13604,14 @@ static int _sp_exptmod_mont_ex(const sp_int* b, const sp_int* e, int bits,
+             }
+             /* 4.3. t[3] = t[y] ^ 2 */
+             if (err == MP_OKAY) {
++#ifdef __CHERI_PURE_CAPABILITY__
++                _sp_cond_copy(t[0], y^1, t[3], m->used);
++                _sp_cond_copy(t[1], y,   t[3], m->used);
++#else
+                 _sp_copy((sp_int*)(((size_t)t[0] & sp_off_on_addr[y^1]) +
+                                    ((size_t)t[1] & sp_off_on_addr[y  ])),
+                          t[3]);
++#endif
+                 err = sp_sqr(t[3], t[3]);
+             }
+             if (err == MP_OKAY) {
+-- 
+2.43.0
+

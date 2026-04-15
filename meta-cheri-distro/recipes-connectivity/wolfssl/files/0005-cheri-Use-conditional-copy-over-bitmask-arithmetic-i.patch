@@ -1,0 +1,50 @@
+From a0fe4ae615f782b13130db33844b027686f12d05 Mon Sep 17 00:00:00 2001
+From: "William Beasley (The Capable Hub)" <wbeasley@thegoodpenguin.co.uk>
+Date: Tue, 5 May 2026 15:12:11 +0100
+Subject: [PATCH 5/5] cheri: Use conditional copy over bitmask arithmetic in
+ sakke_modexp_loop
+
+On CHERI casting mp_int pointers to wc_ptr_t for the bitmask
+arithmetic strips the hardware capability tag. The reconstructed
+pointer won't have a valid tag and will cause a tag violation when it
+is dereferenced.
+
+Under __CHERI_PURE_CAPABILITY__, replace the pointer arithmetic with
+four mp_cond_copy calls that operate on the digit data directly.
+This preserves the capability tags and accesses both accumulators
+unconditionally.
+
+Non-CHERI builds retain the original wc_off_on_addr path unchanged.
+
+Signed-off-by: William Beasley (The Capable Hub) <wbeasley@thegoodpenguin.co.uk>
+---
+ wolfcrypt/src/sakke.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/wolfcrypt/src/sakke.c b/wolfcrypt/src/sakke.c
+index f07f4cf4b..c7dff9204 100644
+--- a/wolfcrypt/src/sakke.c
++++ b/wolfcrypt/src/sakke.c
+@@ -2649,12 +2649,19 @@ static int sakke_modexp_loop(SakkeKey* key, mp_int* b, mp_int* e, mp_proj* r,
+             err = sakke_proj_mul_qx1(c[0], by, prime, mp, c[j^1], t1, t2);
+ #else
+             err = sakke_proj_mul_qx1(c[0], by, prime, mp, c[2], t1, t2);
++#ifdef __CHERI_PURE_CAPABILITY__
++            err = mp_cond_copy(c[2]->x, j,   c[0]->x);
++            err = mp_cond_copy(c[2]->x, j^1, c[1]->x);
++            err = mp_cond_copy(c[2]->y, j,   c[0]->y);
++            err = mp_cond_copy(c[2]->y, j^1, c[1]->y);
++#else
+             mp_copy(c[2]->x,
+             (mp_int*) ( ((wc_ptr_t)c[0]->x & wc_off_on_addr[j]) +
+                         ((wc_ptr_t)c[1]->x & wc_off_on_addr[j^1]) ) );
+             mp_copy(c[2]->y,
+             (mp_int*) ( ((wc_ptr_t)c[0]->y & wc_off_on_addr[j]) +
+                         ((wc_ptr_t)c[1]->y & wc_off_on_addr[j^1]) ) );
++#endif
+ #endif
+         }
+     }
+-- 
+2.43.0
+

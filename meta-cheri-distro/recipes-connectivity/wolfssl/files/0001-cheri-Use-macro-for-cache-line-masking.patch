@@ -1,0 +1,44 @@
+From 5c52734d57477f9fe4953145a6914f797f67470d Mon Sep 17 00:00:00 2001
+From: "William Beasley (The Capable Hub)" <wbeasley@thegoodpenguin.co.uk>
+Date: Tue, 14 Apr 2026 12:03:34 +0100
+Subject: [PATCH 1/5] cheri: Use macro for cache line masking
+
+This caused problems on CHERI with bounds violations.
+
+The code assumes WC_CACHE_LINE_SZ == 64 and perhaps this is not the case.
+
+Signed-off-by: William Beasley (The Capable Hub) <wbeasley@thegoodpenguin.co.uk>
+---
+ wolfcrypt/src/aes.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/wolfcrypt/src/aes.c b/wolfcrypt/src/aes.c
+index 02a6e1d42..8057f3079 100644
+--- a/wolfcrypt/src/aes.c
++++ b/wolfcrypt/src/aes.c
+@@ -2151,14 +2151,14 @@ static void XorTable_Multi(const word32* t, word32* t0, byte o0,
+     word32 e1 = 0;
+     word32 e2 = 0;
+     word32 e3 = 0;
+-    byte hi0 = o0 & 0xf0;
+-    byte lo0 = o0 & 0x0f;
+-    byte hi1 = o1 & 0xf0;
+-    byte lo1 = o1 & 0x0f;
+-    byte hi2 = o2 & 0xf0;
+-    byte lo2 = o2 & 0x0f;
+-    byte hi3 = o3 & 0xf0;
+-    byte lo3 = o3 & 0x0f;
++    byte hi0 = o0 & WC_CACHE_LINE_MASK_HI;
++    byte lo0 = o0 & WC_CACHE_LINE_MASK_LO;
++    byte hi1 = o1 & WC_CACHE_LINE_MASK_HI;
++    byte lo1 = o1 & WC_CACHE_LINE_MASK_LO;
++    byte hi2 = o2 & WC_CACHE_LINE_MASK_HI;
++    byte lo2 = o2 & WC_CACHE_LINE_MASK_LO;
++    byte hi3 = o3 & WC_CACHE_LINE_MASK_HI;
++    byte lo3 = o3 & WC_CACHE_LINE_MASK_LO;
+     int i;
+ 
+     for (i = 0; i < 256; i += (1 << WC_CACHE_LINE_BITS)) {
+-- 
+2.43.0
+
