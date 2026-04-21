@@ -1,0 +1,26 @@
+From b1b869e67e0b738e09b449a6146ae8614eb0f1f6 Mon Sep 17 00:00:00 2001
+From: Harrison Carter <harrison.carter@thecapablehub.org>
+Date: Tue, 10 Mar 2026 11:23:23 +0000
+Subject: [PATCH 1/1] riscv- mman: allow for storing caps in shared memory
+
+Signed-off-by: Harrison Carter <harrison.carter@thecapablehub.org>
+---
+ arch/riscv/include/asm/mman.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/riscv/include/asm/mman.h b/arch/riscv/include/asm/mman.h
+index 1e4c0618e56a..990897f8be32 100644
+--- a/arch/riscv/include/asm/mman.h
++++ b/arch/riscv/include/asm/mman.h
+@@ -14,7 +14,7 @@ static inline unsigned long arch_calc_vm_flag_bits(struct file * file,
+ {
+ 	unsigned long ret = 0;
+ 
+-	if ((flags & MAP_TYPE) == 0x02 /* MAP_PRIVATE */)
++	if ((flags & MAP_TYPE) == 0x02 || (flags & MAP_TYPE) == 0x01 || (flags & MAP_TYPE) == 0x04 ) /* MAP_PRIVATE | MAP_SHARED | MAP_HUGETLB */
+ 		ret |= VM_READ_CAPS | VM_WRITE_CAPS;
+ 	if (flags & MAP_ANONYMOUS)
+ 		ret |= VM_READ_CAPS | VM_WRITE_CAPS;
+-- 
+2.43.0
+

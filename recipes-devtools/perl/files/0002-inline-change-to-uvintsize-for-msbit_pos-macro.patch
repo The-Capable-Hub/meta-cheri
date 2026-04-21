@@ -1,0 +1,30 @@
+From 55f69ab655983396f8abe06981dbbbbe6121b59f Mon Sep 17 00:00:00 2001
+From: Harrison Carter <harrison.carter@thecapablehub.org>
+Date: Tue, 17 Feb 2026 21:46:01 +0000
+Subject: [PATCH 1/1] inline: change to uvintsize for msbit_pos macro
+
+Signed-off-by: Harrison Carter <harrison.carter@thecapablehub.org>
+---
+ inline.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/inline.h b/inline.h
+index 21b86e6..39aedc8 100644
+--- a/inline.h
++++ b/inline.h
+@@ -908,10 +908,10 @@ Perl_msbit_pos32(U32 word)
+ 
+ }
+ 
+-#if UVSIZE == U64SIZE
++#if UVINTSIZE == U64SIZE
+ #  define msbit_pos(word)  msbit_pos64(word)
+ #  define lsbit_pos(word)  lsbit_pos64(word)
+-#elif UVSIZE == U32SIZE
++#elif UVINTSIZE == U32SIZE
+ #  define msbit_pos(word)  msbit_pos32(word)
+ #  define lsbit_pos(word)  lsbit_pos32(word)
+ #endif
+-- 
+2.43.0
+

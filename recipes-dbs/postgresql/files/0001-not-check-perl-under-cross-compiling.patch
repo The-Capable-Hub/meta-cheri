@@ -1,0 +1,37 @@
+From 9837eed0167258870b270c627ac2b86cc00edc4d Mon Sep 17 00:00:00 2001
+From: Roy Li <rongqing.li@windriver.com>
+Date: Thu, 19 Feb 2026 18:15:35 +0000
+Subject: [PATCH 1/4] not check libperl under cross compiling
+
+Upstream-Status: Inappropriate [configuration]
+
+libperl ldflags returned by PGAC_CHECK_PERL_EMBED_LDFLAGS are native,
+can not be used to check target library.
+
+postpresql has the dependency on perl, so not need to check libperl
+again, like in postgresql-9.2.4
+
+Signed-off-by: Roy Li <rongqing.li@windriver.com>
+
+update patch to version 11.1
+Signed-off-by: Changqing Li <changqing.li@windriver.com>
+---
+ configure.ac | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/configure.ac b/configure.ac
+index ed18da5062..1f80f6e27f 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -2398,7 +2398,7 @@ Use --without-tcl to disable building PL/Tcl.])
+ fi
+ 
+ # check for <perl.h>
+-if test "$with_perl" = yes; then
++if test "$with_perl" = yes && test "$cross_compiling" = no; then
+   ac_save_CPPFLAGS=$CPPFLAGS
+   CPPFLAGS="$CPPFLAGS $perl_includespec"
+   AC_CHECK_HEADER(perl.h, [], [AC_MSG_ERROR([header file <perl.h> is required for Perl])],
+-- 
+2.43.0
+

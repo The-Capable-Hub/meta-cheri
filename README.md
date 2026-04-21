@@ -47,3 +47,12 @@ build ./kas/qemu-riscv64-cheri-minimal-multilib.yml
 ```shell
 kas shell ./kas/qemu-riscv64-cheri-minimal-multilib.yml -c 'runqemu qemuriscv64cheri nographic slirp snapshot'
 ```
+
+# Notes on building/running with postgres
+
+To make Postgres [operational](https://github.com/postgres/postgres/blob/REL_15_STABLE/src/backend/storage/ipc/shmem.c), the Linux kernel is patched to allow storing of capabilities in shared memory regions, as at the moment there is no API for that. If you are willing to accept this then use the following
+
+```shell
+kas build kas/qemu-riscv64-cheri-minimal-multilib.yml:kas/postgres.yml
+kas shell kas/qemu-riscv64-cheri-minimal-multilib.yml:kas/postgres.yml -c 'runqemu qemuriscv64cheri nographic slirp snapshot'
+```

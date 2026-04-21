@@ -1,0 +1,12 @@
+header:
+  version: 16
+
+local_conf_header:
+  postgres_shmem: |
+    # This enables a kernel patch that allows capability storage
+    # in shmem
+
+    DISTRO_FEATURES:append = " postgres"
+    OVERRIDES:append = ":${@bb.utils.contains('DISTRO_FEATURES', 'postgres', 'enable-shmem-cap', '', d)}"
+    IMAGE_INSTALL:append = "${@bb.utils.contains('DISTRO_FEATURES', 'postgres', ' packagegroup-postgres', '', d)}"
+    IMAGE_ROOTFS_EXTRA_SPACE = "${@bb.utils.contains('DISTRO_FEATURES', 'postgres', '4194304', '0', d)}"

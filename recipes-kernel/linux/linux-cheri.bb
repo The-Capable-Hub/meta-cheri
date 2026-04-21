@@ -21,6 +21,14 @@ SRC_URI = " \
     git://${META_CHERI_LINUX_REPO};protocol=${META_CHERI_LINUX_PROTOCOL};branch=${META_CHERI_LINUX_BRANCH} \
 "
 
+SRC_URI:append:enable-shmem-cap = "\
+    file://0001-riscv-mman-allow-for-storing-caps-in-shared-memory.patch \
+"
+
+do_patch:prepend:enable-shmem-cap() {
+    bbwarn "Storing capabilites in shmem is now enabled"
+}
+
 LINUX_VERSION ?= "6.18.0"
 LINUX_VERSION_EXTENSION:append = "-cheri"
 

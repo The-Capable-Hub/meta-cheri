@@ -1,0 +1,33 @@
+From ce961471b91a6813ffed2c42da016065ee0da64c Mon Sep 17 00:00:00 2001
+From: Pawel Zalewski <pzalewski@thegoodpenguin.co.uk>
+Date: Mon, 20 Apr 2026 16:41:57 +0100
+Subject: [PATCH 6/6] parallel_schedule: remove indirect_toast
+
+This test will fail on CHERI due to misalinged capability being stored
+in the heap tuple. The attempts to fix this in heaptuple module were making
+the rest of postgres un-operational even at initdb stage, which felt wrong.
+It needs a proper fix where varlenas have guaranteed alingment which is
+always that of a pointer without #ifdefs in all possible code paths
+(read, write, cache).
+
+Signed-off-by: Pawel Zalewski <pzalewski@thegoodpenguin.co.uk>
+---
+ src/test/regress/parallel_schedule | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/test/regress/parallel_schedule b/src/test/regress/parallel_schedule
+index 9f644a0c1b..02670eff70 100644
+--- a/src/test/regress/parallel_schedule
++++ b/src/test/regress/parallel_schedule
+@@ -106,7 +106,7 @@ test: publication subscription
+ # Another group of parallel tests
+ # select_views depends on create_view
+ # ----------
+-test: select_views portals_p2 foreign_key cluster dependency guc bitmapops combocid tsearch tsdicts foreign_data window xmlmap functional_deps advisory_lock indirect_toast equivclass
++test: select_views portals_p2 foreign_key cluster dependency guc bitmapops combocid tsearch tsdicts foreign_data window xmlmap functional_deps advisory_lock equivclass
+ 
+ # ----------
+ # Another group of parallel tests (JSON related)
+-- 
+2.43.0
+

@@ -1,0 +1,63 @@
+#!/bin/sh
+# Adapted from : https://github.com/CTSRD-CHERI/postgres/blob/REL_15_STABLE/run-postgres-tests.sh
+
+PGENGINE=/usr/bin
+LIBDIR=/usr/lib/
+
+if [ -x /sbin/runuser ]
+then
+    SU=runuser
+else
+    SU=su
+fi
+
+POSTGRES_INSTANCE="/tmp/postgres-test-cheri/instance"
+
+export PG_LIBDIR="${LIBDIR}/postgresql/"
+export PG_ABS_SRCDIR="${LIBDIR}/postgresql/pgxs/src/test/regress"
+export PG_DLSUFFIX=".so"
+
+PG_REGRESS=${PG_ABS_SRCDIR}/pg_regress
+
+function setup_test() {
+    OUTPUT_DIR="/tmp/pg_test"
+
+    rm -rf "${OUTPUT_DIR}"
+
+    mkdir -p "${OUTPUT_DIR}"
+    mkdir -p "${OUTPUT_DIR}"/log
+    mkdir -p "${OUTPUT_DIR}"/sql
+    mkdir -p "${OUTPUT_DIR}"/expected
+    mkdir -p "${OUTPUT_DIR}"/results
+    mkdir -p "${OUTPUT_DIR}"/testtablespace
+    mkdir -p $POSTGRES_INSTANCE
+
+    cd "${OUTPUT_DIR}"
+}
+
+function do_test() {
+    local sched=$1
+    shift
+
+    if "${PG_REGRESS}" "--inputdir=${LIBDIR}/postgresql/pgxs/src/test/regress" "--bindir=${PGENGINE}" "--dlpath=${PG_LIBDIR}"  "--schedule=${LIBDIR}/postgresql/pgxs/src/test/regress/${sched}" "--outputdir=${OUTPUT_DIR}" "--temp-instance=$POSTGRES_INSTANCE" $@
+    then
+        echo "TESTS SUCCCEEDED"
+    else
+        if [ "$?" = 1 ]; then
+            echo "TESTS UNSTABLE"
+            echo "CHECKING FOR ASSERTION FAILURES:"
+            grep TRAP "${OUTPUT_DIR}/log/postmaster.log" || true
+            exit 0
+        else
+            echo "Got test failures, reading initdb log: ${OUTPUT_DIR}/log/initdb.log"
+            cat "${OUTPUT_DIR}/log/initdb.log"
+            false
+        fi
+    fi
+    mv /tmp/pg_test /tmp/pg_test_${sched}
+}
+
+setup_test
+do_test "test-schedule" $@
+setup_test
+do_test "parallel_schedule" $@

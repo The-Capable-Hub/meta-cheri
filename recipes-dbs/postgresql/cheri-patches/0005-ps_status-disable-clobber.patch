@@ -1,0 +1,42 @@
+From 89ac31935be6248e1d905c22e678bfb4c32fe51e Mon Sep 17 00:00:00 2001
+From: Pawel Zalewski <pzalewski@thegoodpenguin.co.uk>
+Date: Thu, 19 Mar 2026 15:40:01 +0000
+Subject: [PATCH] ps_status: disable argv clobber for Linux
+
+In `save_ps_display_args` that is run by `main.c` from the backend,
+near beginning of time a static module variable `ps_buffer` is set to
+argv[0], then `ps_buffer_size` is computed as the difference between
+the end of contiguous env[] area that follows and argv[0], then both
+argv and env are substituted with a replacements that are mallocated
+for further referencing.
+
+At later time in `init_ps_display` run from postmaster.c a prefix is
+sprintfed into `ps_buffer` and `ps_buffer_size` is used as the length
+of the copy, the assumption is that this can now be re-used as for storing
+program prefix as we have made copies of the original memory content
+that was there.
+
+This wont work on CHERI as the original argv pointer will have its bounds
+defined by its capability, so you cannot just overwrite it into the area
+spanned by env even if you do not use it as this will overflow its bounds.
+
+Signed-off-by: Pawel Zalewski <pzalewski@thegoodpenguin.co.uk>
+---
+ src/backend/utils/misc/ps_status.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/backend/utils/misc/ps_status.c b/src/backend/utils/misc/ps_status.c
+index ec314c03f5..e8b15dcb17 100644
+--- a/src/backend/utils/misc/ps_status.c
++++ b/src/backend/utils/misc/ps_status.c
+@@ -73,7 +73,7 @@ bool		update_process_title = true;
+ #define PS_USE_PS_STRINGS
+ #elif (defined(BSD) || defined(__hurd__)) && !defined(__darwin__)
+ #define PS_USE_CHANGE_ARGV
+-#elif defined(__linux__) || defined(_AIX) || defined(__sgi) || (defined(sun) && !defined(BSD)) || defined(__svr5__) || defined(__darwin__)
++#elif (defined(__linux__)  && !defined(__CHERI_PURE_CAPABILITY__)) || defined(_AIX) || defined(__sgi) || (defined(sun) && !defined(BSD)) || defined(__svr5__) || defined(__darwin__)
+ #define PS_USE_CLOBBER_ARGV
+ #elif defined(WIN32)
+ #define PS_USE_WIN32
+-- 
+2.43.0
