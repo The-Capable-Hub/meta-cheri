@@ -1,0 +1,12 @@
+targets:
+  main:
+    resources:
+      RawSerialPort:
+        port: "/dev/ttyUSB0"
+    drivers:
+      SerialDriver: {}
+      ShellDriver:
+        prompt: 'cva6cheri login:[^ ]+ '
+        login_prompt: ' login: '
+        username: 'root'
+        login_timeout: 840

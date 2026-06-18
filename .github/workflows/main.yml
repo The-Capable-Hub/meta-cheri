@@ -83,3 +83,81 @@ jobs:
              name: failure-logs
              path: |
                ${{env.BUILD_DIR}}/build/tmp*/work*/**/temp/*.do_*.*
+
+   cva6cheri-riscv64-cheri-minimal-multilib:
+      runs-on: the-capable-hub-aws-ci
+      env:
+         BUILD_DIR: ${{github.workspace}}/volatile/${{ github.job }}
+      container:
+        image: capablehub/cheri-yocto:latest
+
+      steps:
+         - name: Setup
+           run: |
+              sudo mkdir -p ${{env.BUILD_DIR}}
+              echo HOME=/home/ci | sudo tee -a $GITHUB_ENV
+              sudo ln -sf /home/ci ${{env.BUILD_DIR}}
+
+         - name: Checkout layers
+           uses: actions/checkout@v4
+           with:
+              path: ${{env.BUILD_DIR}}
+
+         - name: Build kas
+           run: |
+            cd $BUILD_DIR
+            kas build kas/cva6cheri-riscv64-codasip-distro-multilib.yml
+
+         - name: Upload build logs on failure
+           if: failure()
+           uses: actions/upload-artifact@v4
+           with:
+             name: failure-logs
+             path: |
+               ${{env.BUILD_DIR}}/build/tmp*/work*/**/temp/*.do_*.*
+
+         - name: Upload CVA6 CHERI image artifacts
+           uses: actions/upload-artifact@v4
+           with:
+              name: artifacts_${{ github.job }}
+              path: |
+                 ${{env.BUILD_DIR}}/build/tmp-musl/deploy/images/cva6cheri/core-image-minimal-cva6cheri.rootfs.wic
+
+   cva6cheri-test:
+      name: "CVA6 CHERI hardware test"
+      needs: cva6cheri-riscv64-cheri-minimal-multilib
+
+      # Ensure we have access to the Genesys2 board in The Capable Hub's farm
+      runs-on: [ the-capable-hub-farm, board:Genesys2 ]
+      steps:
+         - name: Check out repository
+           uses: actions/checkout@v6
+
+         - name: Download wic artifact
+           uses: actions/download-artifact@v8
+           with:
+              name: artifacts_cva6cheri-riscv64-cheri-minimal-multilib
+
+         - name: Flash firmware
+           run: |
+              sudo apt update && sudo apt install -y bmap-tools
+
+              sudo usbrelay HURTM_1=0
+              sudo usbsdmux /dev/sg1 host
+
+              for i in {0..10}; do echo "Waiting for SD Card...."; if [ -e /dev/sda1 ]; then break; fi; sleep 0.5; done
+              if [ ! -e /dev/sda1 ]; then echo "Timed out waiting for SD Card!"; exit 1; fi
+
+              echo "Flashing WIC image.."
+              sudo bmaptool copy --nobmap core-image-minimal-cva6cheri.rootfs.wic /dev/sda
+              sync
+
+              sudo usbsdmux /dev/sg1 dut
+         - name: Boot and test firmware
+           shell: bash
+           run: |
+              cd ci/labgrid
+              source /opt/labgrid-env/bin/activate
+
+              sudo usbrelay HURTM_1=1
+              sudo -E `which pytest` --lg-env local.yaml --capture=no test_shell.py
