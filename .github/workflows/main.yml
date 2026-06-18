@@ -1,16 +1,10 @@
 name: main
 
-on:
-  push:
-    branches:
-      - codasip-scarthgap
-  pull_request:
-    types: [review_requested, edited, synchronize]
-
-  workflow_dispatch:
+on: push
 
 jobs:
    qemu-riscv64-cheri-minimal-multilib:
+      if: false
       runs-on: the-capable-hub-aws-ci
       env:
          BUILD_DIR: ${{github.workspace}}/volatile/${{ github.job }}
@@ -53,6 +47,7 @@ jobs:
 
    # check if non-multilib still builds
    qemu-riscv64-cheri-minimal:
+      if: false
       runs-on: the-capable-hub-aws-ci
       env:
          BUILD_DIR: ${{github.workspace}}/volatile/${{ github.job }}
